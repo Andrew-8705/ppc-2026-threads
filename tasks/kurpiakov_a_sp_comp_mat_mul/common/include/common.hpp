@@ -183,16 +183,13 @@ class CSRMatrix {
     int nrows = rows;
     int ncols = other.cols;
 
-#pragma omp parallel default(shared)
-    {
-      std::vector<T> acc_re(ncols, T(0));
-      std::vector<T> acc_im(ncols, T(0));
-      std::vector<bool> local_used(ncols, false);
+    std::vector<T> acc_re(ncols, T(0));
+    std::vector<T> acc_im(ncols, T(0));
+    std::vector<bool> local_used(ncols, false);
 
 #pragma omp for schedule(dynamic)
-      for (int i = 0; i < nrows; ++i) {
-        ProcessRow(i, *this, other, acc_re, acc_im, local_used, row_values, row_col_indices);
-      }
+    for (int i = 0; i < nrows; ++i) {
+      ProcessRow(i, *this, other, acc_re, acc_im, local_used, row_values, row_col_indices);
     }
 
     int total_nnz = 0;
