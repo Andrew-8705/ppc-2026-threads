@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "kurpiakov_a_sp_comp_mat_mul/common/include/common.hpp"
-#include "util/include/util.hpp"
 
 namespace kurpiakov_a_sp_comp_mat_mul {
 
