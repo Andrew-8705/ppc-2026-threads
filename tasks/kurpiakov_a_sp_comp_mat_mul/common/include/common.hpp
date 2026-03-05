@@ -131,6 +131,87 @@ class CSRMatrix {
     return result;
   }
 
+  [[nodiscard]] CSRMatrix OMPMultiply(const CSRMatrix &other) const {
+    if (cols != other.rows) {
+      return {};
+    }
+
+    CSRMatrix result(rows, other.cols);
+
+    std::vector<std::vector<Complex<T>>> row_values(rows);
+    std::vector<std::vector<int>> row_col_indices(rows);
+
+#pragma omp parallel
+    {
+      std::vector<T> acc_re(other.cols, T(0));
+      std::vector<T> acc_im(other.cols, T(0));
+      std::vector<bool> local_used(other.cols, false);
+
+#pragma omp for schedule(static)
+      for (int i = 0; i < rows; ++i) {
+        std::vector<int> used_cols;
+        used_cols.reserve(other.cols);
+
+        for (int ja = row_ptr[i]; ja < row_ptr[i + 1]; ++ja) {
+          int ka = col_indices[ja];
+          T a_re = values[ja].re;
+          T a_im = values[ja].im;
+
+          int jb_start = other.row_ptr[ka];
+          int jb_end = other.row_ptr[ka + 1];
+          int len = jb_end - jb_start;
+
+#pragma omp simd
+          for (int jb = 0; jb < len; ++jb) {
+            int cb = other.col_indices[jb_start + jb];
+            T b_re = other.values[jb_start + jb].re;
+            T b_im = other.values[jb_start + jb].im;
+
+            acc_re[cb] += (a_re * b_re) - (a_im * b_im);
+            acc_im[cb] += (a_re * b_im) + (a_im * b_re);
+          }
+
+          for (int jb = jb_start; jb < jb_end; ++jb) {
+            int cb = other.col_indices[jb];
+            if (!local_used[cb]) {
+              local_used[cb] = true;
+              used_cols.push_back(cb);
+            }
+          }
+        }
+
+        std::ranges::sort(used_cols);
+
+        row_values[i].reserve(used_cols.size());
+        row_col_indices[i].reserve(used_cols.size());
+
+        for (int c : used_cols) {
+          row_values[i].emplace_back(acc_re[c], acc_im[c]);
+          row_col_indices[i].push_back(c);
+          acc_re[c] = T(0);
+          acc_im[c] = T(0);
+          local_used[c] = false;
+        }
+      }
+    }
+
+    int total_nnz = 0;
+    for (int i = 0; i < rows; ++i) {
+      total_nnz += static_cast<int>(row_values[i].size());
+    }
+
+    result.values.reserve(total_nnz);
+    result.col_indices.reserve(total_nnz);
+
+    for (int i = 0; i < rows; ++i) {
+      result.values.insert(result.values.end(), row_values[i].begin(), row_values[i].end());
+      result.col_indices.insert(result.col_indices.end(), row_col_indices[i].begin(), row_col_indices[i].end());
+      result.row_ptr[i + 1] = static_cast<int>(result.values.size());
+    }
+
+    return result;
+  }
+
   [[nodiscard]] std::vector<Complex<T>> ToDense() const {
     std::vector<Complex<T>> dense(rows * cols);
     for (int i = 0; i < rows; ++i) {
