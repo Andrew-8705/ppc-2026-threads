@@ -183,7 +183,7 @@ class CSRMatrix {
     int nrows = rows;
     int ncols = other.cols;
 
-#pragma omp parallel default(none) shared(other, row_values, row_col_indices, nrows, ncols)
+#pragma omp parallel default(shared)
     {
       std::vector<T> acc_re(ncols, T(0));
       std::vector<T> acc_im(ncols, T(0));
