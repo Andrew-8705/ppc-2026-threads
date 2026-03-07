@@ -54,9 +54,10 @@ TEST_P(GusevaMatMulCRSFuncTest, G) {
 const std::array<TestType, 6> kTestParam = {"sparse_dense",   "dense_sparse",   "double_sparse1",
                                             "double_sparse2", "double_sparse3", "double_sparse4"};
 
-const auto kTestTasksList = std::tuple_cat(
-    ppc::util::AddFuncTask<GusevaCRSMatMulSeq, InType>(kTestParam, PPC_SETTINGS_guseva_crs),
-    ppc::util::AddFuncTask<GusevaCRSMatMulStl, InType>(kTestParam, PPC_SETTINGS_guseva_crs));
+const auto kTestTasksList =
+    std::tuple_cat(ppc::util::AddFuncTask<GusevaCRSMatMulSeq, InType>(kTestParam, PPC_SETTINGS_guseva_crs),
+                   ppc::util::AddFuncTask<GusevaCRSMatMulOmp, InType>(kTestParam, PPC_SETTINGS_guseva_crs),
+                   ppc::util::AddFuncTask<GusevaCRSMatMulStl, InType>(kTestParam, PPC_SETTINGS_guseva_crs));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 

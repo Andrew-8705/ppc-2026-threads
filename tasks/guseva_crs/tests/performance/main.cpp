@@ -58,7 +58,8 @@ TEST_P(GusevaMatMulCRSPerfTest, G) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, GusevaCRSMatMulSeq, GusevaCRSMatMulStl>(PPC_SETTINGS_guseva_crs);
+    ppc::util::MakeAllPerfTasks<InType, GusevaCRSMatMulSeq, GusevaCRSMatMulOmp, GusevaCRSMatMulStl>(
+        PPC_SETTINGS_guseva_crs);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
