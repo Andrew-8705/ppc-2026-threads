@@ -28,11 +28,8 @@ bool BaldinARadixSortOMP::PreProcessingImpl() {
 
 namespace {
 
-void CountingSortStep(std::vector<int>::iterator in_begin, 
-                    std::vector<int>::iterator in_end,
-                    std::vector<int>::iterator out_begin,
-                    size_t byte_index) {
-
+void CountingSortStep(std::vector<int>::iterator in_begin, std::vector<int>::iterator in_end,
+                      std::vector<int>::iterator out_begin, size_t byte_index) {
   size_t shift = byte_index * 8;
   size_t count[256] = {0};
 
@@ -59,7 +56,7 @@ void CountingSortStep(std::vector<int>::iterator in_begin,
     if (byte_index == sizeof(int) - 1) {
       byte_val ^= 128;
     }
-    
+
     *(out_begin + prefix[byte_val]) = *it;
     prefix[byte_val]++;
   }
@@ -77,26 +74,27 @@ void RadixSortLocal(std::vector<int>::iterator begin, std::vector<int>::iterator
     size_t shift = i;
 
     if (i % 2 == 0) {
-        CountingSortStep(begin, end, temp.begin(), shift);
-    } 
-    else {
-        CountingSortStep(temp.begin(), temp.end(), begin, shift);
+      CountingSortStep(begin, end, temp.begin(), shift);
+    } else {
+      CountingSortStep(temp.begin(), temp.end(), begin, shift);
     }
   }
 }
 
-} // namespace
+}  // namespace
 
 bool BaldinARadixSortOMP::RunImpl() {
   int n = static_cast<int>(GetOutput().size());
-  if (n == 0) return true;
+  if (n == 0) {
+    return true;
+  }
 
   int num_threads = ppc::util::GetNumThreads();
-  //int num_threads = omp_get_max_threads();
-  //std::cout << "NUM THREADS: " << num_threads << '\n'; 
+  // int num_threads = omp_get_max_threads();
+  // std::cout << "NUM THREADS: " << num_threads << '\n';
 
-  if (n < num_threads * 100) { 
-      num_threads = 1; 
+  if (n < num_threads * 100) {
+    num_threads = 1;
   }
 
   if (num_threads == 1) {
@@ -109,27 +107,27 @@ bool BaldinARadixSortOMP::RunImpl() {
   int rem = n % num_threads;
   int curr = 0;
   for (int i = 0; i < num_threads; ++i) {
-      offsets[i] = curr;
-      curr += chunk + (i < rem ? 1 : 0);
+    offsets[i] = curr;
+    curr += chunk + (i < rem ? 1 : 0);
   }
   offsets[num_threads] = n;
 
-  #pragma omp parallel num_threads(num_threads)
+#pragma omp parallel num_threads(num_threads)
   {
     int tid = omp_get_thread_num();
     auto begin = GetOutput().begin() + offsets[tid];
     auto end = GetOutput().begin() + offsets[tid + 1];
-    
+
     RadixSortLocal(begin, end);
   }
 
   for (int step = 1; step < num_threads; step *= 2) {
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i += 2 * step) {
       if (i + step < num_threads) {
         auto begin = GetOutput().begin() + offsets[i];
         auto middle = GetOutput().begin() + offsets[i + step];
-        
+
         int end_idx = std::min(i + 2 * step, num_threads);
         auto end = GetOutput().begin() + offsets[end_idx];
 
