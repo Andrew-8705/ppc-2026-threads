@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <vector>
 
@@ -45,7 +46,7 @@ void CountingSortStep(std::vector<int>::iterator in_begin, std::vector<int>::ite
     count.at(byte_val)++;
   }
 
-  std::array<size_t, 256> prefix;
+  std::array<size_t, 256> prefix{};
   prefix[0] = 0;
   for (int i = 1; i < 256; i++) {
     prefix.at(i) = prefix.at(i - 1) + count.at(i - 1);
@@ -59,7 +60,7 @@ void CountingSortStep(std::vector<int>::iterator in_begin, std::vector<int>::ite
       byte_val ^= 128;
     }
 
-    *(out_begin + static_cast<long>(prefix[byte_val])) = *it;
+    *(out_begin + static_cast<int64_t>(prefix.at(byte_val))) = *it;
     prefix.at(byte_val)++;
   }
 }
