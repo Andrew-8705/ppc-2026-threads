@@ -2,8 +2,10 @@
 
 #include <omp.h>
 
-#include <atomic>
-#include <numeric>
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <iterator>
 #include <vector>
 
 #include "baldin_a_radix_sort/common/include/common.hpp"
@@ -31,7 +33,7 @@ namespace {
 void CountingSortStep(std::vector<int>::iterator in_begin, std::vector<int>::iterator in_end,
                       std::vector<int>::iterator out_begin, size_t byte_index) {
   size_t shift = byte_index * 8;
-  size_t count[256] = {0};
+  std::array<size_t, 256> count = {0};
 
   for (auto it = in_begin; it != in_end; it++) {
     auto raw_val = static_cast<unsigned int>(*it);
@@ -40,13 +42,13 @@ void CountingSortStep(std::vector<int>::iterator in_begin, std::vector<int>::ite
     if (byte_index == sizeof(int) - 1) {
       byte_val ^= 128;
     }
-    count[byte_val]++;
+    count.at(byte_val)++;
   }
 
-  size_t prefix[256];
+  std::array<size_t, 256> prefix;
   prefix[0] = 0;
   for (int i = 1; i < 256; i++) {
-    prefix[i] = prefix[i - 1] + count[i - 1];
+    prefix.at(i) = prefix.at(i - 1) + count.at(i - 1);
   }
 
   for (auto it = in_begin; it != in_end; it++) {
@@ -57,8 +59,8 @@ void CountingSortStep(std::vector<int>::iterator in_begin, std::vector<int>::ite
       byte_val ^= 128;
     }
 
-    *(out_begin + prefix[byte_val]) = *it;
-    prefix[byte_val]++;
+    *(out_begin + static_cast<long>(prefix[byte_val])) = *it;
+    prefix.at(byte_val)++;
   }
 }
 
@@ -112,7 +114,7 @@ bool BaldinARadixSortOMP::RunImpl() {
   }
   offsets[num_threads] = n;
 
-#pragma omp parallel num_threads(num_threads)
+#pragma omp parallel num_threads(num_threads) default(none) shared(num_threads, offsets)
   {
     int tid = omp_get_thread_num();
     auto begin = GetOutput().begin() + offsets[tid];
@@ -122,13 +124,13 @@ bool BaldinARadixSortOMP::RunImpl() {
   }
 
   for (int step = 1; step < num_threads; step *= 2) {
-#pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads) default(none) shared(step, num_threads, offsets)
     for (int i = 0; i < num_threads; i += 2 * step) {
       if (i + step < num_threads) {
         auto begin = GetOutput().begin() + offsets[i];
         auto middle = GetOutput().begin() + offsets[i + step];
 
-        int end_idx = std::min(i + 2 * step, num_threads);
+        int end_idx = std::min(i + (2 * step), num_threads);
         auto end = GetOutput().begin() + offsets[end_idx];
 
         std::inplace_merge(begin, middle, end);
