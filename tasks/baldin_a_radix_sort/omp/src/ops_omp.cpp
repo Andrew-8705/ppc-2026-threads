@@ -87,21 +87,20 @@ void RadixSortLocal(std::vector<int>::iterator begin, std::vector<int>::iterator
 }  // namespace
 
 bool BaldinARadixSortOMP::RunImpl() {
-  int n = static_cast<int>(GetOutput().size());
+  auto &out = GetOutput();
+  int n = static_cast<int>(out.size());
   if (n == 0) {
     return true;
   }
 
   int num_threads = ppc::util::GetNumThreads();
-  // int num_threads = omp_get_max_threads();
-  // std::cout << "NUM THREADS: " << num_threads << '\n';
 
   if (n < num_threads * 100) {
     num_threads = 1;
   }
 
   if (num_threads == 1) {
-    RadixSortLocal(GetOutput().begin(), GetOutput().end());
+    RadixSortLocal(out.begin(), out.end());
     return true;
   }
 
@@ -109,30 +108,30 @@ bool BaldinARadixSortOMP::RunImpl() {
   int chunk = n / num_threads;
   int rem = n % num_threads;
   int curr = 0;
-  for (int i = 0; i < num_threads; ++i) {
+  for (int i = 0; i < num_threads; i++) {
     offsets[i] = curr;
     curr += chunk + (i < rem ? 1 : 0);
   }
   offsets[num_threads] = n;
 
-#pragma omp parallel num_threads(num_threads) default(none) shared(num_threads, offsets)
+#pragma omp parallel num_threads(num_threads) default(none) shared(num_threads, offsets, out)
   {
     int tid = omp_get_thread_num();
-    auto begin = GetOutput().begin() + offsets[tid];
-    auto end = GetOutput().begin() + offsets[tid + 1];
+    auto begin = out.begin() + offsets[tid];
+    auto end = out.begin() + offsets[tid + 1];
 
     RadixSortLocal(begin, end);
   }
 
   for (int step = 1; step < num_threads; step *= 2) {
-#pragma omp parallel for num_threads(num_threads) default(none) shared(step, num_threads, offsets)
+#pragma omp parallel for num_threads(num_threads) default(none) shared(step, num_threads, offsets, out)
     for (int i = 0; i < num_threads; i += 2 * step) {
       if (i + step < num_threads) {
-        auto begin = GetOutput().begin() + offsets[i];
-        auto middle = GetOutput().begin() + offsets[i + step];
+        auto begin = out.begin() + offsets[i];
+        auto middle = out.begin() + offsets[i + step];
 
         int end_idx = std::min(i + (2 * step), num_threads);
-        auto end = GetOutput().begin() + offsets[end_idx];
+        auto end = out.begin() + offsets[end_idx];
 
         std::inplace_merge(begin, middle, end);
       }
