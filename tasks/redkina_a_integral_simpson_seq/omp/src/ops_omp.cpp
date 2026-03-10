@@ -1,9 +1,7 @@
-// redkina_a_integral_simpson_seq/omp/src/ops_omp.cpp
 #include "redkina_a_integral_simpson_seq/omp/include/ops_omp.hpp"
 
 #include <omp.h>
 
-#include <cmath>
 #include <cstddef>
 #include <functional>
 #include <vector>
@@ -39,82 +37,79 @@ bool RedkinaAIntegralSimpsonOMP::ValidationImpl() {
 
 bool RedkinaAIntegralSimpsonOMP::PreProcessingImpl() {
   const auto &in = GetInput();
+
   func_ = in.func;
   a_ = in.a;
   b_ = in.b;
   n_ = in.n;
+
   result_ = 0.0;
+
   return true;
 }
 
 bool RedkinaAIntegralSimpsonOMP::RunImpl() {
   const size_t dim = a_.size();
 
-  // Шаги сетки
   std::vector<double> h(dim);
-  double h_prod = 1.0;
   for (size_t i = 0; i < dim; ++i) {
     h[i] = (b_[i] - a_[i]) / static_cast<double>(n_[i]);
+  }
+
+  double h_prod = 1.0;
+  for (size_t i = 0; i < dim; ++i) {
     h_prod *= h[i];
   }
 
-  // Общее количество узлов (комбинаций индексов)
-  using index_t = long long;
-  index_t total_nodes = 1;
-  for (int ni : n_) {
-    total_nodes *= static_cast<index_t>(ni + 1);
+  size_t total_points = 1;
+  for (size_t i = 0; i < dim; ++i) {
+    total_points *= static_cast<size_t>(n_[i] + 1);
   }
 
-  double global_sum = 0.0;
+  double sum = 0.0;
 
-  // Создаём локальные копии ссылок на данные класса для использования в OpenMP
-  const std::vector<double> &a_ref = a_;
-  const std::vector<int> &n_ref = n_;
-  const std::vector<double> &h_ref = h;
-  const std::function<double(const std::vector<double> &)> &func_ref = func_;
-  const size_t dim_val = dim;
-  const index_t total_nodes_val = total_nodes;
+#pragma omp parallel for reduction(+ : sum)
+  for (long long linear = 0; linear < static_cast<long long>(total_points); ++linear) {
+    std::vector<int> indices(dim);
+    long long tmp = linear;
 
-// Распараллеливание: каждый поток создаёт свои локальные векторы один раз
-#pragma omp parallel default(none) shared(a_ref, n_ref, h_ref, func_ref, dim_val, total_nodes_val) \
-    reduction(+ : global_sum)
-  {
-    // Локальные для потока векторы (переиспользуются на всех итерациях потока)
-    std::vector<double> local_point(dim_val);
-    std::vector<int> local_indices(dim_val);
+    for (int d = static_cast<int>(dim) - 1; d >= 0; --d) {
+      int size_d = n_[d] + 1;
+      indices[d] = static_cast<int>(tmp % size_d);
+      tmp /= size_d;
+    }
 
-#pragma omp for
-    for (index_t lin = 0; lin < total_nodes_val; ++lin) {
-      // Преобразование линейного индекса в многомерные индексы
-      index_t tmp = lin;
-      double weight = 1.0;
-      for (int d = static_cast<int>(dim_val) - 1; d >= 0; --d) {
-        const int base = n_ref[d] + 1;
-        const int idx = static_cast<int>(tmp % base);
-        tmp /= base;
-        local_indices[d] = idx;
-        local_point[d] = a_ref[d] + static_cast<double>(idx) * h_ref[d];
+    std::vector<double> point(dim);
 
-        // Коэффициент Симпсона для данного измерения
-        int coeff;
-        if (idx == 0 || idx == n_ref[d]) {
-          coeff = 1;
-        } else if (idx % 2 == 1) {
-          coeff = 4;
-        } else {
-          coeff = 2;
-        }
-        weight *= static_cast<double>(coeff);
+    double w_prod = 1.0;
+
+    for (size_t d = 0; d < dim; ++d) {
+      int idx = indices[d];
+
+      point[d] = a_[d] + (static_cast<double>(idx) * h[d]);
+
+      int w = 0;
+
+      if (idx == 0 || idx == n_[d]) {
+        w = 1;
+      } else if (idx % 2 == 1) {
+        w = 4;
+      } else {
+        w = 2;
       }
 
-      // Добавление вклада узла
-      global_sum += weight * func_ref(local_point);
+      w_prod *= static_cast<double>(w);
     }
+
+    sum += w_prod * func_(point);
   }
 
-  // Итоговый результат: (h1*h2*...*hd / 3^d) * сумма
-  const double denominator = std::pow(3.0, static_cast<double>(dim));
-  result_ = (h_prod / denominator) * global_sum;
+  double denominator = 1.0;
+  for (size_t i = 0; i < dim; ++i) {
+    denominator *= 3.0;
+  }
+
+  result_ = (h_prod / denominator) * sum;
 
   return true;
 }
