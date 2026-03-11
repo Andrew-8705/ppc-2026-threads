@@ -2,7 +2,6 @@
 
 #include <omp.h>
 
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <functional>
@@ -11,46 +10,6 @@
 #include "redkina_a_integral_simpson_seq/common/include/common.hpp"
 
 namespace redkina_a_integral_simpson_seq {
-
-namespace {
-
-void EvaluatePoint(const std::vector<double> &a, const std::vector<double> &h, const std::vector<int> &n,
-                   const std::vector<int> &indices, const std::function<double(const std::vector<double> &)> &func,
-                   std::vector<double> &point, double &sum) {
-  size_t dim = a.size();
-  double w_prod = 1.0;
-  for (size_t dim_idx = 0; dim_idx < dim; ++dim_idx) {
-    int idx = indices[dim_idx];
-    point[dim_idx] = a[dim_idx] + (static_cast<double>(idx) * h[dim_idx]);
-
-    int w = 0;
-    if (idx == 0 || idx == n[dim_idx]) {
-      w = 1;
-    } else if (idx % 2 == 1) {
-      w = 4;
-    } else {
-      w = 2;
-    }
-    w_prod *= static_cast<double>(w);
-  }
-  sum += w_prod * func(point);
-}
-
-bool AdvanceIndices(std::vector<int> &indices, const std::vector<int> &n) {
-  int dim = static_cast<int>(indices.size());
-  int d = dim - 1;
-  while (d >= 0 && indices[d] == n[d]) {
-    indices[d] = 0;
-    --d;
-  }
-  if (d < 0) {
-    return false;
-  }
-  ++indices[d];
-  return true;
-}
-
-}  // namespace
 
 RedkinaAIntegralSimpsonOMP::RedkinaAIntegralSimpsonOMP(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
@@ -90,27 +49,69 @@ bool RedkinaAIntegralSimpsonOMP::PreProcessingImpl() {
 bool RedkinaAIntegralSimpsonOMP::RunImpl() {
   size_t dim = a_.size();
 
+  // шаги интегрирования
   std::vector<double> h(dim);
   for (size_t i = 0; i < dim; ++i) {
     h[i] = (b_[i] - a_[i]) / static_cast<double>(n_[i]);
   }
 
+  // произведение шагов
   double h_prod = 1.0;
   for (size_t i = 0; i < dim; ++i) {
     h_prod *= h[i];
   }
 
-  std::vector<double> point(dim);
+  // множители для линеаризации индексов (система счисления со смешанными основаниями)
+  std::vector<int> strides(dim);
+  strides[dim - 1] = 1;
+  for (int i = static_cast<int>(dim) - 2; i >= 0; --i) {
+    strides[i] = strides[i + 1] * (n_[i + 1] + 1);
+  }
+  int total_nodes = strides[0] * (n_[0] + 1);
+
   double sum = 0.0;
 
-  std::vector<int> indices(dim, 0);
+  // локальные копии для использования в параллельной области
+  const auto &a = a_;
+  const auto &n = n_;
+  const auto &h_vec = h;
+  const auto &func = func_;
+  const auto &strides_ref = strides;
 
-  bool has_next = true;
-  while (has_next) {
-    EvaluatePoint(a_, h, n_, indices, func_, point, sum);
-    has_next = AdvanceIndices(indices, n_);
+#pragma omp parallel default(none) shared(a, n, h_vec, func, strides_ref, total_nodes, dim) reduction(+ : sum)
+  {
+    std::vector<int> indices(dim);
+    std::vector<double> point(dim);
+
+#pragma omp for
+    for (int idx = 0; idx < total_nodes; ++idx) {
+      // разложение линейного индекса в многомерные индексы
+      int remainder = idx;
+      for (size_t d = 0; d < dim; ++d) {
+        indices[d] = remainder / strides_ref[d];
+        remainder = remainder % strides_ref[d];
+      }
+
+      // вычисление координат и весов Симпсона
+      double w_prod = 1.0;
+      for (size_t d = 0; d < dim; ++d) {
+        int i = indices[d];
+        point[d] = a[d] + i * h_vec[d];
+        int w;
+        if (i == 0 || i == n[d]) {
+          w = 1;
+        } else if (i % 2 == 1) {
+          w = 4;
+        } else {
+          w = 2;
+        }
+        w_prod *= static_cast<double>(w);
+      }
+      sum += w_prod * func(point);
+    }
   }
 
+  // знаменатель 3^dim
   double denominator = 1.0;
   for (size_t i = 0; i < dim; ++i) {
     denominator *= 3.0;
