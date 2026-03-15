@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "util/include/util.hpp"
+#include "zorin_d_strassen_alg_matrix_seq/common/include/common.hpp"
 
 namespace zorin_d_strassen_alg_matrix_seq {
 
@@ -42,6 +43,7 @@ void AddToBuffer(const double *a, std::size_t a_stride, const double *b, std::si
   }
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void NaiveMulBlocked(const double *a, std::size_t a_stride, const double *b, std::size_t b_stride, double *c,
                      std::size_t c_stride, std::size_t n) {
   ZeroMatrix(c, c_stride, n);
@@ -158,19 +160,19 @@ void StrassenTopOmp(const double *a, std::size_t a_stride, const double *b, std:
   {
 #pragma omp single nowait
     {
-#pragma omp task shared(m1)
+#pragma omp task default(none) shared(m1, a11, a22, b11, b22, a_stride, b_stride, half)
       ComputeProduct(a11, a_stride, a22, a_stride, 1.0, b11, b_stride, b22, b_stride, 1.0, m1, half);
-#pragma omp task shared(m2)
+#pragma omp task default(none) shared(m2, a21, a22, b11, a_stride, b_stride, half)
       ComputeProductSingleLeft(a21, a_stride, a22, a_stride, 1.0, b11, b_stride, m2, half);
-#pragma omp task shared(m3)
+#pragma omp task default(none) shared(m3, a11, b12, b22, a_stride, b_stride, half)
       ComputeProductSingle(a11, a_stride, b12, b_stride, b22, b_stride, -1.0, m3, half);
-#pragma omp task shared(m4)
+#pragma omp task default(none) shared(m4, a22, b21, b11, a_stride, b_stride, half)
       ComputeProductSingle(a22, a_stride, b21, b_stride, b11, b_stride, -1.0, m4, half);
-#pragma omp task shared(m5)
+#pragma omp task default(none) shared(m5, a11, a12, b22, a_stride, b_stride, half)
       ComputeProductSingleLeft(a11, a_stride, a12, a_stride, 1.0, b22, b_stride, m5, half);
-#pragma omp task shared(m6)
+#pragma omp task default(none) shared(m6, a21, a11, b11, b12, a_stride, b_stride, half)
       ComputeProduct(a21, a_stride, a11, a_stride, -1.0, b11, b_stride, b12, b_stride, 1.0, m6, half);
-#pragma omp task shared(m7)
+#pragma omp task default(none) shared(m7, a12, a22, b21, b22, a_stride, b_stride, half)
       ComputeProduct(a12, a_stride, a22, a_stride, -1.0, b21, b_stride, b22, b_stride, 1.0, m7, half);
 #pragma omp taskwait
     }
@@ -179,6 +181,7 @@ void StrassenTopOmp(const double *a, std::size_t a_stride, const double *b, std:
   CombineQuadrants(m1, m2, m3, m4, m5, m6, m7, c, c_stride, half);
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
 void StrassenSeq(const double *a, std::size_t a_stride, const double *b, std::size_t b_stride, double *c,
                  std::size_t c_stride, std::size_t n) {
   if (n <= kCutoff) {
