@@ -53,8 +53,8 @@ bool VasilievMShellSortBatcherMergeOMP::PostProcessingImpl() {
   return true;
 }
 
-std::vector<size_t> VasilievMShellSortBatcherMergeOMP::ChunkBoundaries(size_t vec_size, int chunks_) {
-  size_t chunks = std::max(1, std::min(chunks_, static_cast<int>(vec_size)));
+std::vector<size_t> VasilievMShellSortBatcherMergeOMP::ChunkBoundaries(size_t vec_size, int threads) {
+  size_t chunks = std::max(1, std::min(threads, static_cast<int>(vec_size)));
 
   std::vector<size_t> bounds;
   bounds.reserve(chunks + 1);
@@ -112,13 +112,16 @@ void VasilievMShellSortBatcherMergeOMP::CycleMerge(std::vector<ValType> &vec, st
     const size_t end = bounds[r];
 
     if (mid == r) {
-      std::copy(vec.begin() + start, vec.begin() + end, buffer.begin() + start);
+      std::copy(vec.begin() + static_cast<std::ptrdiff_t>(start), vec.begin() + static_cast<std::ptrdiff_t>(end),
+                buffer.begin() + static_cast<std::ptrdiff_t>(start));
     } else {
-      std::vector<ValType> l(vec.begin() + start, vec.begin() + middle);
-      std::vector<ValType> r(vec.begin() + middle, vec.begin() + end);
+      std::vector<ValType> l(vec.begin() + static_cast<std::ptrdiff_t>(start),
+                             vec.begin() + static_cast<std::ptrdiff_t>(middle));
+      std::vector<ValType> r(vec.begin() + static_cast<std::ptrdiff_t>(middle),
+                             vec.begin() + static_cast<std::ptrdiff_t>(end));
 
       std::vector<ValType> merged = BatcherMerge(l, r);
-      std::copy(merged.begin(), merged.end(), buffer.begin() + start);
+      std::copy(merged.begin(), merged.end(), buffer.begin() + static_cast<std::ptrdiff_t>(start));
     }
   }
 }
