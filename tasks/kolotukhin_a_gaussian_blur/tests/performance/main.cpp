@@ -12,6 +12,7 @@
 
 #include "kolotukhin_a_gaussian_blur/common/include/common.hpp"
 #include "kolotukhin_a_gaussian_blur/seq/include/ops_seq.hpp"
+#include "kolotukhin_a_gaussian_blur/omp/include/ops_omp.hpp"
 #include "util/include/perf_test_util.hpp"
 #include "util/include/util.hpp"
 
@@ -71,7 +72,9 @@ TEST_P(KolotukhinAGaussinBlurePerfTests, RunPerfModes) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, KolotukhinAGaussinBlureSEQ>(PPC_SETTINGS_kolotukhin_a_gaussian_blur);
+    std::tuple_cat(    
+      ppc::util::MakeAllPerfTasks<InType, KolotukhinAGaussinBlureSEQ>(PPC_SETTINGS_kolotukhin_a_gaussian_blur),
+      ppc::util::MakeAllPerfTasks<InType, KolotukhinAGaussinBlureOMP>(PPC_SETTINGS_kolotukhin_a_gaussian_blur));
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
