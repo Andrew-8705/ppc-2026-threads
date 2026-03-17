@@ -17,7 +17,7 @@ class ZyazevaSMatrixMultCannonAlgOMP : public BaseTask {
  private:
   bool ValidationImpl() override;
   bool PreProcessingImpl() override;
-  bool RunImpl() override;
+  bool RunImpl() override;  // 4
   bool PostProcessingImpl() override;
 };
 

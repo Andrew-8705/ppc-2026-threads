@@ -45,7 +45,7 @@ std::vector<double> CannonMatrixMultiplication(const std::vector<double> &a, con
 ZyazevaSMatrixMultCannonAlgOMP::ZyazevaSMatrixMultCannonAlgOMP(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput() = {};
+  GetOutput() = {};  // 4
 }
 
 bool ZyazevaSMatrixMultCannonAlgOMP::ValidationImpl() {

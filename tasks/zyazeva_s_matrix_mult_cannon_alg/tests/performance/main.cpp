@@ -82,7 +82,7 @@ const auto kAllPerfTasks =
         PPC_SETTINGS_zyazeva_s_matrix_mult_cannon_alg);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
-
+// 4
 const auto kPerfTestName = ZyazevaSPerformanceTest::CustomPerfTestName;
 
 INSTANTIATE_TEST_SUITE_P(SequentialPerformanceTests, ZyazevaSPerformanceTest, kGtestValues, kPerfTestName);

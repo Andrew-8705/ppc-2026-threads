@@ -96,7 +96,7 @@ const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<ZyazevaSMatrix
                                            ppc::util::AddFuncTask<ZyazevaSMatrixMultCannonAlgOMP, InType>(
                                                kTestParams, PPC_SETTINGS_zyazeva_s_matrix_mult_cannon_alg));
 
-const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
+const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);  // 4
 
 const auto kPerfTestName = ZyazevaARunFuncTestsThreads::PrintFuncTestName<ZyazevaARunFuncTestsThreads>;
 
