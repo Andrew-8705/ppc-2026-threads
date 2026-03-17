@@ -3,8 +3,6 @@
 #include <cstdint>
 #include <vector>
 
-#include "task/include/task.hpp"
-
 namespace paramonov_v_bin_img_conv_hul {
 
 struct PixelPoint {
@@ -28,9 +26,5 @@ struct GrayImage {
   int rows = 0;
   int cols = 0;
 };
-
-using InputType = GrayImage;
-using OutputType = std::vector<std::vector<PixelPoint>>;
-using HullTaskBase = ppc::task::Task<InputType, OutputType>;
 
 }  // namespace paramonov_v_bin_img_conv_hul
