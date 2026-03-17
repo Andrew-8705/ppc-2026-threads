@@ -244,8 +244,10 @@ const auto kGtestValuesSEQ = ppc::util::ExpandToValues(kTestTasksSEQ);
 const auto kPerfTestNameSEQ =
     MorozovaSStrassenMultiplicationSEQFuncTests::PrintFuncTestName<MorozovaSStrassenMultiplicationSEQFuncTests>;
 
+namespace {
 INSTANTIATE_TEST_SUITE_P(StrassenMultiplicationSEQTests, MorozovaSStrassenMultiplicationSEQFuncTests, kGtestValuesSEQ,
                          kPerfTestNameSEQ);
+}  // namespace
 
 using MorozovaSStrassenMultiplicationOMPFuncTests =
     MorozovaSStrassenMultiplicationFuncTests<MorozovaSStrassenMultiplicationOMP>;
@@ -261,5 +263,7 @@ const auto kGtestValuesOMP = ppc::util::ExpandToValues(kTestTasksOMP);
 const auto kPerfTestNameOMP =
     MorozovaSStrassenMultiplicationOMPFuncTests::PrintFuncTestName<MorozovaSStrassenMultiplicationOMPFuncTests>;
 
+namespace {
 INSTANTIATE_TEST_SUITE_P(StrassenMultiplicationOMPTests, MorozovaSStrassenMultiplicationOMPFuncTests, kGtestValuesOMP,
                          kPerfTestNameOMP);
+}  // namespace

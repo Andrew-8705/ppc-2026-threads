@@ -70,8 +70,10 @@ const auto kAllPerfTasksSEQ = ppc::util::MakeAllPerfTasks<InType, MorozovaSStras
 const auto kGtestValuesSEQ = ppc::util::TupleToGTestValues(kAllPerfTasksSEQ);
 const auto kPerfTestNameSEQ = MorozovaSStrassenMultiplicationSEQPerfTest::CustomPerfTestName;
 
+namespace {
 INSTANTIATE_TEST_SUITE_P(StrassenMultiplicationSEQPerfTests, MorozovaSStrassenMultiplicationSEQPerfTest,
                          kGtestValuesSEQ, kPerfTestNameSEQ);
+}  // namespace
 
 using MorozovaSStrassenMultiplicationOMPPerfTest =
     MorozovaSStrassenMultiplicationPerfTest<MorozovaSStrassenMultiplicationOMP>;
@@ -86,5 +88,7 @@ const auto kAllPerfTasksOMP = ppc::util::MakeAllPerfTasks<InType, MorozovaSStras
 const auto kGtestValuesOMP = ppc::util::TupleToGTestValues(kAllPerfTasksOMP);
 const auto kPerfTestNameOMP = MorozovaSStrassenMultiplicationOMPPerfTest::CustomPerfTestName;
 
+namespace {
 INSTANTIATE_TEST_SUITE_P(StrassenMultiplicationOMPPerfTests, MorozovaSStrassenMultiplicationOMPPerfTest,
                          kGtestValuesOMP, kPerfTestNameOMP);
+}  // namespace

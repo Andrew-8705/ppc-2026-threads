@@ -226,7 +226,7 @@ Matrix MorozovaSStrassenMultiplicationOMP::MultiplyStrassen(const Matrix &a, con
 }
 
 Matrix MorozovaSStrassenMultiplicationOMP::MultiplyStrassenParallel(const Matrix &a, const Matrix &b, int leaf_size,
-                                                                    int depth) {
+                                                                    int depth) {  // NOLINT(misc-no-recursion)
   int n = a.size;
 
   if (n <= leaf_size || n % 2 != 0) {
