@@ -171,7 +171,7 @@ class CSRMatrix {
   }
 
  public:
-  [[nodiscard]] CSRMatrix OMPMultiply(const CSRMatrix& other) const {
+  [[nodiscard]] CSRMatrix OMPMultiply(const CSRMatrix &other) const {
     if (cols != other.rows) {
       return {};
     }
@@ -180,7 +180,7 @@ class CSRMatrix {
     std::vector<std::vector<Complex<T>>> row_values(rows);
     std::vector<std::vector<int>> row_col_indices(rows);
 
-    const CSRMatrix& self = *this;
+    const CSRMatrix &self = *this;
     const int nrows = rows;
     const int ncols = other.cols;
 
