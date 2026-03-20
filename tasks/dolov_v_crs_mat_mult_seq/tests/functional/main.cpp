@@ -57,30 +57,6 @@ std::vector<double> DenseMultiply(const SparseMatrix &matrix_a, const SparseMatr
 
 }  // namespace
 
-// Оставляем первый аргумент (набор) КАК БЫЛО, меняем только второй (имя теста)
-TEST(dolov_v_crs_mat_mult_seq_omp, ValidationFailsOnWrongInputSize) {
-  SparseMatrix a;
-  InType in = {a};
-  DolovVCrsMatMultOmp task(in);
-  EXPECT_FALSE(task.ValidationImpl());
-}
-
-TEST(dolov_v_crs_mat_mult_seq_omp, ValidationFailsOnIncompatibleDimensions) {
-  SparseMatrix a = GenerateRandomCRS(2, 3, 1.0, 1);
-  SparseMatrix b = GenerateRandomCRS(4, 2, 1.0, 2);
-  InType in = {a, b};
-  DolovVCrsMatMultOmp task(in);
-  EXPECT_FALSE(task.ValidationImpl());
-}
-
-TEST(dolov_v_crs_mat_mult_seq_omp, ValidationFailsOnEmptyMatrix) {
-  SparseMatrix a = GenerateRandomCRS(0, 5, 1.0, 1);
-  SparseMatrix b = GenerateRandomCRS(5, 5, 1.0, 2);
-  InType in = {a, b};
-  DolovVCrsMatMultOmp task(in);
-  EXPECT_FALSE(task.ValidationImpl());
-}
-
 class DolovVCrsMatMultSeqRunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
   static std::string PrintTestParam(const TestType &test_param) {

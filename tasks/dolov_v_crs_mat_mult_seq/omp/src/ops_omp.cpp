@@ -2,6 +2,7 @@
 
 #include <omp.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -94,10 +95,9 @@ bool DolovVCrsMatMultOmp::RunImpl() {
 
   SparseMatrix matrix_b_t = TransposeMatrix(matrix_b);
 
-  // Обнуляем перед расчетом
-  std::fill(result.row_pointers.begin(), result.row_pointers.end(), 0);
+  std::ranges::fill(result.row_pointers, 0);
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic) default(none) shared(matrix_a, matrix_b_t, result)
   for (int i = 0; i < matrix_a.num_rows; ++i) {
     int row_nz = 0;
     for (int j = 0; j < matrix_b_t.num_rows; ++j) {
@@ -120,7 +120,7 @@ bool DolovVCrsMatMultOmp::RunImpl() {
     return true;
   }
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic) default(none) shared(matrix_a, matrix_b_t, result)
   for (int i = 0; i < matrix_a.num_rows; ++i) {
     int write_pos = result.row_pointers[i];
     for (int j = 0; j < matrix_b_t.num_rows; ++j) {
@@ -140,12 +140,6 @@ bool DolovVCrsMatMultOmp::RunImpl() {
 }
 
 bool DolovVCrsMatMultOmp::PostProcessingImpl() {
-  auto &result = GetOutput();
-
-  if (!result.row_pointers.empty()) {
-    result.row_pointers.back() = static_cast<int>(result.values.size());
-  }
-
   return true;
 }
 
