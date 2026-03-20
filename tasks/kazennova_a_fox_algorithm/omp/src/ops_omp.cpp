@@ -28,7 +28,8 @@ int ChooseBlockSize(int n) {
 
 }  // namespace
 
-KazennovaATestTaskOMP::KazennovaATestTaskOMP(const InType &in) {
+KazennovaATestTaskOMP::KazennovaATestTaskOMP(const InType &in)
+    : matrix_size_(0), block_size_(0), block_count_(0) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
 }
@@ -55,80 +56,101 @@ bool KazennovaATestTaskOMP::ValidationImpl() {
   return true;
 }
 
+void KazennovaATestTaskOMP::DecomposeMatrix(const std::vector<double>& src,
+                                           std::vector<double>& dst,
+                                           int n, int bs, int q) {
+  size_t block_elements = static_cast<size_t>(bs) * bs;
+
+  #pragma omp parallel for collapse(2) default(none) shared(src, dst, n, bs, q, block_elements)
+  for (int bi = 0; bi < q; ++bi) {
+    for (int bj = 0; bj < q; ++bj) {
+      size_t block_offset = ((static_cast<size_t>(bi) * q) + bj) * block_elements;
+
+      for (int i = 0; i < bs; ++i) {
+        for (int j = 0; j < bs; ++j) {
+          size_t src_idx = (((static_cast<size_t>(bi) * bs) + i) * n) + ((static_cast<size_t>(bj) * bs) + j);
+          size_t dst_idx = block_offset + (static_cast<size_t>(i) * bs) + j;
+          dst[dst_idx] = src[src_idx];
+        }
+      }
+    }
+  }
+}
+
+void KazennovaATestTaskOMP::AssembleMatrix(const std::vector<double>& src,
+                                           std::vector<double>& dst,
+                                           int n, int bs, int q) {
+  size_t block_elements = static_cast<size_t>(bs) * bs;
+
+  #pragma omp parallel for collapse(2) default(none) shared(src, dst, n, bs, q, block_elements)
+  for (int bi = 0; bi < q; ++bi) {
+    for (int bj = 0; bj < q; ++bj) {
+      size_t block_offset = ((static_cast<size_t>(bi) * q) + bj) * block_elements;
+
+      for (int i = 0; i < bs; ++i) {
+        for (int j = 0; j < bs; ++j) {
+          size_t dst_idx = (((static_cast<size_t>(bi) * bs) + i) * n) + ((static_cast<size_t>(bj) * bs) + j);
+          size_t src_idx = block_offset + (static_cast<size_t>(i) * bs) + j;
+          dst[dst_idx] = src[src_idx];
+        }
+      }
+    }
+  }
+}
+
 bool KazennovaATestTaskOMP::PreProcessingImpl() {
   const auto &in = GetInput();
 
-  matrix_size = in.A.rows;
-  GetOutput().rows = matrix_size;
-  GetOutput().cols = matrix_size;
-  GetOutput().data.assign(static_cast<size_t>(matrix_size) * matrix_size, 0.0);
+  matrix_size_ = in.A.rows;
+  GetOutput().rows = matrix_size_;
+  GetOutput().cols = matrix_size_;
+  GetOutput().data.assign(static_cast<size_t>(matrix_size_) * matrix_size_, 0.0);
 
-  block_size = ChooseBlockSize(matrix_size);
-  block_count = matrix_size / block_size;
+  block_size_ = ChooseBlockSize(matrix_size_);
+  block_count_ = matrix_size_ / block_size_;
 
-  size_t total_blocks = static_cast<size_t>(block_count) * block_count;
-  size_t block_elements = static_cast<size_t>(block_size) * block_size;
-  a_blocks.assign(total_blocks * block_elements, 0.0);
-  b_blocks.assign(total_blocks * block_elements, 0.0);
-  c_blocks.assign(total_blocks * block_elements, 0.0);
+  size_t total_blocks = static_cast<size_t>(block_count_) * block_count_;
+  size_t block_elements = static_cast<size_t>(block_size_) * block_size_;
+  a_blocks_.assign(total_blocks * block_elements, 0.0);
+  b_blocks_.assign(total_blocks * block_elements, 0.0);
+  c_blocks_.assign(total_blocks * block_elements, 0.0);
 
-  #pragma omp parallel for collapse(2)
-  for (int bi = 0; bi < block_count; ++bi) {
-    for (int bj = 0; bj < block_count; ++bj) {
-      int block_offset = ((bi * block_count) + bj) * block_elements;
-
-      for (int i = 0; i < block_size; ++i) {
-        for (int j = 0; j < block_size; ++j) {
-          int src_idx = (((bi * block_size) + i) * matrix_size) + ((bj * block_size) + j);
-          int dst_idx = block_offset + (i * block_size) + j;
-          a_blocks[dst_idx] = in.A.data[src_idx];
-        }
-      }
-    }
-  }
-
-  #pragma omp parallel for collapse(2)
-  for (int bi = 0; bi < block_count; ++bi) {
-    for (int bj = 0; bj < block_count; ++bj) {
-      int block_offset = ((bi * block_count) + bj) * block_elements;
-
-      for (int i = 0; i < block_size; ++i) {
-        for (int j = 0; j < block_size; ++j) {
-          int src_idx = (((bi * block_size) + i) * matrix_size) + ((bj * block_size) + j);
-          int dst_idx = block_offset + (i * block_size) + j;
-          b_blocks[dst_idx] = in.B.data[src_idx];
-        }
-      }
-    }
-  }
+  DecomposeMatrix(in.A.data, a_blocks_, matrix_size_, block_size_, block_count_);
+  DecomposeMatrix(in.B.data, b_blocks_, matrix_size_, block_size_, block_count_);
 
   return true;
 }
 
+void KazennovaATestTaskOMP::MultiplyBlock(int a_idx, int b_idx, int c_idx, int bs) {
+  size_t block_elements = static_cast<size_t>(bs) * bs;
+
+  for (int ii = 0; ii < bs; ++ii) {
+    for (int kk = 0; kk < bs; ++kk) {
+      double a_val = a_blocks_[a_idx + (ii * bs) + kk];
+      for (int jj = 0; jj < bs; ++jj) {
+        c_blocks_[c_idx + (ii * bs) + jj] +=
+            a_val * b_blocks_[b_idx + (kk * bs) + jj];
+      }
+    }
+  }
+}
+
 bool KazennovaATestTaskOMP::RunImpl() {
-  size_t block_elements = static_cast<size_t>(block_size) * block_size;
+  size_t block_elements = static_cast<size_t>(block_size_) * block_size_;
 
-  std::ranges::fill(c_blocks, 0.0);
+  std::fill(c_blocks_.begin(), c_blocks_.end(), 0.0);
 
-  for (int step = 0; step < block_count; ++step) {
-    #pragma omp parallel for collapse(2)
-    for (int i = 0; i < block_count; ++i) {
-      for (int j = 0; j < block_count; ++j) {
-        int k = (i + step) % block_count;
+  for (int step = 0; step < block_count_; ++step) {
+    #pragma omp parallel for collapse(2) default(none) shared(step, block_elements)
+    for (int i = 0; i < block_count_; ++i) {
+      for (int j = 0; j < block_count_; ++j) {
+        int k = (i + step) % block_count_;
 
-        int a_idx = ((i * block_count) + k) * block_elements;
-        int b_idx = ((k * block_count) + j) * block_elements;
-        int c_idx = ((i * block_count) + j) * block_elements;
+        int a_idx = ((i * block_count_) + k) * block_elements;
+        int b_idx = ((k * block_count_) + j) * block_elements;
+        int c_idx = ((i * block_count_) + j) * block_elements;
 
-        for (int ii = 0; ii < block_size; ++ii) {
-          for (int kk = 0; kk < block_size; ++kk) {
-            double a_val = a_blocks[a_idx + (ii * block_size) + kk];
-            for (int jj = 0; jj < block_size; ++jj) {
-              c_blocks[c_idx + (ii * block_size) + jj] +=
-                  a_val * b_blocks[b_idx + (kk * block_size) + jj];
-            }
-          }
-        }
+        MultiplyBlock(a_idx, b_idx, c_idx, block_size_);
       }
     }
   }
@@ -137,24 +159,7 @@ bool KazennovaATestTaskOMP::RunImpl() {
 }
 
 bool KazennovaATestTaskOMP::PostProcessingImpl() {
-  size_t block_elements = static_cast<size_t>(block_size) * block_size;
-  auto &out = GetOutput().data;
-
-  #pragma omp parallel for collapse(2)
-  for (int bi = 0; bi < block_count; ++bi) {
-    for (int bj = 0; bj < block_count; ++bj) {
-      int block_offset = ((bi * block_count) + bj) * block_elements;
-
-      for (int i = 0; i < block_size; ++i) {
-        for (int j = 0; j < block_size; ++j) {
-          int dst_idx = (((bi * block_size) + i) * matrix_size) + ((bj * block_size) + j);
-          int src_idx = block_offset + (i * block_size) + j;
-          out[dst_idx] = c_blocks[src_idx];
-        }
-      }
-    }
-  }
-
+  AssembleMatrix(c_blocks_, GetOutput().data, matrix_size_, block_size_, block_count_);
   return true;
 }
 

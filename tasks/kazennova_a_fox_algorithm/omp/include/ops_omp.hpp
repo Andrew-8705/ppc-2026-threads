@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "kazennova_a_fox_algorithm/common/include/common.hpp"
 #include "task/include/task.hpp"
 
@@ -18,12 +20,13 @@ class KazennovaATestTaskOMP : public BaseTask {
   bool RunImpl() override;
   bool PostProcessingImpl() override;
 
-  int matrix_size;
-  int block_size;
-  int block_count;
-  std::vector<double> a_blocks;
-  std::vector<double> b_blocks;
-  std::vector<double> c_blocks;
+  // private members с подчёркиванием в конце
+  int matrix_size_{0};
+  int block_size_{0};
+  int block_count_{0};
+  std::vector<double> a_blocks_;
+  std::vector<double> b_blocks_;
+  std::vector<double> c_blocks_;
 };
 
 }  // namespace kazennova_a_fox_algorithm
