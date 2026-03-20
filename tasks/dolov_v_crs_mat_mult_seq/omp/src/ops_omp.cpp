@@ -1,8 +1,10 @@
 #include "dolov_v_crs_mat_mult_seq/omp/include/ops_omp.hpp"
+
 #include <omp.h>
+
 #include <cmath>
-#include <vector>
 #include <numeric>
+#include <vector>
 
 namespace dolov_v_crs_mat_mult_seq {
 
@@ -16,7 +18,8 @@ bool DolovVCrsMatMultOmp::ValidationImpl() {
   if (input_data.size() != 2) return false;
   const auto &matrix_a = input_data[0];
   const auto &matrix_b = input_data[1];
-  return matrix_a.num_cols == matrix_b.num_rows && matrix_a.num_rows > 0 && matrix_b.num_cols > 0;
+  return matrix_a.num_cols == matrix_b.num_rows && matrix_a.num_rows > 0 &&
+         matrix_b.num_cols > 0;
 }
 
 bool DolovVCrsMatMultOmp::PreProcessingImpl() {
@@ -36,7 +39,8 @@ SparseMatrix DolovVCrsMatMultOmp::TransposeMatrix(const SparseMatrix &matrix) {
   transposed.row_pointers.assign(transposed.num_rows + 1, 0);
 
   for (int col_idx : matrix.col_indices) transposed.row_pointers[col_idx + 1]++;
-  for (int i = 0; i < transposed.num_rows; ++i) transposed.row_pointers[i + 1] += transposed.row_pointers[i];
+  for (int i = 0; i < transposed.num_rows; ++i)
+    transposed.row_pointers[i + 1] += transposed.row_pointers[i];
 
   transposed.values.resize(matrix.values.size());
   transposed.col_indices.resize(matrix.col_indices.size());
@@ -53,7 +57,9 @@ SparseMatrix DolovVCrsMatMultOmp::TransposeMatrix(const SparseMatrix &matrix) {
   return transposed;
 }
 
-double DolovVCrsMatMultOmp::DotProduct(const SparseMatrix &matrix_a, int row_a, const SparseMatrix &matrix_b_t, int row_b) {
+double DolovVCrsMatMultOmp::DotProduct(const SparseMatrix &matrix_a, int row_a,
+                                       const SparseMatrix &matrix_b_t,
+                                       int row_b) {
   double sum = 0.0;
   int ptr_a = matrix_a.row_pointers[row_a];
   int ptr_b = matrix_b_t.row_pointers[row_b];
@@ -63,7 +69,8 @@ double DolovVCrsMatMultOmp::DotProduct(const SparseMatrix &matrix_a, int row_a, 
   while (ptr_a < end_a && ptr_b < end_b) {
     if (matrix_a.col_indices[ptr_a] == matrix_b_t.col_indices[ptr_b]) {
       sum += matrix_a.values[ptr_a] * matrix_b_t.values[ptr_b];
-      ptr_a++; ptr_b++;
+      ptr_a++;
+      ptr_b++;
     } else if (matrix_a.col_indices[ptr_a] < matrix_b_t.col_indices[ptr_b]) {
       ptr_a++;
     } else {
@@ -79,9 +86,10 @@ bool DolovVCrsMatMultOmp::RunImpl() {
   auto &result = GetOutput();
 
   SparseMatrix matrix_b_t = TransposeMatrix(matrix_b);
-  
-  // 1. Первый проход: считаем только КОЛИЧЕСТВО ненулевых элементов в каждой строке
-  #pragma omp parallel for schedule(dynamic)
+
+// 1. Первый проход: считаем только КОЛИЧЕСТВО ненулевых элементов в каждой
+// строке
+#pragma omp parallel for schedule(dynamic)
   for (int i = 0; i < matrix_a.num_rows; ++i) {
     int row_nz = 0;
     for (int j = 0; j < matrix_b_t.num_rows; ++j) {
@@ -101,8 +109,9 @@ bool DolovVCrsMatMultOmp::RunImpl() {
   result.values.resize(total_nz);
   result.col_indices.resize(total_nz);
 
-  // 3. Второй проход: теперь вычисляем и записываем данные в заранее выделенную память
-  #pragma omp parallel for schedule(dynamic)
+// 3. Второй проход: теперь вычисляем и записываем данные в заранее выделенную
+// память
+#pragma omp parallel for schedule(dynamic)
   for (int i = 0; i < matrix_a.num_rows; ++i) {
     int write_pos = result.row_pointers[i];
     for (int j = 0; j < matrix_b_t.num_rows; ++j) {
