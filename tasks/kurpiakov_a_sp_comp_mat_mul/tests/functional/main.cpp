@@ -146,9 +146,9 @@ TEST_P(KurpiakovRunFuncTestsThreads, SparseMatMulFromParams) {
   ExecuteTest(GetParam());
 }
 
-const auto kTestTasksList =
-    std::tuple_cat(ppc::util::AddFuncTask<KurpiakovACRSMatMulSEQ, InType>(kTestParam, PPC_SETTINGS_kurpiakov_a_sp_comp_mat_mul),
-                   ppc::util::AddFuncTask<KurpiakovACRSMatMulOMP, InType>(kTestParam, PPC_SETTINGS_kurpiakov_a_sp_comp_mat_mul));
+const auto kTestTasksList = std::tuple_cat(
+    ppc::util::AddFuncTask<KurpiakovACRSMatMulSEQ, InType>(kTestParam, PPC_SETTINGS_kurpiakov_a_sp_comp_mat_mul),
+    ppc::util::AddFuncTask<KurpiakovACRSMatMulOMP, InType>(kTestParam, PPC_SETTINGS_kurpiakov_a_sp_comp_mat_mul));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 const auto kPerfTestName = KurpiakovRunFuncTestsThreads::PrintFuncTestName<KurpiakovRunFuncTestsThreads>;
