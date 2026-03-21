@@ -93,50 +93,48 @@ bool DolovVCrsMatMultOmp::RunImpl() {
   const auto &matrix_b = GetInput()[1];
 
   SparseMatrix matrix_b_t = TransposeMatrix(matrix_b);
-  SparseMatrix local_result;
-  local_result.num_rows = matrix_a.num_rows;
-  local_result.num_cols = matrix_b.num_cols;
-  local_result.row_pointers.assign(local_result.num_rows + 1, 0);
+  int rows = matrix_a.num_rows;
 
-#pragma omp parallel default(none) shared(matrix_a, matrix_b_t, local_result)
-  {
-#pragma omp for schedule(dynamic)
-    for (int i = 0; i < matrix_a.num_rows; ++i) {
-      int row_nz = 0;
-      for (int j = 0; j < matrix_b_t.num_rows; ++j) {
-        if (std::fabs(DolovVCrsMatMultOmp::DotProduct(matrix_a, i, matrix_b_t, j)) > 1e-15) {
-          row_nz++;
-        }
+  std::vector<std::vector<double>> temp_values(rows);
+  std::vector<std::vector<int>> temp_cols(rows);
+
+#pragma omp parallel for schedule(dynamic) default(none) shared(matrix_a, matrix_b_t, temp_values, temp_cols, rows)
+  for (int i = 0; i < rows; ++i) {
+    std::vector<double> local_vals;
+    std::vector<int> local_cols;
+
+    local_vals.reserve(16);
+    local_cols.reserve(16);
+
+    for (int j = 0; j < matrix_b_t.num_rows; ++j) {
+      double sum = DolovVCrsMatMultOmp::DotProduct(matrix_a, i, matrix_b_t, j);
+      if (std::fabs(sum) > 1e-15) {
+        local_vals.push_back(sum);
+        local_cols.push_back(j);
       }
-      local_result.row_pointers[i + 1] = row_nz;
     }
 
-#pragma omp single
-    {
-      for (int i = 0; i < local_result.num_rows; ++i) {
-        local_result.row_pointers[i + 1] += local_result.row_pointers[i];
-      }
-      int total_nz = local_result.row_pointers[local_result.num_rows];
-      local_result.values.assign(total_nz, 0.0);
-      local_result.col_indices.assign(total_nz, 0);
-    }
-    if (!local_result.values.empty()) {
-#pragma omp for schedule(dynamic)
-      for (int i = 0; i < matrix_a.num_rows; ++i) {
-        int write_pos = local_result.row_pointers[i];
-        for (int j = 0; j < matrix_b_t.num_rows; ++j) {
-          double sum = DolovVCrsMatMultOmp::DotProduct(matrix_a, i, matrix_b_t, j);
-          if (std::fabs(sum) > 1e-15) {
-            local_result.values[write_pos] = sum;
-            local_result.col_indices[write_pos] = j;
-            write_pos++;
-          }
-        }
-      }
-    }
+    temp_values[i] = std::move(local_vals);
+    temp_cols[i] = std::move(local_cols);
   }
 
-  GetOutput() = std::move(local_result);
+  SparseMatrix res;
+  res.num_rows = rows;
+  res.num_cols = matrix_b.num_cols;
+  res.row_pointers.assign(rows + 1, 0);
+
+  for (int i = 0; i < rows; ++i) {
+    res.row_pointers[i + 1] = res.row_pointers[i] + static_cast<int>(temp_values[i].size());
+  }
+
+  int total_nz = res.row_pointers[rows];
+  res.values.reserve(total_nz);
+  res.col_indices.reserve(total_nz);
+  for (int i = 0; i < rows; ++i) {
+    res.values.insert(res.values.end(), temp_values[i].begin(), temp_values[i].end());
+    res.col_indices.insert(res.col_indices.end(), temp_cols[i].begin(), temp_cols[i].end());
+  }
+  GetOutput() = std::move(res);
 
   return true;
 }
