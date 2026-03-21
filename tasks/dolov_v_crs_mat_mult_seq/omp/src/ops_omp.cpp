@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "dolov_v_crs_mat_mult_seq/common/include/common.hpp"
+#include "util/include/util.hpp"
 
 namespace dolov_v_crs_mat_mult_seq {
 
@@ -34,17 +35,14 @@ SparseMatrix DolovVCrsMatMultOmp::TransposeMatrix(const SparseMatrix &matrix) {
   transposed.num_rows = matrix.num_cols;
   transposed.num_cols = matrix.num_rows;
   transposed.row_pointers.assign(transposed.num_rows + 1, 0);
-
   for (int col_idx : matrix.col_indices) {
     transposed.row_pointers[col_idx + 1]++;
   }
   for (int i = 0; i < transposed.num_rows; ++i) {
     transposed.row_pointers[i + 1] += transposed.row_pointers[i];
   }
-
   transposed.values.resize(matrix.values.size());
   transposed.col_indices.resize(matrix.col_indices.size());
-
   std::vector<int> current_pos = transposed.row_pointers;
   for (int i = 0; i < matrix.num_rows; ++i) {
     for (int j = matrix.row_pointers[i]; j < matrix.row_pointers[i + 1]; ++j) {
@@ -64,7 +62,6 @@ double DolovVCrsMatMultOmp::DotProduct(const SparseMatrix &matrix_a, int row_a, 
   int ptr_b = matrix_b_t.row_pointers[row_b];
   const int end_a = matrix_a.row_pointers[row_a + 1];
   const int end_b = matrix_b_t.row_pointers[row_b + 1];
-
   while (ptr_a < end_a && ptr_b < end_b) {
     if (matrix_a.col_indices[ptr_a] == matrix_b_t.col_indices[ptr_b]) {
       sum += matrix_a.values[ptr_a] * matrix_b_t.values[ptr_b];
@@ -82,20 +79,17 @@ double DolovVCrsMatMultOmp::DotProduct(const SparseMatrix &matrix_a, int row_a, 
 bool DolovVCrsMatMultOmp::RunImpl() {
   const auto &matrix_a = GetInput()[0];
   const auto &matrix_b = GetInput()[1];
-
   SparseMatrix matrix_b_t = TransposeMatrix(matrix_b);
   int rows = matrix_a.num_rows;
-  int n_threads = ppc::util::GetNumThreads();
 
   std::vector<std::vector<double>> temp_values(rows);
   std::vector<std::vector<int>> temp_cols(rows);
 
 #pragma omp parallel for schedule(dynamic, 10) default(none) \
-    shared(matrix_a, matrix_b_t, temp_values, temp_cols, rows) num_threads(n_threads)
+    shared(matrix_a, matrix_b_t, temp_values, temp_cols, rows) num_threads(ppc::util::GetNumThreads())
   for (int i = 0; i < rows; ++i) {
     std::vector<double> local_vals;
     std::vector<int> local_cols;
-
     for (int j = 0; j < matrix_b_t.num_rows; ++j) {
       double sum = DolovVCrsMatMultOmp::DotProduct(matrix_a, i, matrix_b_t, j);
       if (std::fabs(sum) > 1e-15) {
@@ -111,7 +105,6 @@ bool DolovVCrsMatMultOmp::RunImpl() {
   res.num_rows = rows;
   res.num_cols = matrix_b.num_cols;
   res.row_pointers.assign(rows + 1, 0);
-
   for (int i = 0; i < rows; ++i) {
     res.row_pointers[i + 1] = res.row_pointers[i] + static_cast<int>(temp_values[i].size());
   }
@@ -119,13 +112,14 @@ bool DolovVCrsMatMultOmp::RunImpl() {
   int total_nz = res.row_pointers[rows];
   res.values.reserve(total_nz);
   res.col_indices.reserve(total_nz);
-
   for (int i = 0; i < rows; ++i) {
     res.values.insert(res.values.end(), temp_values[i].begin(), temp_values[i].end());
     res.col_indices.insert(res.col_indices.end(), temp_cols[i].begin(), temp_cols[i].end());
   }
 
   GetOutput() = std::move(res);
+  omp_pause_resource_all(omp_pause_hard);
+
   return true;
 }
 
