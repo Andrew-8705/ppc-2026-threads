@@ -55,9 +55,8 @@ TEST_P(ShekhirevVFuncTest, SeqAndOmpSortTests) {
 
 namespace {
 const std::array<TaskTestType, 8> kTestParams = {
-    std::make_tuple(0, 42),   std::make_tuple(1, 42),    std::make_tuple(8, 7),
-    std::make_tuple(13, 13),  std::make_tuple(128, 1),   std::make_tuple(200, 123),
-    std::make_tuple(256, 88), std::make_tuple(500, 999),
+    std::make_tuple(0, 42),  std::make_tuple(1, 42),    std::make_tuple(8, 7),    std::make_tuple(13, 13),
+    std::make_tuple(128, 1), std::make_tuple(200, 123), std::make_tuple(256, 88), std::make_tuple(500, 999),
 };
 
 const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<ShekhirevHoareBatcherSortSEQ, InType>(
