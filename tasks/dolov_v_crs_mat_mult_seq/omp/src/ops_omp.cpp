@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "dolov_v_crs_mat_mult_seq/common/include/common.hpp"
-#include "util/include/util.hpp"
 
 namespace dolov_v_crs_mat_mult_seq {
 

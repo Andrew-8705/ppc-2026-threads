@@ -4,6 +4,7 @@
 #include "task/include/task.hpp"
 
 namespace dolov_v_crs_mat_mult_seq {
+
 class DolovVCrsMatMultOmp : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
@@ -11,6 +12,7 @@ class DolovVCrsMatMultOmp : public BaseTask {
   }
   explicit DolovVCrsMatMultOmp(const InType &in);
 
+ private:
   bool ValidationImpl() override;
   bool PreProcessingImpl() override;
   bool RunImpl() override;
