@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "modules/task/include/task.hpp"
+#include "task/include/task.hpp"
 
 namespace gusev_d_double_sort_even_odd_batcher_omp_task_threads {
 

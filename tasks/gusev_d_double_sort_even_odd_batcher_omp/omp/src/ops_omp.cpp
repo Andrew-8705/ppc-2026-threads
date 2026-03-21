@@ -1,17 +1,19 @@
-#include "tasks/gusev_d_double_sort_even_odd_batcher_omp/omp/include/ops_omp.hpp"
+#include "gusev_d_double_sort_even_odd_batcher_omp/omp/include/ops_omp.hpp"
+
+#include <omp.h>
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <iterator>
-#include <ranges>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
-#include <omp.h>
+#include "gusev_d_double_sort_even_odd_batcher_omp/common/include/common.hpp"
 
 namespace gusev_d_double_sort_even_odd_batcher_omp_task_threads {
 namespace {
@@ -39,23 +41,23 @@ size_t GetBucketIndex(ValueType value, int shift) {
   return static_cast<size_t>((DoubleToSortableKey(value) >> shift) & kBucketMask);
 }
 
-void BuildPrefixSums(std::array<size_t, kRadixBuckets>& count) {
+void BuildPrefixSums(std::array<size_t, kRadixBuckets> &count) {
   size_t prefix = 0;
-  for (auto& value : count) {
+  for (auto &value : count) {
     const auto current = value;
     value = prefix;
     prefix += current;
   }
 }
 
-void RadixSortDoubles(Block& data) {
+void RadixSortDoubles(Block &data) {
   if (data.size() < 2) {
     return;
   }
 
   Block buffer(data.size());
-  auto* src = &data;
-  auto* dst = &buffer;
+  auto *src = &data;
+  auto *dst = &buffer;
 
   for (int byte = 0; byte < kRadixPasses; ++byte) {
     std::array<size_t, kRadixBuckets> count{};
@@ -79,7 +81,7 @@ void RadixSortDoubles(Block& data) {
   }
 }
 
-void SplitByGlobalParity(const Block& source, size_t global_offset, Block& even, Block& odd) {
+void SplitByGlobalParity(const Block &source, size_t global_offset, Block &even, Block &odd) {
   even.clear();
   odd.clear();
   even.reserve((source.size() + 1) / 2);
@@ -94,7 +96,7 @@ void SplitByGlobalParity(const Block& source, size_t global_offset, Block& even,
   }
 }
 
-Block InterleaveParityGroups(size_t total_size, const Block& even, const Block& odd) {
+Block InterleaveParityGroups(size_t total_size, const Block &even, const Block &odd) {
   Block result(total_size);
   size_t even_index = 0;
   size_t odd_index = 0;
@@ -110,7 +112,7 @@ Block InterleaveParityGroups(size_t total_size, const Block& even, const Block& 
   return result;
 }
 
-void OddEvenFinalize(Block& result) {
+void OddEvenFinalize(Block &result) {
   for (size_t phase = 0; phase < result.size(); ++phase) {
     const auto start = phase & 1U;
     for (size_t i = start; i + 1 < result.size(); i += 2) {
@@ -121,14 +123,14 @@ void OddEvenFinalize(Block& result) {
   }
 }
 
-void SplitBlocksByParity(const Block& left, const Block& right, Block& left_even, Block& left_odd, Block& right_even,
-                         Block& right_odd) {
+void SplitBlocksByParity(const Block &left, const Block &right, Block &left_even, Block &left_odd, Block &right_even,
+                         Block &right_odd) {
   SplitByGlobalParity(left, 0, left_even, left_odd);
   SplitByGlobalParity(right, left.size(), right_even, right_odd);
 }
 
-void MergeParityGroups(const Block& left_even, const Block& right_even, const Block& left_odd, const Block& right_odd,
-                       Block& merged_even, Block& merged_odd) {
+void MergeParityGroups(const Block &left_even, const Block &right_even, const Block &left_odd, const Block &right_odd,
+                       Block &merged_even, Block &merged_odd) {
   merged_even.clear();
   merged_odd.clear();
   merged_even.reserve(left_even.size() + right_even.size());
@@ -138,7 +140,7 @@ void MergeParityGroups(const Block& left_even, const Block& right_even, const Bl
   std::ranges::merge(left_odd, right_odd, std::back_inserter(merged_odd));
 }
 
-Block MergeBatcherEvenOdd(const Block& left, const Block& right) {
+Block MergeBatcherEvenOdd(const Block &left, const Block &right) {
   Block left_even;
   Block left_odd;
   Block right_even;
@@ -171,24 +173,86 @@ size_t GetBlockCount(size_t input_size) {
   return std::max<size_t>(1, std::min(input_size, omp_threads));
 }
 
-void FillAndSortBlock(const std::vector<ValueType>& input, Block& block, BlockRange range) {
-  block.assign(input.begin() + static_cast<std::ptrdiff_t>(range.begin), input.begin() + static_cast<std::ptrdiff_t>(range.end));
+void FillAndSortBlock(const std::vector<ValueType> &input, Block &block, BlockRange range) {
+  block.assign(input.begin() + static_cast<std::ptrdiff_t>(range.begin),
+               input.begin() + static_cast<std::ptrdiff_t>(range.end));
   RadixSortDoubles(block);
 }
 
-BlockList MakeSortedBlocks(const std::vector<ValueType>& input) {
+void StoreFirstException(std::atomic_bool &has_exception, std::exception_ptr &exception) {
+#pragma omp critical
+  {
+    if (!has_exception.exchange(true)) {
+      exception = std::current_exception();
+    }
+  }
+}
+
+BlockList MakeSortedBlocks(const std::vector<ValueType> &input) {
   const auto block_count = GetBlockCount(input.size());
   const auto total_size = input.size();
+  const auto signed_block_count = static_cast<std::ptrdiff_t>(block_count);
 
   BlockList blocks(block_count);
+  std::exception_ptr exception;
+  std::atomic_bool has_exception{false};
 
-#pragma omp parallel for schedule(static) if(block_count > 1)
-  for (long long block = 0; block < static_cast<long long>(block_count); ++block) {
-    const auto index = static_cast<size_t>(block);
-    FillAndSortBlock(input, blocks[index], GetBlockRange(index, block_count, total_size));
+#pragma omp parallel for default(none) shared(input, blocks, exception, has_exception) \
+    firstprivate(block_count, signed_block_count, total_size) schedule(static) if (block_count > 1)
+  for (std::ptrdiff_t block = 0; block < signed_block_count; ++block) {
+    if (has_exception.load()) {
+      continue;
+    }
+
+    try {
+      const auto index = static_cast<size_t>(block);
+      FillAndSortBlock(input, blocks[index], GetBlockRange(index, block_count, total_size));
+    } catch (...) {
+      StoreFirstException(has_exception, exception);
+    }
+  }
+
+  if (exception != nullptr) {
+    std::rethrow_exception(exception);
   }
 
   return blocks;
+}
+
+void MergeBlockPair(const BlockList &blocks, BlockList &next, size_t pair_index) {
+  next[pair_index] = MergeBatcherEvenOdd(blocks[pair_index * 2], blocks[(pair_index * 2) + 1]);
+}
+
+BlockList MergeBlockPairs(const BlockList &blocks) {
+  const auto pair_count = blocks.size() / 2;
+  const auto signed_pair_count = static_cast<std::ptrdiff_t>(pair_count);
+  BlockList next((blocks.size() + 1) / 2);
+  std::exception_ptr exception;
+  std::atomic_bool has_exception{false};
+
+#pragma omp parallel for default(none) shared(blocks, next, exception, has_exception) \
+    firstprivate(pair_count, signed_pair_count) schedule(static) if (pair_count > 1)
+  for (std::ptrdiff_t pair = 0; pair < signed_pair_count; ++pair) {
+    if (has_exception.load()) {
+      continue;
+    }
+
+    try {
+      MergeBlockPair(blocks, next, static_cast<size_t>(pair));
+    } catch (...) {
+      StoreFirstException(has_exception, exception);
+    }
+  }
+
+  if (exception != nullptr) {
+    std::rethrow_exception(exception);
+  }
+
+  if ((blocks.size() & 1U) != 0U) {
+    next.back() = blocks.back();
+  }
+
+  return next;
 }
 
 Block MergeBlocks(BlockList blocks) {
@@ -197,33 +261,23 @@ Block MergeBlocks(BlockList blocks) {
   }
 
   while (blocks.size() > 1) {
-    const auto pair_count = blocks.size() / 2;
-    BlockList next((blocks.size() + 1) / 2);
-
-#pragma omp parallel for schedule(static) if(pair_count > 1)
-    for (long long pair = 0; pair < static_cast<long long>(pair_count); ++pair) {
-      const auto index = static_cast<size_t>(pair);
-      next[index] = MergeBatcherEvenOdd(blocks[index * 2], blocks[(index * 2) + 1]);
-    }
-
-    if ((blocks.size() & 1U) != 0U) {
-      next.back() = std::move(blocks.back());
-    }
-
-    blocks = std::move(next);
+    blocks = MergeBlockPairs(blocks);
   }
 
-  return blocks.empty() ? std::vector<double>{} : std::move(blocks.front());
+  return std::move(blocks.front());
 }
 
 }  // namespace
 
-DoubleSortEvenOddBatcherOMP::DoubleSortEvenOddBatcherOMP(const InType& in) : BaseTask(in) {
-  internal_order_test_ = true;
+DoubleSortEvenOddBatcherOMP::DoubleSortEvenOddBatcherOMP(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
+  GetInput() = in;
+  GetOutput() = {};
 }
 
-bool DoubleSortEvenOddBatcherOMP::ValidationImpl() { return GetOutput().empty(); }
+bool DoubleSortEvenOddBatcherOMP::ValidationImpl() {
+  return GetOutput().empty();
+}
 
 bool DoubleSortEvenOddBatcherOMP::PreProcessingImpl() {
   input_data_ = GetInput();
@@ -243,7 +297,7 @@ bool DoubleSortEvenOddBatcherOMP::RunImpl() {
 }
 
 bool DoubleSortEvenOddBatcherOMP::PostProcessingImpl() {
-  SetOutput(result_data_);
+  GetOutput() = result_data_;
   return true;
 }
 

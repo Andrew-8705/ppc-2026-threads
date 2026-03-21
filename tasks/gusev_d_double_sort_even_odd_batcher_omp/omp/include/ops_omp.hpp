@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tasks/gusev_d_double_sort_even_odd_batcher_omp/common/include/common.hpp"
+#include "gusev_d_double_sort_even_odd_batcher_omp/common/include/common.hpp"
 
 namespace gusev_d_double_sort_even_odd_batcher_omp_task_threads {
 
@@ -10,7 +10,7 @@ class DoubleSortEvenOddBatcherOMP : public BaseTask {
     return ppc::task::TypeOfTask::kOMP;
   }
 
-  explicit DoubleSortEvenOddBatcherOMP(const InType& in);
+  explicit DoubleSortEvenOddBatcherOMP(const InType &in);
 
  private:
   bool ValidationImpl() override;

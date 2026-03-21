@@ -6,21 +6,33 @@
 #include <cstdint>
 #include <iostream>
 #include <random>
-#include <ranges>
 #include <vector>
 
-#include "tasks/gusev_d_double_sort_even_odd_batcher_omp/omp/include/ops_omp.hpp"
+#include "gusev_d_double_sort_even_odd_batcher_omp/common/include/common.hpp"
+#include "gusev_d_double_sort_even_odd_batcher_omp/omp/include/ops_omp.hpp"
 
 namespace {
 
-using namespace gusev_d_double_sort_even_odd_batcher_omp_task_threads;
+using gusev_d_double_sort_even_odd_batcher_omp_task_threads::DoubleSortEvenOddBatcherOMP;
+using gusev_d_double_sort_even_odd_batcher_omp_task_threads::InType;
+using gusev_d_double_sort_even_odd_batcher_omp_task_threads::OutType;
+using gusev_d_double_sort_even_odd_batcher_omp_task_threads::ValueType;
+
+constexpr size_t kPerfInputSize = 1 << 13;
+
+struct PerfRunResult {
+  bool ok = false;
+  const char *failed_stage = "";
+  OutType output;
+  std::chrono::duration<double> elapsed{};
+};
 
 InType GenerateRandomInput(size_t size, uint64_t seed) {
   std::mt19937_64 generator(seed);
-  std::uniform_real_distribution<double> distribution(-1.0e6, 1.0e6);
+  std::uniform_real_distribution<ValueType> distribution(-1.0e6, 1.0e6);
 
   InType input(size);
-  for (double& value : input) {
+  for (ValueType &value : input) {
     value = distribution(generator);
   }
 
@@ -30,7 +42,7 @@ InType GenerateRandomInput(size_t size, uint64_t seed) {
 InType GenerateDescendingInput(size_t size) {
   InType input(size);
   for (size_t i = 0; i < size; ++i) {
-    input[i] = static_cast<double>(size - i);
+    input[i] = static_cast<ValueType>(size - i);
   }
 
   return input;
@@ -39,7 +51,7 @@ InType GenerateDescendingInput(size_t size) {
 InType GenerateNearlySortedInput(size_t size) {
   InType input(size);
   for (size_t i = 0; i < size; ++i) {
-    input[i] = static_cast<double>(i);
+    input[i] = static_cast<ValueType>(i);
   }
 
   for (size_t i = 1; i < size; i += 64) {
@@ -49,35 +61,65 @@ InType GenerateNearlySortedInput(size_t size) {
   return input;
 }
 
-void RunPerfCase(const InType& input) {
+InType GenerateDuplicateHeavyInput(size_t size) {
+  InType input(size);
+  for (size_t i = 0; i < size; ++i) {
+    input[i] = static_cast<ValueType>((i % 17) - 8);
+  }
+
+  return input;
+}
+
+PerfRunResult ExecutePerfCase(const InType &input) {
+  DoubleSortEvenOddBatcherOMP task(input);
+  if (!task.Validation()) {
+    return {.failed_stage = "Validation"};
+  }
+  if (!task.PreProcessing()) {
+    return {.failed_stage = "PreProcessing"};
+  }
+
+  const auto started = std::chrono::steady_clock::now();
+  if (!task.Run()) {
+    return {.failed_stage = "Run"};
+  }
+  const auto finished = std::chrono::steady_clock::now();
+
+  if (!task.PostProcessing()) {
+    return {.failed_stage = "PostProcessing"};
+  }
+
+  return {
+      .ok = true,
+      .output = task.GetOutput(),
+      .elapsed = std::chrono::duration<double>(finished - started),
+  };
+}
+
+void RunPerfCase(const InType &input) {
   auto expected = input;
   std::ranges::sort(expected);
 
-  DoubleSortEvenOddBatcherOMP task(input);
-  ASSERT_TRUE(task.Validation());
-  ASSERT_TRUE(task.PreProcessing());
-
-  const auto started = std::chrono::steady_clock::now();
-  ASSERT_TRUE(task.Run());
-  const auto finished = std::chrono::steady_clock::now();
-
-  ASSERT_TRUE(task.PostProcessing());
-  EXPECT_EQ(task.GetOutput(), expected);
-
-  const std::chrono::duration<double> elapsed = finished - started;
-  std::cout << "omp_run_time_sec:" << elapsed.count() << '\n';
+  const auto result = ExecutePerfCase(input);
+  ASSERT_TRUE(result.ok) << result.failed_stage;
+  EXPECT_EQ(result.output, expected);
+  std::cout << "omp_run_time_sec:" << result.elapsed.count() << '\n';
 }
 
 TEST(GusevDoubleSortEvenOddBatcherOMPPerf, RunPerfTestOMPDescending) {
-  RunPerfCase(GenerateDescendingInput(1 << 15));
+  RunPerfCase(GenerateDescendingInput(kPerfInputSize));
 }
 
 TEST(GusevDoubleSortEvenOddBatcherOMPPerf, RunPerfTestOMPRandom) {
-  RunPerfCase(GenerateRandomInput(1 << 15, 20260320));
+  RunPerfCase(GenerateRandomInput(kPerfInputSize, 20260320));
 }
 
 TEST(GusevDoubleSortEvenOddBatcherOMPPerf, RunPerfTestOMPNearlySorted) {
-  RunPerfCase(GenerateNearlySortedInput(1 << 15));
+  RunPerfCase(GenerateNearlySortedInput(kPerfInputSize));
+}
+
+TEST(GusevDoubleSortEvenOddBatcherOMPPerf, RunPerfTestOMPDuplicateHeavy) {
+  RunPerfCase(GenerateDuplicateHeavyInput(kPerfInputSize));
 }
 
 }  // namespace
