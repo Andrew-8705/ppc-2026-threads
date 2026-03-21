@@ -139,7 +139,6 @@ void KrasnopevtsevaVHoareBatcherSortOMP::BatcherMerge(int thread_input_size, std
 #pragma omp parallel for default(none) shared(pointers, sizes, pack, step, thread_input_size, \
                                                   par_if_greater) if ((thread_input_size / step) > par_if_greater)
     for (int off = 0; off < pack / 2; ++off) {
-      // Используем size_t напрямую без cast, компилятор сам преобразует
       auto idx1 = static_cast<std::size_t>(2 * step) * static_cast<std::size_t>(off);
       auto idx2 = (static_cast<std::size_t>(2 * step) * static_cast<std::size_t>(off)) + static_cast<std::size_t>(step);
       BatcherMergeBlocksStep(pointers[idx1], sizes[idx1], pointers[idx2], sizes[idx2]);
