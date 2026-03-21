@@ -61,7 +61,7 @@ const std::array<TaskTestType, 8> kTestParams = {
 };
 
 const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<ShekhirevHoareBatcherSortSEQ, InType>(
-                                               kTestParams, PPC_SETTINGS_shekhirev_v_hoare_batcher_sortz),
+                                               kTestParams, PPC_SETTINGS_shekhirev_v_hoare_batcher_sort),
                                            ppc::util::AddFuncTask<ShekhirevHoareBatcherSortOMP, InType>(
                                                kTestParams, PPC_SETTINGS_shekhirev_v_hoare_batcher_sort));
 
