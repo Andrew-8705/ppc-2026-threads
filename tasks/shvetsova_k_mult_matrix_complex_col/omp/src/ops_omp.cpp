@@ -62,8 +62,6 @@ bool ShvetsovaKMultMatrixComplexOMP::RunImpl() {
         }
       }
 
-#include <utility>
-
       for (int index = 0; std::cmp_less(index, column_c.size()); ++index) {
         if (column_c[index].real() != 0.0 || column_c[index].imag() != 0.0) {
           columns_c[i].rows.push_back(index);
