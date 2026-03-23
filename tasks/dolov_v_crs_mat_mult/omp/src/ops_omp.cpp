@@ -1,4 +1,4 @@
-#include "dolov_v_crs_mat_mult_seq/omp/include/ops_omp.hpp"
+#include "dolov_v_crs_mat_mult/omp/include/ops_omp.hpp"
 
 #include <omp.h>
 
@@ -6,9 +6,9 @@
 #include <utility>
 #include <vector>
 
-#include "dolov_v_crs_mat_mult_seq/common/include/common.hpp"
+#include "dolov_v_crs_mat_mult/common/include/common.hpp"
 
-namespace dolov_v_crs_mat_mult_seq {
+namespace dolov_v_crs_mat_mult {
 
 DolovVCrsMatMultOmp::DolovVCrsMatMultOmp(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
@@ -131,4 +131,4 @@ bool DolovVCrsMatMultOmp::PostProcessingImpl() {
   return true;
 }
 
-}  // namespace dolov_v_crs_mat_mult_seq
+}  // namespace dolov_v_crs_mat_mult
