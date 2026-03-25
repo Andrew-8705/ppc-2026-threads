@@ -2,9 +2,9 @@
 #include <vector>
 
 #include "task/include/task.hpp"
-#include "vlasova_a_simpson_method_seq/common/include/common.hpp"
+#include "vlasova_a_simpson_method/common/include/common.hpp"
 
-namespace vlasova_a_simpson_method_seq {
+namespace vlasova_a_simpson_method {
 
 class VlasovaASimpsonMethodSEQ : public BaseTask {
  public:
@@ -30,4 +30,4 @@ class VlasovaASimpsonMethodSEQ : public BaseTask {
   std::vector<int> dimensions_;  // количество точек по каждому измерению (n[i] + 1
 };
 
-}  // namespace vlasova_a_simpson_method_seq
+}  // namespace vlasova_a_simpson_method

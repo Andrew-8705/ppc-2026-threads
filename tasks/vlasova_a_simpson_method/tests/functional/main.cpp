@@ -10,10 +10,10 @@
 
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
-#include "vlasova_a_simpson_method_seq/common/include/common.hpp"
-#include "vlasova_a_simpson_method_seq/seq/include/ops_seq.hpp"
+#include "vlasova_a_simpson_method/common/include/common.hpp"
+#include "vlasova_a_simpson_method/seq/include/ops_seq.hpp"
 
-namespace vlasova_a_simpson_method_seq {
+namespace vlasova_a_simpson_method {
 
 class VlasovaASimpsonMethodFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
@@ -91,7 +91,7 @@ const std::array<TestType, 8> kTestCases = {
                     0.125, "product_3d")};
 
 const auto kTestTasksList =
-    ppc::util::AddFuncTask<VlasovaASimpsonMethodSEQ, InType>(kTestCases, PPC_SETTINGS_vlasova_a_simpson_method_seq);
+    ppc::util::AddFuncTask<VlasovaASimpsonMethodSEQ, InType>(kTestCases, PPC_SETTINGS_vlasova_a_simpson_method);
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
@@ -105,4 +105,4 @@ TEST_P(VlasovaASimpsonMethodFuncTests, GetIntegral) {
 
 }  // namespace
 
-}  // namespace vlasova_a_simpson_method_seq
+}  // namespace vlasova_a_simpson_method
