@@ -91,8 +91,9 @@ const std::array<TestType, 8> kTestCases = {
     std::make_tuple(std::vector<double>{0.0, 0.0, 0.0}, std::vector<double>{1.0, 1.0, 1.0}, std::vector<int>{8, 8, 8},
                     0.125, "product_3d")};
 
-const auto kTestTasksList =
-    ppc::util::AddFuncTask<VlasovaASimpsonMethodSEQ, InType>(kTestCases, PPC_SETTINGS_vlasova_a_simpson_method);
+const auto kTestTasksList = std::tuple_cat(
+    ppc::util::AddFuncTask<VlasovaASimpsonMethodSEQ, InType>(kTestCases, PPC_SETTINGS_vlasova_a_simpson_method),
+    ppc::util::AddFuncTask<VlasovaASimpsonMethodOMP, InType>(kTestCases, PPC_SETTINGS_vlasova_a_simpson_method));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <cstddef>
+#include <vector>
 
 #include "task/include/task.hpp"
 #include "vlasova_a_simpson_method/common/include/common.hpp"
@@ -24,10 +24,10 @@ class VlasovaASimpsonMethodOMP : public BaseTask {
 
   InType task_data_;
   double result_ = 0.0;
-  std::vector<double> h_;                    // шаги интегрирования
-  std::vector<int> dimensions_;              // количество точек по каждому измерению n[i] + 1
-  size_t total_points_;                      // общее количество точек
-  std::vector<std::vector<double>> weights_; // предвычисленные веса для каждого измерения
+  std::vector<double> h_;                     // шаги интегрирования
+  std::vector<int> dimensions_;               // количество точек по каждому измерению n[i] + 1
+  size_t total_points_;                       // общее количество точек
+  std::vector<std::vector<double>> weights_;  // предвычисленные веса для каждого измерения
 };
 
 }  // namespace vlasova_a_simpson_method

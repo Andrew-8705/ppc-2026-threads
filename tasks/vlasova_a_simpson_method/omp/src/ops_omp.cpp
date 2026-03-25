@@ -1,8 +1,9 @@
 #include "vlasova_a_simpson_method/omp/include/ops_omp.hpp"
 
+#include <omp.h>
+
 #include <cmath>
 #include <vector>
-#include <omp.h>
 
 #include "vlasova_a_simpson_method/common/include/common.hpp"
 
@@ -72,25 +73,25 @@ bool VlasovaASimpsonMethodOMP::PreProcessingImpl() {
 bool VlasovaASimpsonMethodOMP::RunImpl() {
   size_t dim = task_data_.a.size();
   double sum = 0.0;
-  
+
   if (dim == 1) {
     int n0 = task_data_.n[0];
     double a0 = task_data_.a[0];
     double h0 = h_[0];
-    const auto& w0 = weights_[0];
-    const auto& func = task_data_.func;
-    
-    #pragma omp parallel for reduction(+:sum) schedule(static)
+    const auto &w0 = weights_[0];
+    const auto &func = task_data_.func;
+
+#pragma omp parallel for reduction(+ : sum) schedule(static)
     for (int i = 0; i <= n0; ++i) {
       double x = a0 + i * h0;
       sum += w0[i] * func({x});
     }
-    
+
     result_ = sum * h0 / 3.0;
     GetOutput() = result_;
     return true;
   }
-  
+
   if (dim == 2) {
     int n0 = task_data_.n[0];
     int n1 = task_data_.n[1];
@@ -98,11 +99,11 @@ bool VlasovaASimpsonMethodOMP::RunImpl() {
     double a1 = task_data_.a[1];
     double h0 = h_[0];
     double h1 = h_[1];
-    const auto& w0 = weights_[0];
-    const auto& w1 = weights_[1];
-    const auto& func = task_data_.func;
-    
-    #pragma omp parallel for collapse(2) reduction(+:sum) schedule(static)
+    const auto &w0 = weights_[0];
+    const auto &w1 = weights_[1];
+    const auto &func = task_data_.func;
+
+#pragma omp parallel for collapse(2) reduction(+ : sum) schedule(static)
     for (int i = 0; i <= n0; ++i) {
       for (int j = 0; j <= n1; ++j) {
         double x = a0 + i * h0;
@@ -110,12 +111,12 @@ bool VlasovaASimpsonMethodOMP::RunImpl() {
         sum += w0[i] * w1[j] * func({x, y});
       }
     }
-    
+
     result_ = sum * h0 * h1 / 9.0;
     GetOutput() = result_;
     return true;
   }
-  
+
   if (dim == 3) {
     int n0 = task_data_.n[0];
     int n1 = task_data_.n[1];
@@ -126,12 +127,12 @@ bool VlasovaASimpsonMethodOMP::RunImpl() {
     double h0 = h_[0];
     double h1 = h_[1];
     double h2 = h_[2];
-    const auto& w0 = weights_[0];
-    const auto& w1 = weights_[1];
-    const auto& w2 = weights_[2];
-    const auto& func = task_data_.func;
-    
-    #pragma omp parallel for collapse(3) reduction(+:sum) schedule(static)
+    const auto &w0 = weights_[0];
+    const auto &w1 = weights_[1];
+    const auto &w2 = weights_[2];
+    const auto &func = task_data_.func;
+
+#pragma omp parallel for collapse(3) reduction(+ : sum) schedule(static)
     for (int i = 0; i <= n0; ++i) {
       for (int j = 0; j <= n1; ++j) {
         for (int k = 0; k <= n2; ++k) {
@@ -142,45 +143,45 @@ bool VlasovaASimpsonMethodOMP::RunImpl() {
         }
       }
     }
-    
+
     result_ = sum * h0 * h1 * h2 / 27.0;
     GetOutput() = result_;
     return true;
   }
-  
-  #pragma omp parallel reduction(+:sum)
+
+#pragma omp parallel reduction(+ : sum)
   {
     std::vector<int> local_index(dim, 0);
     std::vector<double> local_point(dim);
-    
-    #pragma omp for schedule(static)
+
+#pragma omp for schedule(static)
     for (size_t idx = 0; idx < total_points_; ++idx) {
       size_t temp_idx = idx;
       double weight = 1.0;
-      
+
       for (size_t i = 0; i < dim; ++i) {
         int index_i = static_cast<int>(temp_idx % dimensions_[i]);
         temp_idx /= dimensions_[i];
         local_index[i] = index_i;
         weight *= weights_[i][index_i];
       }
-      
+
       for (size_t i = 0; i < dim; ++i) {
         local_point[i] = task_data_.a[i] + (local_index[i] * h_[i]);
       }
-      
+
       sum += weight * task_data_.func(local_point);
     }
   }
-  
+
   double factor = 1.0;
   for (size_t i = 0; i < dim; ++i) {
     factor *= h_[i] / 3.0;
   }
-  
+
   result_ = sum * factor;
   GetOutput() = result_;
-  
+
   return true;
 }
 
