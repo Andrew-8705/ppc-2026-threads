@@ -179,7 +179,7 @@ class BadanovASelectEdgeSobelGradientTests : public ::testing::Test {
 
   int width{0};
   int height{0};
-  InType input{};
+  InType input;
 };
 
 TEST_F(BadanovASelectEdgeSobelGradientTests, GradientComputationProducesEdges) {
