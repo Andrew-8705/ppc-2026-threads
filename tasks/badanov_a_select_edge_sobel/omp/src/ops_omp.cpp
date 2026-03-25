@@ -47,7 +47,7 @@ void BadanovASelectEdgeSobelOMP::ApplySobelOperator(const std::vector<uint8_t> &
   const int height = height_;
   const int width = width_;
 
-#pragma omp parallel default(none) shared(input, magnitude, max_magnitude, height, width, kernels_x, kernels_y)
+#pragma omp parallel default(none) shared(input, magnitude, max_magnitude, height, width)
   {
     float local_max_magnitude = 0.0F;
 
