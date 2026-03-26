@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <vector>
 
 #include "task/include/task.hpp"
@@ -22,7 +21,6 @@ class VlasovaASimpsonMethodOMP : public BaseTask {
   bool RunImpl() override;
   bool PostProcessingImpl() override;
 
-  void Nextindex(std::vector<int> &index);
   void ComputeWeight(const std::vector<int> &index, double &weight) const;
   void ComputePoint(const std::vector<int> &index, std::vector<double> &point) const;
 
