@@ -10,6 +10,7 @@
 #include "shekhirev_v_hoare_batcher_sort/common/include/common.hpp"
 #include "shekhirev_v_hoare_batcher_sort/omp/include/ops_omp.hpp"
 #include "shekhirev_v_hoare_batcher_sort/seq/include/ops_seq.hpp"
+#include "shekhirev_v_hoare_batcher_sort/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
@@ -49,7 +50,7 @@ class ShekhirevVFuncTest : public ppc::util::BaseRunFuncTests<InType, OutType, T
   InType input_data_;
 };
 
-TEST_P(ShekhirevVFuncTest, SeqAndOmpSortTests) {
+TEST_P(ShekhirevVFuncTest, SeqOmpTbbSortTests) {
   ExecuteTest(GetParam());
 }
 
@@ -62,11 +63,13 @@ const std::array<TaskTestType, 8> kTestParams = {
 const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<ShekhirevHoareBatcherSortSEQ, InType>(
                                                kTestParams, PPC_SETTINGS_shekhirev_v_hoare_batcher_sort),
                                            ppc::util::AddFuncTask<ShekhirevHoareBatcherSortOMP, InType>(
+                                               kTestParams, PPC_SETTINGS_shekhirev_v_hoare_batcher_sort),
+                                           ppc::util::AddFuncTask<ShekhirevHoareBatcherSortTBB, InType>(
                                                kTestParams, PPC_SETTINGS_shekhirev_v_hoare_batcher_sort));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
-INSTANTIATE_TEST_SUITE_P(SeqAndOmpSortTests_Group, ShekhirevVFuncTest, kGtestValues,
+INSTANTIATE_TEST_SUITE_P(SeqOmpTbbSortTests_Group, ShekhirevVFuncTest, kGtestValues,
                          ShekhirevVFuncTest::PrintFuncTestName<ShekhirevVFuncTest>);
 }  // namespace
 
