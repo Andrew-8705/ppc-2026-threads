@@ -1,7 +1,7 @@
 #include "dolov_v_crs_mat_mult/tbb/include/ops_tbb.hpp"
 
-#include <tbb/parallel_for.h>
 #include <tbb/global_control.h>
+#include <tbb/parallel_for.h>
 
 #include <cmath>
 #include <utility>
@@ -99,15 +99,15 @@ bool DolovVCrsMatMultTbb::RunImpl() {
     std::vector<int> local_cols;
 
     for (int j = 0; j < matrix_b_t.num_rows; ++j) {
-        double sum = DolovVCrsMatMultTbb::DotProduct(matrix_a, i, matrix_b_t, j);
-        if (std::fabs(sum) > 1e-15) {
-            local_vals.push_back(sum);
-            local_cols.push_back(j);
-        }
+      double sum = DolovVCrsMatMultTbb::DotProduct(matrix_a, i, matrix_b_t, j);
+      if (std::fabs(sum) > 1e-15) {
+        local_vals.push_back(sum);
+        local_cols.push_back(j);
+      }
     }
     temp_values[i] = std::move(local_vals);
     temp_cols[i] = std::move(local_cols);
-});
+  });
 
   SparseMatrix res;
   res.num_rows = rows;
