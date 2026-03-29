@@ -10,6 +10,31 @@
 
 namespace dolov_v_crs_mat_mult {
 
+namespace {
+SparseMatrix AssembleResult(int rows, int cols, const std::vector<std::vector<double>> &temp_values,
+                            const std::vector<std::vector<int>> &temp_cols) {
+  SparseMatrix res;
+  res.num_rows = rows;
+  res.num_cols = cols;
+  res.row_pointers.assign(rows + 1, 0);
+
+  for (int i = 0; i < rows; ++i) {
+    res.row_pointers[i + 1] = res.row_pointers[i] + static_cast<int>(temp_values[i].size());
+  }
+
+  int total_nz = res.row_pointers[rows];
+  res.values.reserve(total_nz);
+  res.col_indices.reserve(total_nz);
+
+  for (int i = 0; i < rows; ++i) {
+    res.values.insert(res.values.end(), temp_values[i].begin(), temp_values[i].end());
+    res.col_indices.insert(res.col_indices.end(), temp_cols[i].begin(), temp_cols[i].end());
+  }
+
+  return res;
+}
+}  // namespace
+
 DolovVCrsMatMultStl::DolovVCrsMatMultStl(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
@@ -124,26 +149,7 @@ bool DolovVCrsMatMultStl::RunImpl() {
     thread.join();
   }
 
-  [&]() {
-    SparseMatrix res;
-    res.num_rows = rows;
-    res.num_cols = matrix_b.num_cols;
-    res.row_pointers.assign(rows + 1, 0);
-
-    for (int i = 0; i < rows; ++i) {
-      res.row_pointers[i + 1] = res.row_pointers[i] + static_cast<int>(temp_values[i].size());
-    }
-
-    int total_nz = res.row_pointers[rows];
-    res.values.reserve(total_nz);
-    res.col_indices.reserve(total_nz);
-
-    for (int i = 0; i < rows; ++i) {
-      res.values.insert(res.values.end(), temp_values[i].begin(), temp_values[i].end());
-      res.col_indices.insert(res.col_indices.end(), temp_cols[i].begin(), temp_cols[i].end());
-    }
-    GetOutput() = std::move(res);
-  }();
+  GetOutput() = AssembleResult(rows, matrix_b.num_cols, temp_values, temp_cols);
 
   return true;
 }
