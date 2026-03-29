@@ -25,7 +25,9 @@ bool DolovVCrsMatMultStl::ValidationImpl() {
   return matrix_a.num_cols == matrix_b.num_rows && matrix_a.num_rows > 0 && matrix_b.num_cols > 0;
 }
 
-bool DolovVCrsMatMultStl::PreProcessingImpl() { return true; }
+bool DolovVCrsMatMultStl::PreProcessingImpl() {
+  return true;
+}
 
 SparseMatrix DolovVCrsMatMultStl::TransposeMatrix(const SparseMatrix &matrix) {
   SparseMatrix transposed;
@@ -144,6 +146,8 @@ bool DolovVCrsMatMultStl::RunImpl() {
   return true;
 }
 
-bool DolovVCrsMatMultStl::PostProcessingImpl() { return true; }
+bool DolovVCrsMatMultStl::PostProcessingImpl() {
+  return true;
+}
 
 }  // namespace dolov_v_crs_mat_mult
