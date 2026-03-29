@@ -112,8 +112,8 @@ bool DolovVCrsMatMultStl::RunImpl() {
   int remainder = rows % num_threads;
   int current_start = 0;
 
-  for (int t = 0; t < num_threads; ++t) {
-    int current_end = current_start + chunk_size + (t < remainder ? 1 : 0);
+  for (int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    int current_end = current_start + chunk_size + (thread_idx < remainder ? 1 : 0);
     if (current_start < current_end) {
       threads.emplace_back(worker, current_start, current_end);
     }
@@ -124,25 +124,27 @@ bool DolovVCrsMatMultStl::RunImpl() {
     thread.join();
   }
 
-  SparseMatrix res;
-  res.num_rows = rows;
-  res.num_cols = matrix_b.num_cols;
-  res.row_pointers.assign(rows + 1, 0);
+  [&]() {
+    SparseMatrix res;
+    res.num_rows = rows;
+    res.num_cols = matrix_b.num_cols;
+    res.row_pointers.assign(rows + 1, 0);
 
-  for (int i = 0; i < rows; ++i) {
-    res.row_pointers[i + 1] = res.row_pointers[i] + static_cast<int>(temp_values[i].size());
-  }
+    for (int i = 0; i < rows; ++i) {
+      res.row_pointers[i + 1] = res.row_pointers[i] + static_cast<int>(temp_values[i].size());
+    }
 
-  int total_nz = res.row_pointers[rows];
-  res.values.reserve(total_nz);
-  res.col_indices.reserve(total_nz);
+    int total_nz = res.row_pointers[rows];
+    res.values.reserve(total_nz);
+    res.col_indices.reserve(total_nz);
 
-  for (int i = 0; i < rows; ++i) {
-    res.values.insert(res.values.end(), temp_values[i].begin(), temp_values[i].end());
-    res.col_indices.insert(res.col_indices.end(), temp_cols[i].begin(), temp_cols[i].end());
-  }
+    for (int i = 0; i < rows; ++i) {
+      res.values.insert(res.values.end(), temp_values[i].begin(), temp_values[i].end());
+      res.col_indices.insert(res.col_indices.end(), temp_cols[i].begin(), temp_cols[i].end());
+    }
+    GetOutput() = std::move(res);
+  }();
 
-  GetOutput() = std::move(res);
   return true;
 }
 
