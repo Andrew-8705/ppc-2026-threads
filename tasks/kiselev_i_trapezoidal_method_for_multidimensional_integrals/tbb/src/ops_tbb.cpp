@@ -4,6 +4,7 @@
 #include <tbb/parallel_reduce.h>
 
 #include <cmath>
+#include <functional>
 #include <vector>
 
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/common/include/common.hpp"
@@ -46,17 +47,16 @@ double KiselevITestTaskTBB::ComputeIntegral(const std::vector<int> &steps) {
   double hx = (in.right_bounds[0] - in.left_bounds[0]) / steps[0];
   double hy = (in.right_bounds[1] - in.left_bounds[1]) / steps[1];
 
-  using range2d = tbb::blocked_range2d<int, int>;
+  using Range2d = tbb::blocked_range2d<int, int>;
 
-  double result = tbb::parallel_reduce(range2d(0, steps[0] + 1, 32,   // grain size по x
-                                               0, steps[1] + 1, 32),  // grain size по y
-                                       0.0, [&](const range2d &r, double local_sum) {
+  double result = tbb::parallel_reduce(Range2d(0, steps[0] + 1, 32, 0, steps[1] + 1, 32), 0.0,
+                                       [&](const Range2d &r, double local_sum) {
     for (int i = r.rows().begin(); i < r.rows().end(); ++i) {
-      double x = in.left_bounds[0] + i * hx;
+      double x = in.left_bounds[0] + (i * hx);
       double wx = (i == 0 || i == steps[0]) ? 0.5 : 1.0;
 
       for (int j = r.cols().begin(); j < r.cols().end(); ++j) {
-        double y = in.left_bounds[1] + j * hy;
+        double y = in.left_bounds[1] + (j * hy);
         double wy = (j == 0 || j == steps[1]) ? 0.5 : 1.0;
 
         local_sum += wx * wy * FunctionTypeChoose(in.type_function, x, y);
@@ -78,7 +78,6 @@ bool KiselevITestTaskTBB::RunImpl() {
     return true;
   }
 
-  // без адаптации
   if (epsilon <= 0.0) {
     GetOutput() = ComputeIntegral(steps);
     return true;
@@ -88,7 +87,7 @@ bool KiselevITestTaskTBB::RunImpl() {
   double current = prev;
 
   int iter = 0;
-  const int max_iter = 10;  // увеличил — иначе epsilon бессмысленен
+  const int max_iter = 10;
 
   while (iter < max_iter) {
     for (auto &s : steps) {
