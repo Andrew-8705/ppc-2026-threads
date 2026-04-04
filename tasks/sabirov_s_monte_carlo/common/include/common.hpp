@@ -8,7 +8,7 @@
 
 #include "task/include/task.hpp"
 
-namespace sabirov_s_monte_carlo_seq {
+namespace sabirov_s_monte_carlo {
 
 enum class FuncType : uint8_t {
   kLinear = 0,
@@ -39,4 +39,4 @@ inline std::ostream &operator<<(std::ostream &os, const MCInput &in) {
   return os;
 }
 
-}  // namespace sabirov_s_monte_carlo_seq
+}  // namespace sabirov_s_monte_carlo

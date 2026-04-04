@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "sabirov_s_monte_carlo_seq/common/include/common.hpp"
+#include "sabirov_s_monte_carlo/common/include/common.hpp"
 #include "task/include/task.hpp"
 
-namespace sabirov_s_monte_carlo_seq {
+namespace sabirov_s_monte_carlo {
 
 class SabirovSMonteCarloSEQ : public BaseTask {
  public:
@@ -26,4 +26,4 @@ class SabirovSMonteCarloSEQ : public BaseTask {
   FuncType func_type_{};
 };
 
-}  // namespace sabirov_s_monte_carlo_seq
+}  // namespace sabirov_s_monte_carlo

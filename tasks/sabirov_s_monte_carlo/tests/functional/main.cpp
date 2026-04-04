@@ -7,12 +7,13 @@
 #include <tuple>
 #include <vector>
 
-#include "sabirov_s_monte_carlo_seq/common/include/common.hpp"
-#include "sabirov_s_monte_carlo_seq/seq/include/ops_seq.hpp"
+#include "sabirov_s_monte_carlo/common/include/common.hpp"
+#include "sabirov_s_monte_carlo/omp/include/ops_seq.hpp"
+#include "sabirov_s_monte_carlo/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
-namespace sabirov_s_monte_carlo_seq {
+namespace sabirov_s_monte_carlo {
 
 namespace {
 
@@ -121,7 +122,7 @@ double ExactValue(const InType &in) {
 
 }  // namespace
 
-class SabirovSMonteCarloFuncTestsSeq : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
+class SabirovSMonteCarloFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
   static std::string PrintTestParam(const TestType &test_param) {
     return std::get<1>(test_param);
@@ -150,7 +151,7 @@ namespace {
 
 const double kHalfPi = std::acos(-1.0) / 2.0;
 
-TEST_P(SabirovSMonteCarloFuncTestsSeq, MonteCarloIntegration) {
+TEST_P(SabirovSMonteCarloFuncTests, MonteCarloIntegration) {
   ExecuteTest(GetParam());
 }
 
@@ -193,15 +194,16 @@ const std::array<TestType, 13> kTestParam = {{
         "kQuarticSum_2D"),
 }};
 
-const auto kTestTasksList =
-    ppc::util::AddFuncTask<SabirovSMonteCarloSEQ, InType>(kTestParam, PPC_SETTINGS_sabirov_s_monte_carlo_seq);
+const auto kTestTasksList = std::tuple_cat(
+    ppc::util::AddFuncTask<SabirovSMonteCarloSEQ, InType>(kTestParam, PPC_SETTINGS_sabirov_s_monte_carlo),
+    ppc::util::AddFuncTask<SabirovSMonteCarloOMP, InType>(kTestParam, PPC_SETTINGS_sabirov_s_monte_carlo));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
-const auto kPerfTestName = SabirovSMonteCarloFuncTestsSeq::PrintFuncTestName<SabirovSMonteCarloFuncTestsSeq>;
+const auto kPerfTestName = SabirovSMonteCarloFuncTests::PrintFuncTestName<SabirovSMonteCarloFuncTests>;
 
-INSTANTIATE_TEST_SUITE_P(MonteCarloTests, SabirovSMonteCarloFuncTestsSeq, kGtestValues, kPerfTestName);
+INSTANTIATE_TEST_SUITE_P(MonteCarloTests, SabirovSMonteCarloFuncTests, kGtestValues, kPerfTestName);
 
 }  // namespace
 
-}  // namespace sabirov_s_monte_carlo_seq
+}  // namespace sabirov_s_monte_carlo
