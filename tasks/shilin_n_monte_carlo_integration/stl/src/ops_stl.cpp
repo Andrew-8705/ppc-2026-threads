@@ -80,16 +80,16 @@ bool ShilinNMonteCarloIntegrationSTL::RunImpl() {
     }
   };
 
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    threads[t] = std::thread(worker, t);
+  for (unsigned int ti = 0; ti < num_threads; ++ti) {
+    threads[ti] = std::thread(worker, ti);
   }
   for (auto &th : threads) {
     th.join();
   }
 
   double sum = 0.0;
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    sum += partial_sums[t];
+  for (unsigned int ti = 0; ti < num_threads; ++ti) {
+    sum += partial_sums[ti];
   }
 
   double volume = 1.0;
