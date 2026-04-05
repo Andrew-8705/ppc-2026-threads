@@ -100,9 +100,11 @@ class BaranovAMatrixMultiplicationFuncTest
   static std::string GetImplementationName() {
     if constexpr (std::is_same_v<T, baranov_a_mult_matrix_fox_algorithm_seq::BaranovAMultMatrixFoxAlgorithmSEQ>) {
       return "seq";
-    } else if constexpr (std::is_same_v<T, baranov_a_mult_matrix_fox_algorithm_omp::BaranovAMultMatrixFoxAlgorithmOMP>) {
+    } else if constexpr (std::is_same_v<T,
+                                        baranov_a_mult_matrix_fox_algorithm_omp::BaranovAMultMatrixFoxAlgorithmOMP>) {
       return "omp";
-    } else if constexpr (std::is_same_v<T, baranov_a_mult_matrix_fox_algorithm_tbb::BaranovAMultMatrixFoxAlgorithmTBB>) {
+    } else if constexpr (std::is_same_v<T,
+                                        baranov_a_mult_matrix_fox_algorithm_tbb::BaranovAMultMatrixFoxAlgorithmTBB>) {
       return "tbb";
     }
     return "unknown";
@@ -224,11 +226,10 @@ const std::array<baranov_a_mult_matrix_fox_algorithm::TestType, 20> kTestParams 
     std::make_tuple(1, "size1_simple"),   std::make_tuple(2, "size2_simple"),   std::make_tuple(3, "size3_simple"),
     std::make_tuple(2, "identity_2"),     std::make_tuple(4, "identity_4"),     std::make_tuple(8, "identity_8"),
     std::make_tuple(3, "random_seed123"), std::make_tuple(5, "random_seed456"), std::make_tuple(7, "random_seed789"),
-    std::make_tuple(4, "extreme_4"),      std::make_tuple(6, "extreme_6"),
-    std::make_tuple(4, "sparse_4"),       std::make_tuple(8, "sparse_8"),
-    std::make_tuple(3, "constant_3"),     std::make_tuple(5, "constant_5"),     std::make_tuple(7, "constant_7"),
-    std::make_tuple(16, "size16_block"),  std::make_tuple(32, "size32_block"),  std::make_tuple(64, "size64_block"),
-    std::make_tuple(128, "size128_block")};
+    std::make_tuple(4, "extreme_4"),      std::make_tuple(6, "extreme_6"),      std::make_tuple(4, "sparse_4"),
+    std::make_tuple(8, "sparse_8"),       std::make_tuple(3, "constant_3"),     std::make_tuple(5, "constant_5"),
+    std::make_tuple(7, "constant_7"),     std::make_tuple(16, "size16_block"),  std::make_tuple(32, "size32_block"),
+    std::make_tuple(64, "size64_block"),  std::make_tuple(128, "size128_block")};
 
 const auto kTestTasksListSEQ =
     ppc::util::AddFuncTask<baranov_a_mult_matrix_fox_algorithm_seq::BaranovAMultMatrixFoxAlgorithmSEQ,
