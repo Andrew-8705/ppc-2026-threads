@@ -107,7 +107,6 @@ class BaranovAMatrixMultiplicationFuncTest
                                         baranov_a_mult_matrix_fox_algorithm_tbb::BaranovAMultMatrixFoxAlgorithmTBB>) {
       return "tbb";
     }
-    return "unknown";
   }
 
   static void ReferenceMultiply(const std::vector<double> &a, const std::vector<double> &b, std::vector<double> &c,
