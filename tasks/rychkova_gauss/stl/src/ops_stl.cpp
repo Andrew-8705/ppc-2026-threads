@@ -64,6 +64,7 @@ bool RychkovaGaussSTL::RunImpl() {
   auto n = ppc::util::GetNumThreads();
   std::vector<std::thread> threads;
   threads.reserve(n);
+  
   size_t row_per_thread = height / n;
   size_t remainder = height % n;
   for (int i = 0; i < n; i++) {
