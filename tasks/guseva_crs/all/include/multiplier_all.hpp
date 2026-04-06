@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "guseva_crs/common/include/common.hpp"
@@ -156,7 +157,6 @@ class MultiplierAll : public Multiplier {
 
   static void SendLocalData(int dest, const std::vector<int> &row_sizes, const std::vector<std::size_t> &flat_columns,
                             const std::vector<double> &flat_values) {
-    // Make non-const copies for MPI_Send (MPI doesn't modify the data)
     std::vector<int> row_sizes_copy = row_sizes;
     MPI_Send(row_sizes_copy.data(), static_cast<int>(row_sizes_copy.size()), MPI_INT, dest, 0, MPI_COMM_WORLD);
 
@@ -190,7 +190,7 @@ class MultiplierAll : public Multiplier {
     std::size_t remainder = n % static_cast<std::size_t>(num_procs);
     std::size_t start_row =
         (static_cast<std::size_t>(rank) * rows_per_proc) + std::min(static_cast<std::size_t>(rank), remainder);
-    std::size_t local_nrows = rows_per_proc + (static_cast<std::size_t>(rank) < remainder ? 1 : 0);
+    std::size_t local_nrows = rows_per_proc + (std::cmp_less(rank, remainder) ? 1 : 0);
 
     auto bt = this->Transpose(b);
 
@@ -214,7 +214,7 @@ class MultiplierAll : public Multiplier {
       for (int pp = 0; pp < num_procs; pp++) {
         std::size_t p_start_row =
             (static_cast<std::size_t>(pp) * rows_per_proc) + std::min(static_cast<std::size_t>(pp), remainder);
-        std::size_t p_local_nrows = rows_per_proc + (static_cast<std::size_t>(pp) < remainder ? 1 : 0);
+        std::size_t p_local_nrows = rows_per_proc + (std::cmp_less(pp, remainder) ? 1 : 0);
 
         if (pp == 0) {
           ProcessData self_data;
