@@ -13,7 +13,7 @@
 
 // #include "zenin_a_radix_sort_double_batcher_merge/all/include/ops_all.hpp"
 #include "zenin_a_radix_sort_double_batcher_merge/common/include/common.hpp"
-// #include "zenin_a_radix_sort_double_batcher_merge/omp/include/ops_omp.hpp"
+#include "zenin_a_radix_sort_double_batcher_merge/omp/include/ops_omp.hpp"
 #include "zenin_a_radix_sort_double_batcher_merge/seq/include/ops_seq.hpp"
 // #include "zenin_a_radix_sort_double_batcher_merge/stl/include/ops_stl.hpp"
 // #include "zenin_a_radix_sort_double_batcher_merge/tbb/include/ops_tbb.hpp"
@@ -79,7 +79,9 @@ const std::array<TestType, 12> kTestParam = {
     TestType{InType{0.0, -0.0}, OutType{-0.0, 0.0}, "ZeroAndNegativeZero"}};
 
 const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<ZeninARadixSortDoubleBatcherMergeSeqseq, InType>(
-    kTestParam, PPC_SETTINGS_zenin_a_radix_sort_double_batcher_merge));
+                                               kTestParam, PPC_SETTINGS_zenin_a_radix_sort_double_batcher_merge),
+                                           ppc::util::AddFuncTask<ZeninARadixSortDoubleBatcherMergeOMP, InType>(
+                                               kTestParam, PPC_SETTINGS_zenin_a_radix_sort_double_batcher_merge));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
