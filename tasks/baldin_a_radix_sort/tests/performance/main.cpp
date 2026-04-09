@@ -45,7 +45,8 @@ TEST_P(BaldinARadixSortPerfTests, RunPerfModes) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, BaldinARadixSortSEQ, BaldinARadixSortOMP, BaldinARadixSortTBB>(PPC_SETTINGS_baldin_a_radix_sort);
+    ppc::util::MakeAllPerfTasks<InType, BaldinARadixSortSEQ, BaldinARadixSortOMP, BaldinARadixSortTBB>(
+        PPC_SETTINGS_baldin_a_radix_sort);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 

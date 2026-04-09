@@ -84,7 +84,6 @@ void RadixSortLocal(std::vector<int>::iterator begin, std::vector<int>::iterator
 
 }  // namespace
 
-
 bool BaldinARadixSortTBB::RunImpl() {
   auto &out = GetOutput();
   int n = static_cast<int>(out.size());
@@ -101,33 +100,30 @@ bool BaldinARadixSortTBB::RunImpl() {
   }
   offsets[num_chunks] = n;
 
-
-  tbb::parallel_for(tbb::blocked_range<int>(0, num_chunks),
-                    [&](const tbb::blocked_range<int> &r) {
-                      for (int tid = r.begin(); tid != r.end(); tid++) {
-                        auto begin = out.begin() + offsets[tid];
-                        auto end = out.begin() + offsets[tid + 1];
-                        RadixSortLocal(begin, end);
-                      }
-                    });
+  tbb::parallel_for(tbb::blocked_range<int>(0, num_chunks), [&](const tbb::blocked_range<int> &r) {
+    for (int tid = r.begin(); tid != r.end(); tid++) {
+      auto begin = out.begin() + offsets[tid];
+      auto end = out.begin() + offsets[tid + 1];
+      RadixSortLocal(begin, end);
+    }
+  });
 
   for (int step = 1; step < num_chunks; step *= 2) {
     int num_merges = (num_chunks + (2 * step) - 1) / (2 * step);
-    tbb::parallel_for(tbb::blocked_range<int>(0, num_merges),
-                      [&](const tbb::blocked_range<int> &r) {
-                        for (int m_idx = r.begin(); m_idx != r.end(); m_idx++) {
-                          int i = m_idx * (2 * step); 
-                          
-                          if (i + step < num_chunks) {
-                            auto begin = out.begin() + offsets[i];
-                            auto middle = out.begin() + offsets[i + step];
-                            int end_idx = std::min(i + (2 * step), num_chunks);
-                            auto end = out.begin() + offsets[end_idx];
+    tbb::parallel_for(tbb::blocked_range<int>(0, num_merges), [&](const tbb::blocked_range<int> &r) {
+      for (int m_idx = r.begin(); m_idx != r.end(); m_idx++) {
+        int i = m_idx * (2 * step);
 
-                            std::inplace_merge(begin, middle, end);
-                          }
-                        }
-                      });
+        if (i + step < num_chunks) {
+          auto begin = out.begin() + offsets[i];
+          auto middle = out.begin() + offsets[i + step];
+          int end_idx = std::min(i + (2 * step), num_chunks);
+          auto end = out.begin() + offsets[end_idx];
+
+          std::inplace_merge(begin, middle, end);
+        }
+      }
+    });
   }
 
   return true;
