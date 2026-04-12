@@ -71,7 +71,7 @@ OtcheskovSContrastLinStretchSTL::MinMax OtcheskovSContrastLinStretchSTL::Compute
 
       threads.emplace_back([&, t, begin, end]() {
         auto [min, max] = std::ranges::minmax_element(input.begin() + begin, input.begin() + end);
-        local[t] = { *min, *max };
+        local[t] = {*min, *max};
       });
     }
   }
