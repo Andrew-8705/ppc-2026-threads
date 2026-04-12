@@ -8,12 +8,12 @@
 
 namespace votincev_d_radixmerge_sort {
 
-class VotincevDRadixMergeSortTBB : public BaseTask {
+class VotincevDRadixMergeSortSTL : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
-    return ppc::task::TypeOfTask::kTBB;
+    return ppc::task::TypeOfTask::kSTL;
   }
-  explicit VotincevDRadixMergeSortTBB(const InType &in);
+  explicit VotincevDRadixMergeSortSTL(const InType &in);
 
  private:
   bool ValidationImpl() override;
