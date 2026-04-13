@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "goriacheva_k_mult_sparse_complex_matrix_ccs/common/include/common.hpp"
+#include "goriacheva_k_mult_sparse_complex_matrix_ccs/all/include/ops_all.hpp"
 #include "goriacheva_k_mult_sparse_complex_matrix_ccs/omp/include/ops_omp.hpp"
 #include "goriacheva_k_mult_sparse_complex_matrix_ccs/seq/include/ops_seq.hpp"
 #include "goriacheva_k_mult_sparse_complex_matrix_ccs/stl/include/ops_stl.hpp"
@@ -89,7 +90,7 @@ namespace {
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, GoriachevaKMultSparseComplexMatrixCcsSEQ,
                                 GoriachevaKMultSparseComplexMatrixCcsOMP, GoriachevaKMultSparseComplexMatrixCcsTBB,
-                                GoriachevaKMultSparseComplexMatrixCcsSTL>(
+                                GoriachevaKMultSparseComplexMatrixCcsSTL, GoriachevaKMultSparseComplexMatrixCcsALL>(
         PPC_SETTINGS_goriacheva_k_mult_sparse_complex_matrix_ccs);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
