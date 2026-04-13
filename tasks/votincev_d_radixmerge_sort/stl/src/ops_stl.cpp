@@ -80,8 +80,7 @@ void VotincevDRadixMergeSortSTL::Merge(uint32_t *data, int32_t left, int32_t mid
 }
 
 // параллельная сортировка слиянием через std::async
-void VotincevDRadixMergeSortSTL::ParallelRadixMergeSort(uint32_t *data, int32_t left, int32_t right,
-                                                        uint32_t *temp) {  // NOLINT(misc-no-recursion)
+void VotincevDRadixMergeSortSTL::ParallelRadixMergeSort(uint32_t *data, int32_t left, int32_t right, uint32_t *temp) {
   const int32_t grain_size = 4096;  // порог для перехода на последовательную сортировку
 
   if (right - left <= grain_size) {
