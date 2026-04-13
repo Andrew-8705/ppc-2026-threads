@@ -29,8 +29,8 @@ bool GoriachevaKMultSparseComplexMatrixCcsALL::PreProcessingImpl() {
 
 namespace {
 
-void ProcessColumn(int j, const SparseMatrixCCS &a, const SparseMatrixCCS &b,
-                   std::vector<Complex> &values, std::vector<int> &rows) {
+void ProcessColumn(int j, const SparseMatrixCCS &a, const SparseMatrixCCS &b, std::vector<Complex> &values,
+                   std::vector<int> &rows) {
   std::vector<Complex> accumulator(a.rows);
   std::vector<int> marker(a.rows, -1);
   std::vector<int> used_rows;
@@ -62,7 +62,7 @@ void ProcessColumn(int j, const SparseMatrixCCS &a, const SparseMatrixCCS &b,
   }
 }
 
-} // namespace
+}  // namespace
 
 bool GoriachevaKMultSparseComplexMatrixCcsALL::RunImpl() {
   auto &a = std::get<0>(GetInput());
@@ -110,9 +110,7 @@ bool GoriachevaKMultSparseComplexMatrixCcsALL::RunImpl() {
   }
 
   std::vector<int> recv_counts(size);
-  MPI_Gather(&local_nnz, 1, MPI_INT,
-             recv_counts.data(), 1, MPI_INT,
-             0, MPI_COMM_WORLD);
+  MPI_Gather(&local_nnz, 1, MPI_INT, recv_counts.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   std::vector<int> displs(size, 0);
   int total_nnz = 0;
@@ -142,13 +140,11 @@ bool GoriachevaKMultSparseComplexMatrixCcsALL::RunImpl() {
     global_inds.resize(total_nnz);
   }
 
-  MPI_Gatherv(local_vals.data(), local_nnz * 2, MPI_DOUBLE,
-              global_vals.data(), recv_counts_dbl.data(), displs_dbl.data(),
-              MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(local_vals.data(), local_nnz * 2, MPI_DOUBLE, global_vals.data(), recv_counts_dbl.data(),
+              displs_dbl.data(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  MPI_Gatherv(local_inds.data(), local_nnz, MPI_INT,
-              global_inds.data(), recv_counts.data(), displs.data(),
-              MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(local_inds.data(), local_nnz, MPI_INT, global_inds.data(), recv_counts.data(), displs.data(), MPI_INT, 0,
+              MPI_COMM_WORLD);
 
   if (rank == 0) {
     c.col_ptr.resize(c.cols + 1);
@@ -205,4 +201,4 @@ bool GoriachevaKMultSparseComplexMatrixCcsALL::PostProcessingImpl() {
   return true;
 }
 
-} // namespace goriacheva_k_mult_sparse_complex_matrix_ccs
+}  // namespace goriacheva_k_mult_sparse_complex_matrix_ccs
