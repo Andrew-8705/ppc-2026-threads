@@ -63,23 +63,19 @@ void VotincevDRadixMergeSortSTL::LocalRadixSort(uint32_t *begin, uint32_t *end) 
 }
 
 // слияние двух отсортированных участков
-void VotincevDRadixMergeSortSTL::Merge(uint32_t *data, int32_t left, int32_t mid, int32_t right, uint32_t *temp) {
+void VotincevDRadixMergeSortSTL::Merge(const uint32_t *src, uint32_t *dst, int32_t left, int32_t mid, int32_t right) {
   int32_t i = left;
   int32_t j = mid;
   int32_t k = left;
   while (i < mid && j < right) {
-    temp[static_cast<size_t>(k++)] = (data[static_cast<size_t>(i)] <= data[static_cast<size_t>(j)])
-                                         ? data[static_cast<size_t>(i++)]
-                                         : data[static_cast<size_t>(j++)];
+    dst[k++] = (src[i] <= src[j]) ? src[i++] : src[j++];
   }
   while (i < mid) {
-    temp[static_cast<size_t>(k++)] = data[static_cast<size_t>(i++)];
+    dst[k++] = src[i++];
   }
   while (j < right) {
-    temp[static_cast<size_t>(k++)] = data[static_cast<size_t>(j++)];
+    dst[k++] = src[j++];
   }
-
-  std::copy(temp + left, temp + right, data + left);
 }
 
 // параллельная сортировка слиянием через std::async
@@ -102,8 +98,11 @@ void VotincevDRadixMergeSortSTL::ParallelRadixMergeSort(uint32_t *data, int32_t 
   // ждем завершения левой части
   future.get();
 
-  // сливаем результаты
-  Merge(data, left, mid, right, temp);
+  // слияние результатов
+  Merge(data, temp, left, mid, right);
+
+  // копируем в основной массив
+  std::copy(temp + left, temp + right, data + left);
 }
 
 bool VotincevDRadixMergeSortSTL::RunImpl() {
