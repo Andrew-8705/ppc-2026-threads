@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <utility>
 #include <vector>
 
@@ -74,7 +76,7 @@ bool ChernykhSTrapezoidalIntegrationTBB::RunImpl() {
     return local_sum;
   };
 
-  total_sum = tbb::parallel_reduce(tbb::blocked_range<int64_t>(0, total_points), 0.0, body, std::plus<double>());
+  total_sum = tbb::parallel_reduce(tbb::blocked_range<int64_t>(0, total_points), 0.0, body, std::plus<>());
 
   double h_prod = 1.0;
   for (std::size_t i = 0; i < dims; ++i) {
