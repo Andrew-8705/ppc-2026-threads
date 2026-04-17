@@ -49,8 +49,6 @@ bool OrehovNJarvisPassTBB::RunImpl() {
 }
 
 Point OrehovNJarvisPassTBB::FindNext(Point current) const {
-  Point next = (current == input_[0]) ? input_[1] : input_[0];
-
   const size_t n = input_.size();
   const auto &input = input_;
 
