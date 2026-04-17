@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <utility>
 #include <vector>
-
+#include <tbb/tbb.h>
 #include "chernykh_s_trapezoidal_integration/common/include/common.hpp"
 
 namespace chernykh_s_trapezoidal_integration {
@@ -32,10 +32,10 @@ double ChernykhSTrapezoidalIntegrationTBB::CalculatePointAndWeight(const Integra
                                                                    const std::vector<std::size_t> &counters,
                                                                    std::vector<double> &point) {
   double weight = 1.0;
-  for (std::size_t i = 0; i < input.limits.size(); ++i) {
-    const double h = (input.limits[i].second - input.limits[i].first) / static_cast<double>(input.steps[i]);
-    point[i] = input.limits[i].first + (static_cast<double>(counters[i]) * h);
-    if (std::cmp_equal(counters[i], 0) || std::cmp_equal(counters[i], input.steps[i])) {
+  for (std::size_t i = 0; i < input.limits.size(); ++i) { // проходим по границам каждого из измерений
+    const double h = (input.limits[i].second - input.limits[i].first) / static_cast<double>(input.steps[i]); // велечина шага в текущем измерении
+    point[i] = input.limits[i].first + (static_cast<double>(counters[i]) * h); // дискретная точка: начало_измерения + шаг*номер_шага
+    if (std::cmp_equal(counters[i], 0) || std::cmp_equal(counters[i], input.steps[i])) { // если шаг граничный, то его вес уменьшается
       weight *= 0.5;
     }
   }
@@ -45,26 +45,29 @@ double ChernykhSTrapezoidalIntegrationTBB::CalculatePointAndWeight(const Integra
 bool ChernykhSTrapezoidalIntegrationTBB::RunImpl() {
   const auto &input = this->GetInput();
   const std::size_t dims = input.limits.size();
-  std::vector<std::size_t> counters(dims, 0);
-  std::vector<double> current_point(dims);
-  double total_sum = 0.0;
-  bool done = false;
+  std::vector<std::size_t> counters(dims, 0); // вектор где dims элементов, это индекс точки в dims-мерном пространстве
+  std::vector<double> current_point(dims); // вектор, хранящий координаты, которые будут переданны в функцию
+  double total_sum = 0.0; // сумма, накапливающаяся при вычислении интегралла
+  int64_t total_points = 1;
 
-  while (!done) {
-    double weight = CalculatePointAndWeight(input, counters, current_point);
-    total_sum += input.func(current_point) * weight;
-
-    for (std::size_t i = 0; i < dims; ++i) {
-      if (std::cmp_less(++counters[i], input.steps[i] + 1)) {
-        break;
-      }
-      if (std::cmp_equal(i, dims - 1)) {
-        done = true;
-      } else {
-        counters[i] = 0;
-      }
-    }
+  for( int steps_on_this_spase : input.steps ){ // Исправил на input.steps
+      total_points *= steps_on_this_spase + 1;
   }
+
+  auto body= [&]( const tbb::blockde_range<int64_t>&r, double local_sum)-> double {
+      std::vector<double>local_point(dims);
+      std::vector<int64_t>local_counters(dims);
+
+      for(int64_t j=r.begin(); j<r.end();j++){
+        
+      }
+      return local_sum;
+  };
+
+  total_sum = tbb::parallel_reduce(const tbb::blocked_range<int64_t>(0,total_points),0.0, auto &body);
+  
+
+  
 
   double h_prod = 1.0;
   for (std::size_t i = 0; i < dims; ++i) {
