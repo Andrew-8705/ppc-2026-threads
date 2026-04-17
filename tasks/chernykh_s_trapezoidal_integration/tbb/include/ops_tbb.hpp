@@ -9,7 +9,7 @@ namespace chernykh_s_trapezoidal_integration {
 class ChernykhSTrapezoidalIntegrationTBB : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
-    return ppc::task::TypeOfTask::kSEQ;
+    return ppc::task::TypeOfTask::kTBB;
   }
   explicit ChernykhSTrapezoidalIntegrationTBB(const InType &in);
 
