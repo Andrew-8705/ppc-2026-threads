@@ -263,7 +263,7 @@ bool KondrashovaVTaskALL::RunImpl() {
   const std::vector<uint8_t> image = image_;
 
 #pragma omp parallel num_threads(num_threads) default(none) shared(local_labels, width, image, num_threads) \
-    firstprivate(mpi_row_start, max_labels_per_thread)
+    firstprivate(mpi_row_start, mpi_rows, max_labels_per_thread)
   {
     const int tid = omp_get_thread_num();
     const int omp_row_start = mpi_row_start + (tid * mpi_rows) / num_threads;
