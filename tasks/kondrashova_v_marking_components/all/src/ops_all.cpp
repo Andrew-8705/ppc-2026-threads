@@ -302,6 +302,16 @@ bool KondrashovaVTaskALL::RunImpl() {
     GetOutput().count = Relabel(total, all_local_labels, global_parent, relabel_map, labels_1d_);
   }
 
+  int global_count = GetOutput().count;
+  MPI_Bcast(&global_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  GetOutput().count = global_count;
+  if (total > 0) {
+    if (labels_1d_.size() != static_cast<size_t>(total)) {
+      labels_1d_.assign(static_cast<size_t>(total), 0);
+    }
+    MPI_Bcast(labels_1d_.data(), total, MPI_INT, 0, MPI_COMM_WORLD);
+  }
+
   return true;
 }
 
@@ -311,13 +321,11 @@ bool KondrashovaVTaskALL::PostProcessingImpl() {
     return true;
   }
 
-  if (rank_ == 0) {
-    GetOutput().labels.assign(height_, std::vector<int>(width_, 0));
-    for (int ii = 0; ii < height_; ++ii) {
-      for (int jj = 0; jj < width_; ++jj) {
-        auto idx = (static_cast<size_t>(ii) * static_cast<size_t>(width_)) + static_cast<size_t>(jj);
-        GetOutput().labels[ii][jj] = labels_1d_[idx];
-      }
+  GetOutput().labels.assign(height_, std::vector<int>(width_, 0));
+  for (int ii = 0; ii < height_; ++ii) {
+    for (int jj = 0; jj < width_; ++jj) {
+      auto idx = (static_cast<size_t>(ii) * static_cast<size_t>(width_)) + static_cast<size_t>(jj);
+      GetOutput().labels[ii][jj] = labels_1d_[idx];
     }
   }
   return true;
