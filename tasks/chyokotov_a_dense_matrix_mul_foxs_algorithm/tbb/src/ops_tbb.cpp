@@ -35,6 +35,23 @@ int ChyokotovADenseMatMulFoxAlgorithmTBB::CountBlock(int n, int size) {
   return (n + size - 1) / size;
 }
 
+void ChyokotovADenseMatMulFoxAlgorithmTBB::Matmul(std::vector<double> &a, std::vector<double> &b, int n, int istart,
+                                                  int iend, int jstart, int jend, int kstart, int kend) {
+  tbb::parallel_for(istart, iend, [&](size_t i) {
+    double *output_row = GetOutput().data() + (i * static_cast<size_t>(n));
+    const double *a_row = a.data() + (i * static_cast<size_t>(n));
+
+    for (int j = jstart; j < jend; ++j) {
+      long double sum = 0.0;
+      const double *b_col = b.data() + j;
+      for (int k = kstart; k < kend; ++k) {
+        sum += a_row[k] * b_col[k * n];
+      }
+      output_row[j] += sum;
+    }
+  });
+}
+
 bool ChyokotovADenseMatMulFoxAlgorithmTBB::RunImpl() {
   std::vector<double> a = GetInput().first;
   std::vector<double> b = GetInput().second;
@@ -58,19 +75,7 @@ bool ChyokotovADenseMatMulFoxAlgorithmTBB::RunImpl() {
           int jend = std::min(jstart + block_size, n);
           int kend = std::min(kstart + block_size, n);
 
-          tbb::parallel_for(istart, iend, [&](int i) {
-            double *output_row = GetOutput().data() + i * n;
-            const double *a_row = a.data() + i * n;
-
-            for (int j = jstart; j < jend; ++j) {
-              double sum = 0.0;
-              const double *b_col = b.data() + j;
-              for (int k = kstart; k < kend; ++k) {
-                sum += a_row[k] * b_col[k * n];
-              }
-              output_row[j] += sum;
-            }
-          });
+          Matmul(a, b, n, istart, iend, jstart, jend, kstart, kend);
         }
       }
     }
