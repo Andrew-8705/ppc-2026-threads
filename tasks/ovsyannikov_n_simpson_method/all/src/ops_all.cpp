@@ -4,15 +4,13 @@
 #include <omp.h>
 #include <tbb/tbb.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <functional>
-#include <numeric>
 #include <thread>
-#include <vector>
 
 #include "ovsyannikov_n_simpson_method/common/include/common.hpp"
-#include "util/include/util.hpp"
 
 namespace ovsyannikov_n_simpson_method {
 
@@ -59,7 +57,7 @@ bool OvsyannikovNSimpsonMethodALL::RunImpl() {
   int rows_per_rank = total_rows / size;
   int remainder = total_rows % size;
 
-  int my_start = rank * rows_per_rank + std::min(rank, remainder);
+  int my_start = (rank * rows_per_rank) + std::min(rank, remainder);
   int my_end = my_start + rows_per_rank + (rank < remainder ? 1 : 0);
 
   double local_sum = 0.0;
