@@ -34,7 +34,8 @@ struct SparseMatrix {
     value.clear();
   }
 
-  SparseMatrix(const std::vector<double> &matrix, unsigned rows_out, unsigned cols_out) : cols(cols_out), rows(rows_out) {
+  SparseMatrix(const std::vector<double> &matrix, unsigned rows_out, unsigned cols_out)
+      : cols(cols_out), rows(rows_out) {
     col_index.clear();
     row.clear();
     value.clear();
