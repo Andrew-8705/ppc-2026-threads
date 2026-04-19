@@ -19,22 +19,22 @@ struct SparseMatrix {
   std::vector<unsigned> row;
   std::vector<unsigned> col_index;
 
-  unsigned cols_;
-  unsigned rows_;
+  unsigned cols;
+  unsigned rows;
 
-  SparseMatrix(unsigned rows, unsigned cols) : cols_(cols), rows_(rows) {
+  SparseMatrix(unsigned rows_out, unsigned cols_out) : cols(cols_out), rows(rows_out) {
     col_index.clear();
     row.clear();
     value.clear();
   }
 
-  SparseMatrix() : cols_(0), rows_(0) {
+  SparseMatrix() : cols(0), rows(0) {
     col_index.clear();
     row.clear();
     value.clear();
   }
 
-  SparseMatrix(const std::vector<double> &matrix, unsigned rows, unsigned cols) : cols_(cols), rows_(rows) {
+  SparseMatrix(const std::vector<double> &matrix, unsigned rows_out, unsigned cols_out) : cols(cols_out), rows(rows_out) {
     col_index.clear();
     row.clear();
     value.clear();
@@ -42,17 +42,17 @@ struct SparseMatrix {
     Sparse(matrix);
   }
 
-  void GenLineMatrix(unsigned rows, unsigned cols) {
+  void GenLineMatrix(unsigned rows_out, unsigned cols_out) {
     col_index.clear();
     row.clear();
     value.clear();
 
-    rows_ = rows;
-    cols_ = cols;
+    rows = rows_out;
+    cols = cols_out;
 
     col_index.push_back(0);
-    for (unsigned j = 0; j < cols_; j++) {
-      for (unsigned i = 0; i < rows_; i++) {
+    for (unsigned j = 0; j < cols; j++) {
+      for (unsigned i = 0; i < rows; i++) {
         if (i % 5 == 0) {
           value.push_back(1.0);
           row.push_back(i);
@@ -62,18 +62,18 @@ struct SparseMatrix {
     }
   }
 
-  void GenColsMatrix(unsigned rows, unsigned cols) {
+  void GenColsMatrix(unsigned rows_out, unsigned cols_out) {
     col_index.clear();
     row.clear();
     value.clear();
 
-    rows_ = rows;
-    cols_ = cols;
+    rows = rows_out;
+    cols = cols_out;
     col_index.push_back(0);
 
-    for (unsigned j = 0; j < cols_; j++) {
+    for (unsigned j = 0; j < cols; j++) {
       if (j % 5 == 0) {
-        for (unsigned i = 0; i < rows_; i++) {
+        for (unsigned i = 0; i < rows; i++) {
           value.push_back(1.0);
           row.push_back(i);
         }
@@ -87,8 +87,8 @@ struct SparseMatrix {
     col_index.clear();
     row.clear();
     value.clear();
-    rows_ = n;
-    cols_ = m;
+    rows = n;
+    cols = m;
 
     col_index.push_back(0);
     for (unsigned j = 0; j < m; j++) {
@@ -108,11 +108,11 @@ struct SparseMatrix {
   }
 
   [[nodiscard]] unsigned GetCols() const {
-    return cols_;
+    return cols;
   }
 
   [[nodiscard]] unsigned GetRows() const {
-    return rows_;
+    return rows;
   }
 
   [[nodiscard]] std::vector<double> GetVal() const {
@@ -131,7 +131,7 @@ struct SparseMatrix {
       }
     }
 
-    return tmp && (row == b.row) && (col_index == b.col_index) && (cols_ == b.cols_) && (rows_ == b.rows_);
+    return tmp && (row == b.row) && (col_index == b.col_index) && (cols == b.cols) && (rows == b.rows);
   }
 
   double GetXy(unsigned x = 1, unsigned y = 2) {
@@ -145,12 +145,12 @@ struct SparseMatrix {
   void Sparse(const std::vector<double> &matrix) {
     col_index.push_back(0);
     bool flag = false;
-    for (unsigned j = 0; j < cols_; j++) {
+    for (unsigned j = 0; j < cols; j++) {
       col_index.push_back(value.size());
 
-      for (unsigned i = 0; i < rows_; i++) {
-        if (fabs(matrix[(i * cols_) + j]) > kEPS) {
-          value.push_back(matrix[(i * cols_) + j]);
+      for (unsigned i = 0; i < rows; i++) {
+        if (fabs(matrix[(i * cols) + j]) > kEPS) {
+          value.push_back(matrix[(i * cols) + j]);
           row.push_back(i);
           flag = true;
         }
@@ -164,11 +164,11 @@ struct SparseMatrix {
   }
 
   SparseMatrix operator*(const SparseMatrix &b) const {
-    SparseMatrix c(rows_, b.cols_);
+    SparseMatrix c(rows, b.cols);
     c.col_index.push_back(0);
 
-    for (unsigned b_col = 0; b_col < b.cols_; b_col++) {
-      std::vector<double> tmp_col(rows_, 0);
+    for (unsigned b_col = 0; b_col < b.cols; b_col++) {
+      std::vector<double> tmp_col(rows, 0);
       unsigned b_rows_start = b.col_index[b_col];
       unsigned b_rows_end = b.col_index[b_col + 1];
 
@@ -185,7 +185,7 @@ struct SparseMatrix {
           tmp_col[a_row] += a_val * b_val;
         }
       }
-      for (unsigned i = 0; i < rows_; i++) {
+      for (unsigned i = 0; i < rows; i++) {
         if (fabs(tmp_col[i]) > kEPS) {
           c.value.push_back(tmp_col[i]);
           c.row.push_back(i);
@@ -204,7 +204,7 @@ struct SparseMatrix {
     row.clear();
     col_index.clear();
     unsigned n = 0;
-    file >> n >> rows_ >> cols_;
+    file >> n >> rows >> cols;
 
     double tmp_val = 0;
     for (unsigned i = 0; i < n; i++) {
@@ -218,7 +218,7 @@ struct SparseMatrix {
       row.push_back(tmp);
     }
 
-    for (unsigned i = 0; i < cols_ + 1; i++) {
+    for (unsigned i = 0; i < cols + 1; i++) {
       file >> tmp;
       col_index.push_back(tmp);
     }
