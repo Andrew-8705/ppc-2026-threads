@@ -19,8 +19,8 @@ struct SparseMatrix {
   std::vector<unsigned> row;
   std::vector<unsigned> col_index;
 
-  unsigned cols;
   unsigned rows;
+  unsigned cols;
 
   SparseMatrix(unsigned rows_out, unsigned cols_out) : cols(cols_out), rows(rows_out) {
     col_index.clear();
