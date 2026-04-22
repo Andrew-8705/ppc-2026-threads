@@ -3,6 +3,7 @@
 #include <tuple>
 #include <vector>
 
+
 #include "sabutay_sparse_complex_ccs_mult_tbb/common/include/common.hpp"
 #include "sabutay_sparse_complex_ccs_mult_tbb/tbb/include/ops_tbb.hpp"
 
@@ -10,7 +11,7 @@ namespace sabutay_sparse_complex_ccs_mult_tbb {
 
 namespace {
 
-OutType RunTask(const InType &input) {
+OutType RunTask(const InType& input) {
   SabutayASparseComplexCcsMultTBB task(input);
 
   EXPECT_EQ(task.GetDynamicTypeOfTask(), ppc::task::TypeOfTask::kTBB);
@@ -91,7 +92,11 @@ TEST(SabutayASparseComplexCcsMultTBBFunctional, HandlesUnsortedColumnsAndDuplica
   lhs.col_ptr = {0, 2, 5};
   lhs.row_ind = {2, 0, 1, 1, 0};
   lhs.values = {
-      Complex{1.0, 1.0}, Complex{2.0, -1.0}, Complex{1.0, 0.0}, Complex{2.0, 0.0}, Complex{-1.0, 2.0},
+      Complex{1.0, 1.0},
+      Complex{2.0, -1.0},
+      Complex{1.0, 0.0},
+      Complex{2.0, 0.0},
+      Complex{-1.0, 2.0},
   };
 
   SparseMatrixCCS rhs;
