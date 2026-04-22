@@ -1,7 +1,9 @@
 #include "trofimov_n_hoar_sort_batcher/stl/include/ops_stl.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "trofimov_n_hoar_sort_batcher/common/include/common.hpp"
@@ -9,6 +11,10 @@
 namespace trofimov_n_hoar_sort_batcher {
 
 namespace {
+
+auto ItAt(std::vector<int> &arr, std::size_t index) {
+  return arr.begin() + static_cast<std::ptrdiff_t>(index);
+}
 
 unsigned int GetThreadsCount(std::size_t size) {
   unsigned int threads_count = std::thread::hardware_concurrency();
@@ -34,7 +40,7 @@ void SortRangesInParallel(std::vector<int> &arr, const std::vector<std::pair<std
   std::vector<std::thread> workers;
   workers.reserve(ranges.size());
   for (const auto &[begin, end] : ranges) {
-    workers.emplace_back([&arr, begin, end]() { std::sort(arr.begin() + begin, arr.begin() + end); });
+    workers.emplace_back([&arr, begin, end]() { std::sort(ItAt(arr, begin), ItAt(arr, end)); });
   }
   for (auto &worker : workers) {
     worker.join();
@@ -54,7 +60,7 @@ void MergeSortedRanges(std::vector<int> &arr, std::vector<std::pair<std::size_t,
 
       const auto [left_begin, left_end] = ranges[i];
       const auto [right_begin, right_end] = ranges[i + 1];
-      std::inplace_merge(arr.begin() + left_begin, arr.begin() + left_end, arr.begin() + right_end);
+      std::inplace_merge(ItAt(arr, left_begin), ItAt(arr, left_end), ItAt(arr, right_end));
       merged_ranges.emplace_back(left_begin, right_end);
     }
 
