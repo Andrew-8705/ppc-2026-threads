@@ -4,6 +4,7 @@
 #include <omp.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
@@ -12,6 +13,21 @@
 #include "gasenin_l_djstra/common/include/common.hpp"
 
 namespace gasenin_l_djstra {
+
+namespace {
+
+void MinPairImpl(void *in, void *inout, const int *len, MPI_Datatype * /*dtype*/) {
+  auto *a = static_cast<InType *>(in);
+  auto *b = static_cast<InType *>(inout);
+  for (int i = 0; i < *len; i += 2) {
+    if (a[i] < b[i]) {
+      b[i] = a[i];
+      b[i + 1] = a[i + 1];
+    }
+  }
+}
+
+}  // namespace
 
 GaseninLDjstraALL::GaseninLDjstraALL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
@@ -38,7 +54,7 @@ bool GaseninLDjstraALL::PreProcessingImpl() {
     start_v_ = rank_ * local_n_;
   } else {
     local_n_ = chunk;
-    start_v_ = rem * (chunk + 1) + (rank_ - rem) * chunk;
+    start_v_ = (rem * (chunk + 1)) + ((rank_ - rem) * chunk);
   }
 
   dist_.assign(local_n_, inf);
@@ -51,17 +67,6 @@ bool GaseninLDjstraALL::PreProcessingImpl() {
   return true;
 }
 
-static void MinPair(void *in, void *inout, int *len, MPI_Datatype * /*dtype*/) {
-  InType *a = static_cast<InType *>(in);
-  InType *b = static_cast<InType *>(inout);
-  for (int i = 0; i < *len; i += 2) {
-    if (a[i] < b[i]) {
-      b[i] = a[i];
-      b[i + 1] = a[i + 1];
-    }
-  }
-}
-
 bool GaseninLDjstraALL::RunImpl() {
   const InType n = GetInput();
   const InType inf = std::numeric_limits<InType>::max();
@@ -71,11 +76,16 @@ bool GaseninLDjstraALL::RunImpl() {
   const int local_n = local_n_;
   const int start_v = start_v_;
 
-  MPI_Op min_pair_op;
-  MPI_Op_create(MinPair, 1, &min_pair_op);
+  MPI_Op min_pair_op = MPI_OP_NULL;
+  // Lambda wrapper to match MPI_User_function signature
+  auto min_pair_fn = [](void *in, void *inout, int *len, MPI_Datatype *dtype) {
+    const int *len_const = len;  // Explicit const to avoid warning
+    MinPairImpl(in, inout, len_const, dtype);
+  };
+  MPI_Op_create(min_pair_fn, 1, &min_pair_op);
 
   int num_threads = 1;
-#pragma omp parallel
+#pragma omp parallel default(none) shared(num_threads)
   {
 #pragma omp single
     num_threads = omp_get_num_threads();
@@ -112,9 +122,9 @@ bool GaseninLDjstraALL::RunImpl() {
       }
     }
 
-    InType local_pair[2] = {local_min, local_vertex};
-    InType global_pair[2] = {inf, -1};
-    MPI_Allreduce(local_pair, global_pair, 1, MPI_LONG_LONG_INT, min_pair_op, MPI_COMM_WORLD);
+    std::array<InType, 2> local_pair = {local_min, local_vertex};
+    std::array<InType, 2> global_pair = {inf, -1};
+    MPI_Allreduce(local_pair.data(), global_pair.data(), 1, MPI_LONG_LONG_INT, min_pair_op, MPI_COMM_WORLD);
 
     InType global_min = global_pair[0];
     InType global_vertex = global_pair[1];
@@ -134,9 +144,7 @@ bool GaseninLDjstraALL::RunImpl() {
         if (global_i != global_vertex) {
           const InType weight = std::abs(global_vertex - global_i);
           const InType new_dist = global_min + weight;
-          if (new_dist < dist[i]) {
-            dist[i] = new_dist;
-          }
+          dist[i] = std::min(new_dist, dist[i]);
         }
       }
     }
@@ -152,7 +160,7 @@ bool GaseninLDjstraALL::RunImpl() {
     }
   }
 
-  MPI_Allreduce(&local_sum, &total_sum_, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&local_sum, &total_sum_, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 
   return true;
 }
