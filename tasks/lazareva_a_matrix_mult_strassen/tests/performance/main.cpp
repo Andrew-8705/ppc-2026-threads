@@ -5,7 +5,9 @@
 #include <vector>
 
 #include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
+#include "lazareva_a_matrix_mult_strassen/omp/include/ops_omp.hpp"
 #include "lazareva_a_matrix_mult_strassen/seq/include/ops_seq.hpp"
+#include "lazareva_a_matrix_mult_strassen/tbb/include/ops_tbb.hpp"
 #include "util/include/perf_test_util.hpp"
 
 namespace lazareva_a_matrix_mult_strassen {
@@ -64,7 +66,8 @@ TEST_P(LazarevaARunPerfTestThreads, RunPerfModes) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, LazarevaATestTaskSEQ>(PPC_SETTINGS_lazareva_a_matrix_mult_strassen);
+    ppc::util::MakeAllPerfTasks<InType, LazarevaATestTaskSEQ, LazarevaATestTaskOMP, LazarevaATestTaskTBB>(
+        PPC_SETTINGS_lazareva_a_matrix_mult_strassen);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
