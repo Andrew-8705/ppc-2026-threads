@@ -6,6 +6,8 @@
 #include <complex>
 #include <cstddef>
 #include <string>
+#include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -29,70 +31,168 @@ constexpr double kValue19 = 19.0;
 
 class SabutayARunFuncTestsTbb : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
-  static auto PrintTestParam(const TestType &test_param) -> std::string {
+  using TestTypeBase = typename std::remove_cv<typename std::remove_reference<TestType>::type>::type;
+  static constexpr bool IsIntegralTestType = std::is_integral<TestTypeBase>::value;
+
+  template <typename T = TestType>
+  static auto PrintTestParam(const T &test_param) -> typename std::enable_if<
+      std::is_integral<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::value,
+      std::string>::type {
     return std::to_string(test_param);
+  }
+
+  template <typename T = TestType>
+  static auto PrintTestParam(const T &test_param) -> typename std::enable_if<
+      !std::is_integral<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::value,
+      std::string>::type {
+    return std::to_string(std::get<0>(test_param));
+  }
+
+  template <typename T = TestType>
+  static auto GetTestParamIndex(const T &test_param) -> typename std::enable_if<
+      std::is_integral<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::value, int>::type {
+    return static_cast<int>(test_param);
+  }
+
+  template <typename T = TestType>
+  static auto GetTestParamIndex(const T &test_param) -> typename std::enable_if<
+      !std::is_integral<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::value, int>::type {
+    return static_cast<int>(std::get<0>(test_param));
+  }
+
+  template <typename T = TestType>
+  static auto MakeTestParam(int idx) -> typename std::enable_if<
+      std::is_integral<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::value, T>::type {
+    return static_cast<T>(idx);
+  }
+
+  template <typename T = TestType>
+  static auto MakeTestParam(int idx) -> typename std::enable_if<
+      !std::is_integral<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::value, T>::type {
+    return T{idx, std::string{}};
+  }
+
+  template <typename Matrix>
+  static auto MatrixRowsImpl(Matrix &matrix, int) -> decltype(matrix.m) & {
+    return matrix.m;
+  }
+
+  template <typename Matrix>
+  static auto MatrixRowsImpl(Matrix &matrix, long) -> int & {
+    return matrix.rows;
+  }
+
+  template <typename Matrix>
+  static auto MatrixRows(Matrix &matrix) -> int & {
+    return MatrixRowsImpl(matrix, 0);
+  }
+
+  template <typename Matrix>
+  static auto MatrixColsImpl(Matrix &matrix, int) -> decltype(matrix.n) & {
+    return matrix.n;
+  }
+
+  template <typename Matrix>
+  static auto MatrixColsImpl(Matrix &matrix, long) -> int & {
+    return matrix.cols;
+  }
+
+  template <typename Matrix>
+  static auto MatrixCols(Matrix &matrix) -> int & {
+    return MatrixColsImpl(matrix, 0);
+  }
+
+  template <typename Matrix>
+  static auto MatrixRowsImpl(const Matrix &matrix, int) -> decltype(matrix.m) {
+    return matrix.m;
+  }
+
+  template <typename Matrix>
+  static auto MatrixRowsImpl(const Matrix &matrix, long) -> int {
+    return matrix.rows;
+  }
+
+  template <typename Matrix>
+  static auto MatrixRows(const Matrix &matrix) -> int {
+    return MatrixRowsImpl(matrix, 0);
+  }
+
+  template <typename Matrix>
+  static auto MatrixColsImpl(const Matrix &matrix, int) -> decltype(matrix.n) {
+    return matrix.n;
+  }
+
+  template <typename Matrix>
+  static auto MatrixColsImpl(const Matrix &matrix, long) -> int {
+    return matrix.cols;
+  }
+
+  template <typename Matrix>
+  static auto MatrixCols(const Matrix &matrix) -> int {
+    return MatrixColsImpl(matrix, 0);
   }
 
  protected:
   void SetUp() override {
-    TestType params = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
-    CCS &a = std::get<0>(input_data_);
-    CCS &b = std::get<1>(input_data_);
-    CCS &c = test_result_;
+    const auto params =
+        GetTestParamIndex(std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam()));
+    auto &a = std::get<0>(input_data_);
+    auto &b = std::get<1>(input_data_);
+    auto &c = test_result_;
 
     if (params == 0) {
-      a.m = 2;
-      a.n = 3;
+      MatrixRows(a) = 2;
+      MatrixCols(a) = 3;
       a.col_ptr = {0, 1, 2, 3};
       a.row_ind = {0, 1, 0};
       a.values = {{kValue1, kZero}, {kValue2, kZero}, {kValue3, kZero}};
 
-      b.m = 3;
-      b.n = 2;
+      MatrixRows(b) = 3;
+      MatrixCols(b) = 2;
       b.col_ptr = {0, 2, 3};
       b.row_ind = {0, 2, 1};
       b.values = {{kValue4, kZero}, {kValue5, kZero}, {kValue6, kZero}};
 
-      c.m = 2;
-      c.n = 2;
+      MatrixRows(c) = 2;
+      MatrixCols(c) = 2;
       c.col_ptr = {0, 1, 2};
       c.row_ind = {0, 1};
       c.values = {{kValue19, kZero}, {kValue12, kZero}};
     }
     if (params == 1) {
-      a.m = 2;
-      a.n = 2;
+      MatrixRows(a) = 2;
+      MatrixCols(a) = 2;
       a.col_ptr = {0, 1, 2};
       a.row_ind = {0, 1};
       a.values = {{kValue1, kZero}, {kValue2, kZero}};
 
-      b.m = 2;
-      b.n = 2;
+      MatrixRows(b) = 2;
+      MatrixCols(b) = 2;
       b.col_ptr = {0, 1, 2};
       b.row_ind = {1, 0};
       b.values = {{kValue3, kZero}, {kValue4, kZero}};
 
-      c.m = 2;
-      c.n = 2;
+      MatrixRows(c) = 2;
+      MatrixCols(c) = 2;
       c.col_ptr = {0, 1, 2};
       c.row_ind = {1, 0};
       c.values = {{kValue6, kZero}, {kValue4, kZero}};
     }
     if (params == 2) {
-      a.m = 1;
-      a.n = 1;
+      MatrixRows(a) = 1;
+      MatrixCols(a) = 1;
       a.col_ptr = {0, 1};
       a.row_ind = {0};
       a.values = {{kValue2, kValue1}};
 
-      b.m = 1;
-      b.n = 1;
+      MatrixRows(b) = 1;
+      MatrixCols(b) = 1;
       b.col_ptr = {0, 1};
       b.row_ind = {0};
       b.values = {{kValue1, kValue1}};
 
-      c.m = 1;
-      c.n = 1;
+      MatrixRows(c) = 1;
+      MatrixCols(c) = 1;
       c.col_ptr = {0, 1};
       c.row_ind = {0};
       c.values = {{kValue1, kValue3}};
@@ -102,7 +202,7 @@ class SabutayARunFuncTestsTbb : public ppc::util::BaseRunFuncTests<InType, OutTy
   bool CheckTestOutputData(OutType &output_data) override {
     bool result = true;
     constexpr double kEps = 1e-14;
-    if (test_result_.m != output_data.m || test_result_.n != output_data.n ||
+    if (MatrixRows(test_result_) != MatrixRows(output_data) || MatrixCols(test_result_) != MatrixCols(output_data) ||
         test_result_.col_ptr.size() != output_data.col_ptr.size() ||
         test_result_.row_ind.size() != output_data.row_ind.size() ||
         test_result_.values.size() != output_data.values.size()) {
@@ -115,7 +215,7 @@ class SabutayARunFuncTestsTbb : public ppc::util::BaseRunFuncTests<InType, OutTy
       }
     }
 
-    for (int j = 0; j < test_result_.n; ++j) {
+    for (int j = 0; j < MatrixCols(test_result_); ++j) {
       std::vector<std::pair<int, std::complex<double>>> test;
       std::vector<std::pair<int, std::complex<double>>> output;
       for (int k = 0; k < test_result_.col_ptr[j + 1] - test_result_.col_ptr[j]; ++k) {
@@ -125,8 +225,8 @@ class SabutayARunFuncTestsTbb : public ppc::util::BaseRunFuncTests<InType, OutTy
                             output_data.values[output_data.col_ptr[j] + k]);
       }
       auto cmp = [](const auto &x, const auto &y) { return x.first < y.first; };
-      std::ranges::sort(test, cmp);
-      std::ranges::sort(output, cmp);
+      std::sort(test.begin(), test.end(), cmp);
+      std::sort(output.begin(), output.end(), cmp);
       for (size_t i = 0; i < test.size(); ++i) {
         if (test[i].first != output[i].first || std::abs(test[i].second - output[i].second) > kEps) {
           result = false;
@@ -152,7 +252,9 @@ TEST_P(SabutayARunFuncTestsTbb, FuncCCSTest) {
   ExecuteTest(GetParam());
 }
 
-const std::array<TestType, 3> kTestParam = {0, 1, 2};
+const std::array<TestType, 3> kTestParam = {SabutayARunFuncTestsTbb::MakeTestParam(0),
+                                            SabutayARunFuncTestsTbb::MakeTestParam(1),
+                                            SabutayARunFuncTestsTbb::MakeTestParam(2)};
 
 const auto kTestTasksList = ppc::util::AddFuncTask<SabutaySparseComplexCcsMultTBB, InType>(
     kTestParam, PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_tbb);
