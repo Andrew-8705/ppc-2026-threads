@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <stdio.h>
 
 #include <array>
 #include <cstddef>
@@ -32,6 +33,11 @@ class KolotukhinAGaussinBlureFuncTests : public ppc::util::BaseRunFuncTests<InTy
 
   bool CheckTestOutputData(OutType &output_data) final {
     TestType params = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
+    std::cout << "{ ";
+    for (size_t i = 0; i < output_data.size(); i++) {
+      std::cout << output_data[i] << ", ";
+    }
+    std::cout << "}" << std::endl << std::endl;
     return get<1>(params) == output_data;
   }
 
