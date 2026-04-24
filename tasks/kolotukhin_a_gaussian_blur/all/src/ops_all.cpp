@@ -112,7 +112,8 @@ void KolotukhinAGaussinBlureALL::ApplyGaussianBlur(std::vector<std::uint8_t> &da
   const static std::array<std::array<int, 3>, 3> kKernel = {{{{1, 2, 1}}, {{2, 4, 2}}, {{1, 2, 1}}}};
   const static int kSum = 16;
 
-#pragma omp parallel for collapse(2) schedule(static)
+#pragma omp parallel for collapse(2) schedule(static) default(none) \
+    shared(data, width, height, start_row, end_row, kKernel, kSum)
   for (int row = start_row; row < end_row; row++) {
     for (int col = 0; col < width; col++) {
       int acc = 0;
@@ -191,10 +192,7 @@ bool KolotukhinAGaussinBlureALL::RunImpl() {
   }
 
   const auto img_width = get<1>(GetInput());
-  const auto img_height = get<2>(GetInput());
-
   int extended_height = static_cast<int>(local_data_.size() / img_width);
-
   ApplyGaussianBlur(local_data_, img_width, extended_height, 1, extended_height - 1);
 
   return true;
