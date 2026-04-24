@@ -109,7 +109,8 @@ void MergePass(const std::vector<int> &source, std::vector<int> &destination, co
                std::size_t width, int requested_threads) {
   const std::size_t chunk_count = bounds.size() - 1;
   const std::size_t merge_count = (chunk_count + (2 * width) - 1) / (2 * width);
-  const auto worker_count = std::min<std::size_t>(merge_count, static_cast<std::size_t>(std::max(1, requested_threads)));
+  const auto worker_count =
+      std::min<std::size_t>(merge_count, static_cast<std::size_t>(std::max(1, requested_threads)));
 
   std::vector<std::thread> threads;
   threads.reserve(worker_count);
