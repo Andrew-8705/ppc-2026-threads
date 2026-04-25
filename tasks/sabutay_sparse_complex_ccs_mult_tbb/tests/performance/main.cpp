@@ -2,7 +2,6 @@
 
 #include <random>
 #include <tuple>
-#include <vector>
 
 #include "../../common/include/common.hpp"
 #include "../../tbb/include/ops_tbb.hpp"

@@ -1,8 +1,10 @@
 #include "../include/ops_tbb.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <complex>
 #include <cstddef>
+#include <vector>
 
 #include "../../common/include/common.hpp"
 #include "oneapi/tbb/blocked_range.h"
@@ -68,10 +70,7 @@ bool IsValidCCS(const CCS &matrix) {
       return false;
     }
   }
-  if (!std::ranges::all_of(matrix.row_ind, [&](int row) { return row >= 0 && row < matrix.m; })) {
-    return false;
-  }
-  return true;
+  return std::ranges::all_of(matrix.row_ind, [&](int row) { return row >= 0 && row < matrix.m; });
 }
 
 }  // namespace
