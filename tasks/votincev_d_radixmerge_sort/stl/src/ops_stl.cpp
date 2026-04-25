@@ -110,7 +110,7 @@ void VotincevDRadixMergeSortSTL::ParallelRadixMergeSort(uint32_t *data, int32_t 
     for (int32_t i = 0; i < num_merges; ++i) {
       int32_t left = i * 2 * width;
       int32_t mid = std::min(left + width, n);
-      int32_t right = std::min(left + 2 * width, n);
+      int32_t right = std::min(left + (2 * width), n);
 
       if (mid < right) {
         futures.push_back(std::async(std::launch::async, [src, dst, left, mid, right] {
@@ -140,7 +140,7 @@ bool VotincevDRadixMergeSortSTL::RunImpl() {
     return true;
   }
 
-  int32_t min_val = *std::min_element(input.begin(), input.end());
+  int32_t min_val = *std::ranges::min_element(input.begin(), input.end());
 
   std::vector<uint32_t> working_array(static_cast<size_t>(n));
   for (int32_t i = 0; i < n; ++i) {
