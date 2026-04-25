@@ -2,6 +2,7 @@
 
 #include <tbb/tbb.h>
 
+#include <algorithm>
 #include <complex>
 #include <cstddef>
 #include <utility>
@@ -12,6 +13,11 @@
 #include "shvetsova_k_mult_matrix_complex_col/common/include/common.hpp"
 
 namespace shvetsova_k_mult_matrix_complex_col {
+
+struct SparseColumn {
+  std::vector<int> rows;
+  std::vector<std::complex<double>> vals;
+};
 
 ShvetsovaKMultMatrixComplexTBB::ShvetsovaKMultMatrixComplexTBB(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
@@ -42,17 +48,12 @@ bool ShvetsovaKMultMatrixComplexTBB::RunImpl() {
   const MatrixCCS &matrix_b = std::get<1>(GetInput());
 
   auto &matrix_c = GetOutput();
-  struct SparseColumn {
-    std::vector<int> rows;
-    std::vector<std::complex<double>> vals;
-  };
 
   std::vector<SparseColumn> columns_c(matrix_b.cols);
 
   auto compute_column = [&](int i, std::vector<std::complex<double>> &column_c) {
-    for (auto &val : column_c) {
-      val = {0.0, 0.0};
-    }
+    std::fill(column_c.begin(), column_c.end(), std::complex<double>{0.0, 0.0});
+
     for (int j = matrix_b.col_ptr[i]; j < matrix_b.col_ptr[i + 1]; j++) {
       int tmp_ind = matrix_b.row_ind[j];
       std::complex<double> tmp_val = matrix_b.values[j];
