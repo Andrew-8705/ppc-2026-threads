@@ -28,10 +28,12 @@ class KolotukhinAGaussinBlureALL : public BaseTask {
   int proc_count_;
   std::vector<std::uint8_t> local_data_;
   int local_height_;
-
+  int global_height_;
+  int global_width_;
   void DistributeWork();
   void GatherResults();
-  void ApplyGaussianBlur(std::vector<std::uint8_t> &data, int width, int height, int start_row, int end_row);
+  void ApplyGaussianBlur(const std::vector<std::uint8_t> &src_data, std::vector<std::uint8_t> &dst_data, int width,
+                         int height, int start_row, int end_row);
 };
 
 }  // namespace kolotukhin_a_gaussian_blur

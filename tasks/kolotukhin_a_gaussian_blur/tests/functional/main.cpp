@@ -33,12 +33,13 @@ class KolotukhinAGaussinBlureFuncTests : public ppc::util::BaseRunFuncTests<InTy
 
   bool CheckTestOutputData(OutType &output_data) final {
     TestType params = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
-    std::cout << "{ ";
-    for (size_t i = 0; i < output_data.size(); i++) {
-      std::cout << output_data[i] << ", ";
+    int rank = -1;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+      return get<1>(params) == output_data;
+    } else {
+      return true;
     }
-    std::cout << "}" << std::endl << std::endl;
-    return get<1>(params) == output_data;
   }
 
   InType GetTestInputData() final {

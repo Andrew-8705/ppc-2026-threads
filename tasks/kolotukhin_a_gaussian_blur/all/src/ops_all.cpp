@@ -13,7 +13,8 @@
 
 namespace kolotukhin_a_gaussian_blur {
 
-KolotukhinAGaussinBlureALL::KolotukhinAGaussinBlureALL(const InType &in) : rank_(0), proc_count_(1), local_height_(0) {
+KolotukhinAGaussinBlureALL::KolotukhinAGaussinBlureALL(const InType &in)
+    : rank_(-1), proc_count_(-1), local_height_(-1) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
   GetOutput().clear();
@@ -32,7 +33,6 @@ bool KolotukhinAGaussinBlureALL::ValidationImpl() {
   int local_valid = valid ? 1 : 0;
   int global_valid = 0;
   MPI_Allreduce(&local_valid, &global_valid, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-
   return global_valid == 1;
 }
 
@@ -40,8 +40,22 @@ bool KolotukhinAGaussinBlureALL::PreProcessingImpl() {
   const auto img_width = get<1>(GetInput());
   const auto img_height = get<2>(GetInput());
 
+  int width = img_width;
+  int height = img_height;
+
+  MPI_Bcast(&width, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&height, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  if (rank_ != 0) {
+    global_width_ = width;
+    global_height_ = height;
+  } else {
+    global_width_ = img_width;
+    global_height_ = img_height;
+  }
+
   if (rank_ == 0) {
-    GetOutput().assign(static_cast<std::size_t>(img_height) * static_cast<std::size_t>(img_width), 0);
+    GetOutput().assign(static_cast<std::size_t>(global_height_) * static_cast<std::size_t>(global_width_), 0);
   }
 
   DistributeWork();
@@ -50,12 +64,13 @@ bool KolotukhinAGaussinBlureALL::PreProcessingImpl() {
 
 void KolotukhinAGaussinBlureALL::DistributeWork() {
   const auto &pixel_data = get<0>(GetInput());
-  const auto img_width = get<1>(GetInput());
-  const auto img_height = get<2>(GetInput());
 
-  int rows_per_process = img_height / proc_count_;
-  int remainder = img_height % proc_count_;
-
+  int rows_per_process = global_height_ / proc_count_;
+  int remainder = global_height_ % proc_count_;
+  int last_handler = proc_count_ - 1;
+  if (rows_per_process == 0) {
+    last_handler = remainder - 1;
+  }
   local_height_ = (rank_ < remainder) ? rows_per_process + 1 : rows_per_process;
 
   if (local_height_ == 0) {
@@ -63,16 +78,14 @@ void KolotukhinAGaussinBlureALL::DistributeWork() {
     return;
   }
 
-  int extended_height = local_height_ + 2;
-  std::size_t local_size = static_cast<std::size_t>(extended_height) * static_cast<std::size_t>(img_width);
+  local_height_ = (rank_ == 0 || rank_ == last_handler) ? local_height_ + 1 : local_height_ + 2;
+  std::size_t local_size = static_cast<std::size_t>(local_height_) * static_cast<std::size_t>(global_width_);
   local_data_.resize(local_size, 0);
-
   if (rank_ == 0) {
+    MPI_Barrier(MPI_COMM_WORLD);
     int current_row = 0;
-
     for (int dest = 0; dest < proc_count_; dest++) {
       int dest_rows = (dest < remainder) ? rows_per_process + 1 : rows_per_process;
-
       if (dest_rows == 0) {
         continue;
       }
@@ -81,16 +94,16 @@ void KolotukhinAGaussinBlureALL::DistributeWork() {
       int end_row = current_row + dest_rows;
 
       int extended_start = std::max(0, start_row - 1);
-      int extended_end = std::min(img_height, end_row + 1);
+      int extended_end = std::min(global_height_, end_row + 1);
       int extended_rows = extended_end - extended_start;
 
       std::vector<std::uint8_t> extended_data(static_cast<std::size_t>(extended_rows) *
-                                              static_cast<std::size_t>(img_width));
+                                              static_cast<std::size_t>(global_width_));
 
       for (int row = extended_start; row < extended_end; row++) {
-        std::copy(pixel_data.begin() + static_cast<std::size_t>(row) * img_width,
-                  pixel_data.begin() + static_cast<std::size_t>(row + 1) * img_width,
-                  extended_data.begin() + static_cast<std::size_t>(row - extended_start) * img_width);
+        std::copy(pixel_data.begin() + static_cast<std::size_t>(row) * global_width_,
+                  pixel_data.begin() + static_cast<std::size_t>(row + 1) * global_width_,
+                  extended_data.begin() + static_cast<std::size_t>(row - extended_start) * global_width_);
       }
 
       if (dest == 0) {
@@ -102,86 +115,85 @@ void KolotukhinAGaussinBlureALL::DistributeWork() {
       current_row += dest_rows;
     }
   } else {
+    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Recv(local_data_.data(), static_cast<int>(local_data_.size()), MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD,
              MPI_STATUS_IGNORE);
   }
 }
 
-void KolotukhinAGaussinBlureALL::ApplyGaussianBlur(std::vector<std::uint8_t> &data, int width, int height,
+void KolotukhinAGaussinBlureALL::ApplyGaussianBlur(const std::vector<std::uint8_t> &src_data,
+                                                   std::vector<std::uint8_t> &dst_data, int width, int height,
                                                    int start_row, int end_row) {
   const static std::array<std::array<int, 3>, 3> kKernel = {{{{1, 2, 1}}, {{2, 4, 2}}, {{1, 2, 1}}}};
   const static int kSum = 16;
-
 #pragma omp parallel for collapse(2) schedule(static) default(none) \
-    shared(data, width, height, start_row, end_row, kKernel, kSum)
+    shared(src_data, dst_data, width, height, start_row, end_row, kKernel, kSum)
   for (int row = start_row; row < end_row; row++) {
     for (int col = 0; col < width; col++) {
       int acc = 0;
       for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
-          std::uint8_t pixel = GetPixel(data, width, height, col + dx, row + dy);
+          std::uint8_t pixel = GetPixel(src_data, width, height, col + dx, row + dy);
           acc += kKernel.at(1 + dy).at(1 + dx) * static_cast<int>(pixel);
         }
       }
-      data[(static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col)] =
+      dst_data[(static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col)] =
           static_cast<std::uint8_t>(acc / kSum);
     }
   }
 }
 
 void KolotukhinAGaussinBlureALL::GatherResults() {
-  const auto img_width = get<1>(GetInput());
-  const auto img_height = get<2>(GetInput());
   auto &output = GetOutput();
 
+  int rows_per_process = global_height_ / proc_count_;
+  int remainder = global_height_ % proc_count_;
+
   if (rank_ != 0) {
-    if (local_height_ > 0) {
-      std::vector<std::uint8_t> result_without_borders(static_cast<std::size_t>(local_height_) *
-                                                       static_cast<std::size_t>(img_width));
-      for (int r = 0; r < local_height_; r++) {
-        std::copy(local_data_.begin() + static_cast<std::size_t>(r + 1) * img_width,
-                  local_data_.begin() + static_cast<std::size_t>(r + 2) * img_width,
-                  result_without_borders.begin() + static_cast<std::size_t>(r) * img_width);
+    int original_rows = (rank_ < remainder) ? rows_per_process + 1 : rows_per_process;
+
+    if (original_rows > 0) {
+      std::vector<std::uint8_t> result_only_own(original_rows * global_width_);
+      int halo_offset = (rank_ == 0) ? 0 : 1;
+
+      for (int r = 0; r < original_rows; r++) {
+        std::copy(local_data_.begin() + (r + halo_offset) * global_width_,
+                  local_data_.begin() + (r + halo_offset + 1) * global_width_,
+                  result_only_own.begin() + r * global_width_);
       }
 
-      MPI_Send(result_without_borders.data(), static_cast<int>(result_without_borders.size()), MPI_UNSIGNED_CHAR, 0, 1,
+      MPI_Send(result_only_own.data(), static_cast<int>(result_only_own.size()), MPI_UNSIGNED_CHAR, 0, 1,
                MPI_COMM_WORLD);
     }
   } else {
-    int rows_per_process = img_height / proc_count_;
-    int remainder = img_height % proc_count_;
-
     std::vector<int> recv_counts(proc_count_);
     std::vector<int> displs(proc_count_);
 
     int current_row = 0;
     for (int i = 0; i < proc_count_; i++) {
       int rows = (i < remainder) ? rows_per_process + 1 : rows_per_process;
-      recv_counts.at(i) = rows * img_width;
-      displs.at(i) = current_row * img_width;
+      recv_counts[i] = rows * global_width_;
+      displs[i] = current_row * global_width_;
       current_row += rows;
     }
 
-    if (local_height_ > 0) {
-      for (int row = 0; row < local_height_; row++) {
-        std::copy(local_data_.begin() + static_cast<std::size_t>(row + 1) * img_width,
-                  local_data_.begin() + static_cast<std::size_t>(row + 2) * img_width,
-                  output.begin() + static_cast<std::size_t>(displs[0]) + static_cast<std::size_t>(row) * img_width);
-      }
+    int root_original_rows = (0 < remainder) ? rows_per_process + 1 : rows_per_process;
+    for (int row = 0; row < root_original_rows; row++) {
+      std::copy(local_data_.begin() + row * global_width_, local_data_.begin() + (row + 1) * global_width_,
+                output.begin() + displs[0] + row * global_width_);
     }
 
-    for (int src = 1; src < proc_count_; ++src) {
+    for (int src = 1; src < proc_count_; src++) {
       int src_rows = (src < remainder) ? rows_per_process + 1 : rows_per_process;
       if (src_rows == 0) {
         continue;
       }
 
-      std::vector<std::uint8_t> src_data(static_cast<std::size_t>(src_rows) * static_cast<std::size_t>(img_width));
-
+      std::vector<std::uint8_t> src_data(src_rows * global_width_);
       MPI_Recv(src_data.data(), static_cast<int>(src_data.size()), MPI_UNSIGNED_CHAR, src, 1, MPI_COMM_WORLD,
                MPI_STATUS_IGNORE);
 
-      std::copy(src_data.begin(), src_data.end(), output.begin() + displs.at(src));
+      std::copy(src_data.begin(), src_data.end(), output.begin() + displs[src]);
     }
   }
 }
@@ -191,10 +203,23 @@ bool KolotukhinAGaussinBlureALL::RunImpl() {
     return true;
   }
 
-  const auto img_width = get<1>(GetInput());
-  int extended_height = static_cast<int>(local_data_.size() / img_width);
-  ApplyGaussianBlur(local_data_, img_width, extended_height, 1, extended_height - 1);
+  int rows_per_process = global_height_ / proc_count_;
+  int remainder = global_height_ % proc_count_;
 
+  int last_handler = proc_count_ - 1;
+  if (rows_per_process == 0) {
+    last_handler = remainder - 1;
+  }
+
+  int extended_height = static_cast<int>(local_data_.size() / global_width_);
+
+  int begin = (rank_ == 0) ? 0 : 1;
+  int end = (rank_ == last_handler) ? extended_height : extended_height - 1;
+
+  std::vector<std::uint8_t> result(local_data_.size());
+  ApplyGaussianBlur(local_data_, result, global_width_, extended_height, begin, end);
+
+  local_data_ = std::move(result);
   return true;
 }
 
