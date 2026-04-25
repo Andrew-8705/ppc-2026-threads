@@ -52,7 +52,7 @@ bool ShvetsovaKMultMatrixComplexTBB::RunImpl() {
   std::vector<SparseColumn> columns_c(matrix_b.cols);
 
   auto compute_column = [&](int i, std::vector<std::complex<double>> &column_c) {
-    std::fill(column_c.begin(), column_c.end(), std::complex<double>{0.0, 0.0});
+    std::ranges::fill(column_c, std::complex<double>{0.0, 0.0});
 
     for (int j = matrix_b.col_ptr[i]; j < matrix_b.col_ptr[i + 1]; j++) {
       int tmp_ind = matrix_b.row_ind[j];
