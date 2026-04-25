@@ -1,11 +1,9 @@
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <cmath>
 #include <complex>
-#include <cstddef>
 #include <random>
-#include <utility>
+#include <tuple>
 #include <vector>
 
 #include "sabutay_sparse_complex_ccs_mult_tbb/common/include/common.hpp"

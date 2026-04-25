@@ -3,6 +3,7 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <ranges>
 #include <vector>
 
 #include "../../common/include/common.hpp"
@@ -17,7 +18,7 @@ bool IsValidCCS(const CCS &matrix) {
   if (matrix.m < 0 || matrix.n < 0) {
     return false;
   }
-  if (matrix.col_ptr.size() != static_cast<std::size_t>(matrix.n + 1)) {
+  if (matrix.col_ptr.size() != static_cast<std::size_t>(matrix.n) + 1) {
     return false;
   }
   if (matrix.row_ind.size() != matrix.values.size()) {
@@ -26,7 +27,7 @@ bool IsValidCCS(const CCS &matrix) {
   if (matrix.col_ptr.empty() || matrix.col_ptr[0] != 0) {
     return false;
   }
-  if (matrix.col_ptr.back() != static_cast<int>(matrix.row_ind.size())) {
+  if (static_cast<std::size_t>(matrix.col_ptr.back()) != matrix.row_ind.size()) {
     return false;
   }
   for (int j = 0; j < matrix.n; ++j) {
@@ -34,7 +35,7 @@ bool IsValidCCS(const CCS &matrix) {
       return false;
     }
   }
-  for (int row : matrix.row_ind) {
+  for (int row : matrix.row_ind) {  // NOLINT(readability-use-anyofallof)
     if (row < 0 || row >= matrix.m) {
       return false;
     }
@@ -50,6 +51,7 @@ SabutayASparseComplexCcsMultTBB::SabutayASparseComplexCcsMultTBB(const InType &i
   GetOutput() = CCS();
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void SabutayASparseComplexCcsMultTBB::SpMM(const CCS &a, const CCS &b, CCS &c) {
   c.m = a.m;
   c.n = b.n;

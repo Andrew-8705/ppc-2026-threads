@@ -121,8 +121,8 @@ class SabutayARunFuncTestsTbb : public ppc::util::BaseRunFuncTests<InType, OutTy
       for (int k = 0; k < test_result_.col_ptr[j + 1] - test_result_.col_ptr[j]; ++k) {
         test.emplace_back(test_result_.row_ind[test_result_.col_ptr[j] + k],
                           test_result_.values[test_result_.col_ptr[j] + k]);
-        output.emplace_back(output_data.row_ind[output_data.col_ptr[j] + k],
-                            output_data.values[output_data.col_ptr[j] + k]);
+        output.emplace_back(output_data.row_ind[test_result_.col_ptr[j] + k],
+                            output_data.values[test_result_.col_ptr[j] + k]);
       }
       auto cmp = [](const auto &x, const auto &y) { return x.first < y.first; };
       std::ranges::sort(test, cmp);
