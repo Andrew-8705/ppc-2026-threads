@@ -1,8 +1,8 @@
 #include "../include/ops_tbb.hpp"
 
+#include <algorithm>
 #include <complex>
 #include <cstddef>
-#include <vector>
 
 #include "../../common/include/common.hpp"
 #include "oneapi/tbb/blocked_range.h"
@@ -11,6 +11,41 @@
 namespace sabutay_sparse_complex_ccs_mult_tbb {
 
 namespace {
+
+constexpr double kEps = 1e-14;
+
+void AccumulateColumnContributions(const CCS &a, const CCS &b, int col, std::vector<int> &rows,
+                                   std::vector<int> &marker, std::vector<std::complex<double>> &acc) {
+  for (int k = b.col_ptr[col]; k < b.col_ptr[col + 1]; ++k) {
+    const std::complex<double> b_value = b.values[k];
+    const int b_row = b.row_ind[k];
+
+    for (int a_pos = a.col_ptr[b_row]; a_pos < a.col_ptr[b_row + 1]; ++a_pos) {
+      const int a_row = a.row_ind[a_pos];
+      acc[a_row] += b_value * a.values[a_pos];
+      if (marker[a_row] == -1) {
+        rows.push_back(a_row);
+        marker[a_row] = 1;
+      }
+    }
+  }
+}
+
+void FlushAccumulatedValues(const std::vector<int> &rows, std::vector<int> &marker,
+                            std::vector<std::complex<double>> &acc, std::vector<int> &out_rows,
+                            std::vector<std::complex<double>> &out_values) {
+  out_rows.reserve(rows.size());
+  out_values.reserve(rows.size());
+
+  for (const int row : rows) {
+    if (std::abs(acc[row]) > kEps) {
+      out_values.push_back(acc[row]);
+      out_rows.push_back(row);
+    }
+    acc[row] = std::complex<double>(0.0, 0.0);
+    marker[row] = -1;
+  }
+}
 
 bool IsValidCCS(const CCS &matrix) {
   if (matrix.m < 0 || matrix.n < 0) {
@@ -33,10 +68,8 @@ bool IsValidCCS(const CCS &matrix) {
       return false;
     }
   }
-  for (int row : matrix.row_ind) {
-    if (row < 0 || row >= matrix.m) {
-      return false;
-    }
+  if (!std::ranges::all_of(matrix.row_ind, [&](int row) { return row >= 0 && row < matrix.m; })) {
+    return false;
   }
   return true;
 }
@@ -59,10 +92,8 @@ void SabutayASparseComplexCcsMultTBB::SpMM(const CCS &a, const CCS &b, CCS &c) {
   std::vector<std::vector<int>> local_row_ind(b.n);
   std::vector<std::vector<std::complex<double>>> local_values(b.n);
   std::vector<int> local_sizes(b.n, 0);
-  const double eps = 1e-14;
 
   oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<int>(0, b.n), [&](const oneapi::tbb::blocked_range<int> &range) {
-    std::complex<double> zero(0.0, 0.0);
     std::vector<int> rows;
     std::vector<int> marker(a.m, -1);
     std::vector<std::complex<double>> acc(a.m);
@@ -72,31 +103,8 @@ void SabutayASparseComplexCcsMultTBB::SpMM(const CCS &a, const CCS &b, CCS &c) {
       local_row_ind[j].clear();
       local_values[j].clear();
 
-      for (int k = b.col_ptr[j]; k < b.col_ptr[j + 1]; ++k) {
-        std::complex<double> tmpval = b.values[k];
-        int btmpind = b.row_ind[k];
-
-        for (int zp = a.col_ptr[btmpind]; zp < a.col_ptr[btmpind + 1]; ++zp) {
-          int atmpind = a.row_ind[zp];
-          acc[atmpind] += tmpval * a.values[zp];
-          if (marker[atmpind] == -1) {
-            rows.push_back(atmpind);
-            marker[atmpind] = 1;
-          }
-        }
-      }
-
-      local_row_ind[j].reserve(rows.size());
-      local_values[j].reserve(rows.size());
-
-      for (int tmpind : rows) {
-        if (std::abs(acc[tmpind]) > eps) {
-          local_values[j].push_back(acc[tmpind]);
-          local_row_ind[j].push_back(tmpind);
-        }
-        acc[tmpind] = zero;
-        marker[tmpind] = -1;
-      }
+      AccumulateColumnContributions(a, b, j, rows, marker, acc);
+      FlushAccumulatedValues(rows, marker, acc, local_row_ind[j], local_values[j]);
 
       local_sizes[j] = static_cast<int>(local_values[j].size());
     }

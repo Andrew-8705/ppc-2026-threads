@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <cmath>
-#include <complex>
 #include <random>
 #include <tuple>
 #include <vector>
