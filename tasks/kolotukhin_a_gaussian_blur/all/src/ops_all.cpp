@@ -100,11 +100,8 @@ void KolotukhinAGaussinBlureALL::DistributeWork() {
       std::vector<std::uint8_t> extended_data(static_cast<std::size_t>(extended_rows) *
                                               static_cast<std::size_t>(global_width_));
 
-      for (int row = extended_start; row < extended_end; row++) {
-        std::copy(pixel_data.begin() + static_cast<std::size_t>(row) * global_width_,
-                  pixel_data.begin() + static_cast<std::size_t>(row + 1) * global_width_,
-                  extended_data.begin() + static_cast<std::size_t>(row - extended_start) * global_width_);
-      }
+      std::copy(pixel_data.begin() + static_cast<std::size_t>(extended_start) * global_width_,
+                pixel_data.begin() + static_cast<std::size_t>(extended_end) * global_width_, extended_data.begin());
 
       if (dest == 0) {
         local_data_ = std::move(extended_data);
@@ -156,11 +153,8 @@ void KolotukhinAGaussinBlureALL::GatherResults() {
       std::vector<std::uint8_t> result_only_own(original_rows * global_width_);
       int halo_offset = (rank_ == 0) ? 0 : 1;
 
-      for (int r = 0; r < original_rows; r++) {
-        std::copy(local_data_.begin() + (r + halo_offset) * global_width_,
-                  local_data_.begin() + (r + halo_offset + 1) * global_width_,
-                  result_only_own.begin() + r * global_width_);
-      }
+      std::copy(local_data_.begin() + halo_offset * global_width_,
+                local_data_.begin() + (halo_offset + original_rows) * global_width_, result_only_own.begin());
 
       MPI_Send(result_only_own.data(), static_cast<int>(result_only_own.size()), MPI_UNSIGNED_CHAR, 0, 1,
                MPI_COMM_WORLD);
@@ -178,10 +172,8 @@ void KolotukhinAGaussinBlureALL::GatherResults() {
     }
 
     int root_original_rows = (0 < remainder) ? rows_per_process + 1 : rows_per_process;
-    for (int row = 0; row < root_original_rows; row++) {
-      std::copy(local_data_.begin() + row * global_width_, local_data_.begin() + (row + 1) * global_width_,
-                output.begin() + displs[0] + row * global_width_);
-    }
+    std::copy(local_data_.begin(), local_data_.begin() + root_original_rows * global_width_,
+              output.begin() + displs[0]);
 
     for (int src = 1; src < proc_count_; src++) {
       int src_rows = (src < remainder) ? rows_per_process + 1 : rows_per_process;
