@@ -10,6 +10,67 @@
 
 namespace orehov_n_jarvis_pass {
 
+namespace {
+
+struct Body {
+  Point current_val;
+  const std::vector<Point> *input_ptr;
+  Point best_point;
+
+  Body(Point c, const std::vector<Point> *in) : current_val(c), input_ptr(in), best_point(GetInitialBestPoint(c, in)) {}
+
+  Body(Body &other, tbb::split /*unused*/)
+      : current_val(other.current_val), input_ptr(other.input_ptr), best_point(other.best_point) {}
+
+  static Point GetInitialBestPoint(Point current, const std::vector<Point> *in) {
+    return (current == (*in)[0]) ? (*in)[1] : (*in)[0];
+  }
+
+  static double CheckLeft(Point a, Point b, Point c) {
+    return ((b.x - a.x) * (c.y - a.y)) - ((b.y - a.y) * (c.x - a.x));
+  }
+
+  static double Distance(Point a, Point b) {
+    return std::sqrt(std::pow(a.y - b.y, 2) + std::pow(a.x - b.x, 2));
+  }
+
+  static bool IsBetter(Point current, Point candidate, Point current_best) {
+    double orient = CheckLeft(current, current_best, candidate);
+    if (orient > 0) {
+      return true;
+    }
+    if (orient == 0 && Distance(current, candidate) > Distance(current, current_best)) {
+      return true;
+    }
+    return false;
+  }
+
+  void operator()(const tbb::blocked_range<size_t> &range) {
+    const auto &input = *input_ptr;
+    for (size_t i = range.begin(); i != range.end(); ++i) {
+      const Point &point = input[i];
+      if (current_val == point) {
+        continue;
+      }
+      if (IsBetter(current_val, point, best_point)) {
+        best_point = point;
+      }
+    }
+  }
+
+  void Join(const Body &other) {
+    if (IsBetter(current_val, other.best_point, best_point)) {
+      best_point = other.best_point;
+    }
+  }
+
+  void join(const Body &other) {
+    Join(other);
+  }
+};
+
+}  // namespace
+
 OrehovNJarvisPassTBB::OrehovNJarvisPassTBB(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
@@ -50,59 +111,6 @@ bool OrehovNJarvisPassTBB::RunImpl() {
 
 Point OrehovNJarvisPassTBB::FindNext(Point current) const {
   const size_t n = input_.size();
-
-  struct Body {
-    Point current_val;
-    const std::vector<Point> *input_ptr;
-    Point best_point;
-
-    Body(Point c, const std::vector<Point> *in)
-        : current_val(c), input_ptr(in), best_point(GetInitialBestPoint(c, in)) {}
-
-    Body(Body &other, tbb::split /*unused*/)
-        : current_val(other.current_val), input_ptr(other.input_ptr), best_point(other.best_point) {}
-
-    static Point GetInitialBestPoint(Point current, const std::vector<Point> *in) {
-      if (current == (*in)[0]) {
-        return (*in)[1];
-      }
-      return (*in)[0];
-    }
-
-    static bool IsBetter(Point current, Point candidate, Point current_best) {
-      double orient = CheckLeft(current, current_best, candidate);
-      if (orient > 0) {
-        return true;
-      }
-      if (orient == 0 && Distance(current, candidate) > Distance(current, current_best)) {
-        return true;
-      }
-      return false;
-    }
-
-    void operator()(const tbb::blocked_range<size_t> &range) {
-      const auto &input = *input_ptr;
-      for (size_t i = range.begin(); i != range.end(); ++i) {
-        const Point &point = input[i];
-        if (current_val == point) {
-          continue;
-        }
-        if (IsBetter(current_val, point, best_point)) {
-          best_point = point;
-        }
-      }
-    }
-
-    void Join(const Body &other) {
-      if (IsBetter(current_val, other.best_point, best_point)) {
-        best_point = other.best_point;
-      }
-    }
-
-    void join(const Body &other) {
-      Join(other);
-    }
-  };
 
   Body body(current, &input_);
   tbb::parallel_reduce(tbb::blocked_range<size_t>(0, n), body);
