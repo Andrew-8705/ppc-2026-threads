@@ -25,9 +25,7 @@ struct Dense {
   std::vector<Z> v;
 
   static Dense New(int rows, int cols) {
-    return {.m = rows,
-            .n = cols,
-            .v = std::vector<Z>(static_cast<std::size_t>(rows * cols), Z{})};
+    return {.m = rows, .n = cols, .v = std::vector<Z>(static_cast<std::size_t>(rows * cols), Z{})};
   }
 
   Z &At(int row, int col) {
