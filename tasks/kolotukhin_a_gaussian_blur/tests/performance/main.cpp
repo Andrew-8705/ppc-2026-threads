@@ -76,7 +76,7 @@ namespace {
 
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, KolotukhinAGaussinBlureOMP, KolotukhinAGaussinBlureSEQ,
-                                KolotukhinAGaussinBlureTBB, KolotukhinAGaussinBlureSTL, KolotukhinAGaussinBlureALL>(
+                                KolotukhinAGaussinBlureTBB, KolotukhinAGaussinBlureSTL, KolotukhinAGaussinBlurALL>(
         PPC_SETTINGS_kolotukhin_a_gaussian_blur);
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 

@@ -13,8 +13,7 @@
 
 namespace kolotukhin_a_gaussian_blur {
 
-KolotukhinAGaussinBlureALL::KolotukhinAGaussinBlureALL(const InType &in)
-    : rank_(-1), proc_count_(-1), local_height_(-1) {
+KolotukhinAGaussinBlurALL::KolotukhinAGaussinBlurALL(const InType &in) : rank_(-1), proc_count_(-1), local_height_(-1) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
   GetOutput().clear();
@@ -23,7 +22,7 @@ KolotukhinAGaussinBlureALL::KolotukhinAGaussinBlureALL(const InType &in)
   MPI_Comm_size(MPI_COMM_WORLD, &proc_count_);
 }
 
-bool KolotukhinAGaussinBlureALL::ValidationImpl() {
+bool KolotukhinAGaussinBlurALL::ValidationImpl() {
   const auto &pixel_data = get<0>(GetInput());
   const auto img_width = get<1>(GetInput());
   const auto img_height = get<2>(GetInput());
@@ -36,7 +35,7 @@ bool KolotukhinAGaussinBlureALL::ValidationImpl() {
   return global_valid == 1;
 }
 
-bool KolotukhinAGaussinBlureALL::PreProcessingImpl() {
+bool KolotukhinAGaussinBlurALL::PreProcessingImpl() {
   const auto img_width = get<1>(GetInput());
   const auto img_height = get<2>(GetInput());
 
@@ -62,7 +61,7 @@ bool KolotukhinAGaussinBlureALL::PreProcessingImpl() {
   return true;
 }
 
-void KolotukhinAGaussinBlureALL::DistributeWork() {
+void KolotukhinAGaussinBlurALL::DistributeWork() {
   const auto &pixel_data = get<0>(GetInput());
 
   int rows_per_process = global_height_ / proc_count_;
@@ -82,7 +81,6 @@ void KolotukhinAGaussinBlureALL::DistributeWork() {
   std::size_t local_size = static_cast<std::size_t>(local_height_) * static_cast<std::size_t>(global_width_);
   local_data_.resize(local_size, 0);
   if (rank_ == 0) {
-    MPI_Barrier(MPI_COMM_WORLD);
     int current_row = 0;
     for (int dest = 0; dest < proc_count_; dest++) {
       int dest_rows = (dest < remainder) ? rows_per_process + 1 : rows_per_process;
@@ -112,15 +110,14 @@ void KolotukhinAGaussinBlureALL::DistributeWork() {
       current_row += dest_rows;
     }
   } else {
-    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Recv(local_data_.data(), static_cast<int>(local_data_.size()), MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD,
              MPI_STATUS_IGNORE);
   }
 }
 
-void KolotukhinAGaussinBlureALL::ApplyGaussianBlur(const std::vector<std::uint8_t> &src_data,
-                                                   std::vector<std::uint8_t> &dst_data, int width, int height,
-                                                   int start_row, int end_row) {
+void KolotukhinAGaussinBlurALL::ApplyGaussianBlur(const std::vector<std::uint8_t> &src_data,
+                                                  std::vector<std::uint8_t> &dst_data, int width, int height,
+                                                  int start_row, int end_row) {
   const static std::array<std::array<int, 3>, 3> kKernel = {{{{1, 2, 1}}, {{2, 4, 2}}, {{1, 2, 1}}}};
   const static int kSum = 16;
 #pragma omp parallel for collapse(2) schedule(static) default(none) \
@@ -140,7 +137,7 @@ void KolotukhinAGaussinBlureALL::ApplyGaussianBlur(const std::vector<std::uint8_
   }
 }
 
-void KolotukhinAGaussinBlureALL::GatherResults() {
+void KolotukhinAGaussinBlurALL::GatherResults() {
   auto &output = GetOutput();
 
   int rows_per_process = global_height_ / proc_count_;
@@ -190,7 +187,7 @@ void KolotukhinAGaussinBlureALL::GatherResults() {
   }
 }
 
-bool KolotukhinAGaussinBlureALL::RunImpl() {
+bool KolotukhinAGaussinBlurALL::RunImpl() {
   if (local_height_ == 0) {
     return true;
   }
@@ -215,14 +212,14 @@ bool KolotukhinAGaussinBlureALL::RunImpl() {
   return true;
 }
 
-std::uint8_t KolotukhinAGaussinBlureALL::GetPixel(const std::vector<std::uint8_t> &pixel_data, int img_width,
-                                                  int img_height, int pos_x, int pos_y) {
+std::uint8_t KolotukhinAGaussinBlurALL::GetPixel(const std::vector<std::uint8_t> &pixel_data, int img_width,
+                                                 int img_height, int pos_x, int pos_y) {
   std::size_t x = static_cast<std::size_t>(std::max(0, std::min(pos_x, img_width - 1)));
   std::size_t y = static_cast<std::size_t>(std::max(0, std::min(pos_y, img_height - 1)));
   return pixel_data[(y * static_cast<std::size_t>(img_width)) + x];
 }
 
-bool KolotukhinAGaussinBlureALL::PostProcessingImpl() {
+bool KolotukhinAGaussinBlurALL::PostProcessingImpl() {
   GatherResults();
   return true;
 }

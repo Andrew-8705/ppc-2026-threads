@@ -8,12 +8,12 @@
 
 namespace kolotukhin_a_gaussian_blur {
 
-class KolotukhinAGaussinBlureALL : public BaseTask {
+class KolotukhinAGaussinBlurALL : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return ppc::task::TypeOfTask::kALL;
   }
-  explicit KolotukhinAGaussinBlureALL(const InType &in);
+  explicit KolotukhinAGaussinBlurALL(const InType &in);
 
  private:
   bool ValidationImpl() override;
