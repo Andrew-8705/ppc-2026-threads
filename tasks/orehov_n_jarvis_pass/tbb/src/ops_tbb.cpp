@@ -64,7 +64,7 @@ struct Body {
     }
   }
 
-  void join(const Body &other) {
+  void join(const Body &other) {  // NOLINT(readability-identifier-naming)
     Join(other);
   }
 };
