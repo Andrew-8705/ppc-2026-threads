@@ -8,6 +8,11 @@
 #include "sabutay_sparse_complex_ccs_mult_ompfix/omp/include/ops_omp.hpp"
 #include "util/include/perf_test_util.hpp"
 
+#ifndef PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_ompfix
+#  define PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_ompfix \
+    "tasks/sabutay_sparse_complex_ccs_mult_ompfix/settings.json"
+#endif
+
 namespace sabutay_sparse_complex_ccs_mult_ompfix {
 
 namespace {
@@ -34,7 +39,8 @@ CCS CreateRandomSparseMatrix(int rows, int cols, double density = 0.1) {
       matrix.values.emplace_back(value_dist(gen), value_dist(gen));
     }
 
-    matrix.col_ptr[static_cast<std::size_t>(col + 1)] = static_cast<int>(matrix.row_ind.size());
+    const auto col_idx = static_cast<std::size_t>(col);
+    matrix.col_ptr[col_idx + 1U] = static_cast<int>(matrix.row_ind.size());
   }
 
   return matrix;

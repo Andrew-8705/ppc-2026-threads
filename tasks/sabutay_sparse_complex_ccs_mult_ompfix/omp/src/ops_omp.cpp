@@ -3,8 +3,11 @@
 #include <omp.h>
 
 #include <algorithm>
+#include <cmath>
 #include <complex>
 #include <cstddef>
+#include <utility>
+#include <vector>
 
 #include "sabutay_sparse_complex_ccs_mult_ompfix/common/include/common.hpp"
 
@@ -27,22 +30,19 @@ auto IsValidStructure(const CCS &matrix) -> bool {
   if (matrix.col_ptr.empty() || matrix.col_ptr.front() != 0) {
     return false;
   }
-  if (matrix.col_ptr.back() != static_cast<int>(matrix.row_ind.size())) {
+  if (!std::cmp_equal(matrix.col_ptr.back(), matrix.row_ind.size())) {
     return false;
   }
 
   for (int i = 0; i < matrix.n; ++i) {
-    if (matrix.col_ptr[static_cast<std::size_t>(i)] > matrix.col_ptr[static_cast<std::size_t>(i + 1)]) {
+    const auto curr_idx = static_cast<std::size_t>(i);
+    const auto next_idx = curr_idx + 1U;
+    if (matrix.col_ptr[curr_idx] > matrix.col_ptr[next_idx]) {
       return false;
     }
   }
 
-  for (const int row : matrix.row_ind) {
-    if (row < 0 || row >= matrix.m) {
-      return false;
-    }
-  }
-  return true;
+  return std::ranges::all_of(matrix.row_ind, [&matrix](int row) { return row >= 0 && row < matrix.m; });
 }
 
 void BuildColumn(const CCS &a, const CCS &b, int col_index, std::vector<int> &marker,
@@ -50,13 +50,15 @@ void BuildColumn(const CCS &a, const CCS &b, int col_index, std::vector<int> &ma
                  std::vector<std::pair<int, std::complex<double>>> &result_column) {
   touched_rows.clear();
 
-  for (int k = b.col_ptr[static_cast<std::size_t>(col_index)]; k < b.col_ptr[static_cast<std::size_t>(col_index + 1)];
-       ++k) {
+  const auto col_idx = static_cast<std::size_t>(col_index);
+  const auto next_col_idx = col_idx + 1U;
+  for (int k = b.col_ptr[col_idx]; k < b.col_ptr[next_col_idx]; ++k) {
     const std::complex<double> b_value = b.values[static_cast<std::size_t>(k)];
     const int b_row = b.row_ind[static_cast<std::size_t>(k)];
 
-    for (int az = a.col_ptr[static_cast<std::size_t>(b_row)]; az < a.col_ptr[static_cast<std::size_t>(b_row + 1)];
-         ++az) {
+    const auto b_row_idx = static_cast<std::size_t>(b_row);
+    const auto next_b_row_idx = b_row_idx + 1U;
+    for (int az = a.col_ptr[b_row_idx]; az < a.col_ptr[next_b_row_idx]; ++az) {
       const int a_row = a.row_ind[static_cast<std::size_t>(az)];
       acc[static_cast<std::size_t>(a_row)] += b_value * a.values[static_cast<std::size_t>(az)];
       if (marker[static_cast<std::size_t>(a_row)] != col_index) {
@@ -105,9 +107,7 @@ void SabutaySparseComplexCcsMultOmpFix::SpMM(const CCS &a, const CCS &b, CCS &c)
   c.values.clear();
 
   std::vector<std::vector<std::pair<int, std::complex<double>>>> columns(static_cast<std::size_t>(b.n));
-  const int requested_threads = std::max(1, omp_get_max_threads());
-
-#pragma omp parallel default(none) shared(a, b, columns) num_threads(requested_threads)
+#pragma omp parallel default(none) shared(a, b, columns) num_threads(omp_get_max_threads())
   {
     std::vector<int> marker(static_cast<std::size_t>(a.m), -1);
     std::vector<std::complex<double>> acc(static_cast<std::size_t>(a.m), std::complex<double>(0.0, 0.0));
@@ -122,7 +122,8 @@ void SabutaySparseComplexCcsMultOmpFix::SpMM(const CCS &a, const CCS &b, CCS &c)
 
   for (int j = 0; j < b.n; ++j) {
     const int col_size = static_cast<int>(columns[static_cast<std::size_t>(j)].size());
-    c.col_ptr[static_cast<std::size_t>(j + 1)] = c.col_ptr[static_cast<std::size_t>(j)] + col_size;
+    const auto col_idx = static_cast<std::size_t>(j);
+    c.col_ptr[col_idx + 1U] = c.col_ptr[col_idx] + col_size;
   }
 
   const auto nnz = static_cast<std::size_t>(c.col_ptr.back());
