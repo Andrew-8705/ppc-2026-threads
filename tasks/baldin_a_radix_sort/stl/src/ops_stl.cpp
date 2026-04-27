@@ -113,10 +113,10 @@ bool BaldinARadixSortSTL::RunImpl() {
 
   for (int step = 1; step < num_chunks; step *= 2) {
     int num_merges = (num_chunks + (2 * step) - 1) / (2 * step);
-    
+
     std::vector<int> merge_indices(num_merges);
     std::iota(merge_indices.begin(), merge_indices.end(), 0);
-    
+
     std::for_each(std::execution::par, merge_indices.begin(), merge_indices.end(), [&](int m_idx) {
       int i = m_idx * (2 * step);
 
