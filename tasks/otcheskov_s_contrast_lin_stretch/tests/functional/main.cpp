@@ -259,7 +259,7 @@ const auto kTestUnifImgTasksList =
                        kTestUnifImgParam, PPC_SETTINGS_otcheskov_s_contrast_lin_stretch),
                    ppc::util::AddFuncTask<OtcheskovSContrastLinStretchSTL, InType>(
                        kTestUnifImgParam, PPC_SETTINGS_otcheskov_s_contrast_lin_stretch),
-                   ppc::util::AddFuncTask<OtcheskovSContrastLinStretchSTL, InType>(
+                   ppc::util::AddFuncTask<OtcheskovSContrastLinStretchALL, InType>(
                        kTestUnifImgParam, PPC_SETTINGS_otcheskov_s_contrast_lin_stretch));
 
 const auto kTestRealTasksList = std::tuple_cat(ppc::util::AddFuncTask<OtcheskovSContrastLinStretchSEQ, InType>(
