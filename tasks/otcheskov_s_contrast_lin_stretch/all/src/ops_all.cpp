@@ -134,7 +134,7 @@ OtcheskovSContrastLinStretchALL::MinMax OtcheskovSContrastLinStretchALL::Compute
 }
 
 void OtcheskovSContrastLinStretchALL::CopyInput(const InType &input, OutType &output) {
-  if (input.size() == 0) {
+  if (input.empty()) {
     return;
   }
   const size_t size = input.size();
@@ -156,7 +156,7 @@ void OtcheskovSContrastLinStretchALL::CopyInput(const InType &input, OutType &ou
 }
 
 void OtcheskovSContrastLinStretchALL::LinearStretch(const InType &input, OutType &output, int min_i, int range) {
-  if (input.size() == 0) {
+  if (input.empty()) {
     return;
   }
   const size_t size = input.size();
