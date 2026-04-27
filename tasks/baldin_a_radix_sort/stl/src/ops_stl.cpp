@@ -4,9 +4,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <execution>
+#include <future>
 #include <iterator>
-#include <numeric>
 #include <vector>
 
 #include "baldin_a_radix_sort/common/include/common.hpp"
@@ -102,33 +101,43 @@ bool BaldinARadixSortSTL::RunImpl() {
   }
   offsets[num_chunks] = n;
 
-  std::vector<int> chunk_indices(num_chunks);
-  std::iota(chunk_indices.begin(), chunk_indices.end(), 0);
+  std::vector<std::future<void>> futures;
 
-  std::for_each(std::execution::par, chunk_indices.begin(), chunk_indices.end(), [&](int tid) {
-    auto begin = out.begin() + offsets[tid];
-    auto end = out.begin() + offsets[tid + 1];
-    RadixSortLocal(begin, end);
-  });
+  for (int tid = 0; tid < num_chunks; ++tid) {
+    futures.push_back(std::async(std::launch::async, [tid, &out, &offsets]() {
+      auto local_begin = out.begin() + offsets[tid];
+      auto local_end = out.begin() + offsets[tid + 1];
+      RadixSortLocal(local_begin, local_end);
+    }));
+  }
+
+  for (auto &f : futures) {
+    f.get();
+  }
 
   for (int step = 1; step < num_chunks; step *= 2) {
     int num_merges = (num_chunks + (2 * step) - 1) / (2 * step);
+    
+    std::vector<std::future<void>> merge_futures;
 
-    std::vector<int> merge_indices(num_merges);
-    std::iota(merge_indices.begin(), merge_indices.end(), 0);
+    for (int m_idx = 0; m_idx < num_merges; ++m_idx) {
+      merge_futures.push_back(std::async(std::launch::async, [m_idx, step, num_chunks, &out, &offsets]() {
+        int i = m_idx * (2 * step);
 
-    std::for_each(std::execution::par, merge_indices.begin(), merge_indices.end(), [&](int m_idx) {
-      int i = m_idx * (2 * step);
+        if (i + step < num_chunks) {
+          auto local_begin = out.begin() + offsets[i];
+          auto local_middle = out.begin() + offsets[i + step];
+          int end_idx = std::min(i + (2 * step), num_chunks);
+          auto local_end = out.begin() + offsets[end_idx];
 
-      if (i + step < num_chunks) {
-        auto begin = out.begin() + offsets[i];
-        auto middle = out.begin() + offsets[i + step];
-        int end_idx = std::min(i + (2 * step), num_chunks);
-        auto end = out.begin() + offsets[end_idx];
+          std::inplace_merge(local_begin, local_middle, local_end);
+        }
+      }));
+    }
 
-        std::inplace_merge(begin, middle, end);
-      }
-    });
+    for (auto &f : merge_futures) {
+      f.get();
+    }
   }
 
   return true;
