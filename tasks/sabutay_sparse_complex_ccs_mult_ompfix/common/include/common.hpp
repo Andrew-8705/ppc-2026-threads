@@ -25,4 +25,4 @@ using OutType = CCS;
 using TestType = int;
 using BaseTask = ppc::task::Task<InType, OutType>;
 
-} // namespace sabutay_sparse_complex_ccs_mult_ompfix
+}  // namespace sabutay_sparse_complex_ccs_mult_ompfix
