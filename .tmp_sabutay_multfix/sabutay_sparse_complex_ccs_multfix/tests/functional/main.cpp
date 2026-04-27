@@ -8,22 +8,16 @@
 #include <tuple>
 #include <vector>
 
-#include "sabutay_sparse_complex_ccs_mult_ompfix/common/include/common.hpp"
-#include "sabutay_sparse_complex_ccs_mult_ompfix/omp/include/ops_omp.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/common/include/common.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
-namespace sabutay_sparse_complex_ccs_mult_ompfix {
+namespace sabutay_sparse_complex_ccs_multfix {
 namespace {
 
 using Z = std::complex<double>;
 constexpr double kCmpTol = 1e-12;
-constexpr const char *kSettingsPath =
-#ifdef PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_ompfix
-    PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_ompfix;
-#else
-    "tasks/sabutay_sparse_complex_ccs_mult_ompfix/settings.json";
-#endif
 
 struct Dense {
   int m{0};
@@ -143,7 +137,7 @@ bool CcsEqualsDenseView(const CCS &got, const Dense &ref) {
 
 }  // namespace
 
-class SabutayARunFuncTestsOmpFix : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
+class SabutayARunFuncTestsThreadsFIX : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
   static auto PrintTestParam(const TestType &id) -> std::string {
     return std::to_string(id);
@@ -154,6 +148,7 @@ class SabutayARunFuncTestsOmpFix : public ppc::util::BaseRunFuncTests<InType, Ou
     const auto case_id = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
     const double drop = 1e-15;
     if (case_id == 0) {
+      // 3x3 and 3x2 pattern; nontrivial off-diagonals, purely real factors.
       Dense a = Dense::New(3, 3);
       a.At(0, 0) = Z(1, 0);
       a.At(0, 1) = Z(2, 0);
@@ -168,6 +163,7 @@ class SabutayARunFuncTestsOmpFix : public ppc::util::BaseRunFuncTests<InType, Ou
       b_in_ = DenseToCcs(b, drop);
       expected_dense_ = Matmul(a, b);
     } else if (case_id == 1) {
+      // Complex phases; 2x2 times 2x2.
       Dense a = Dense::New(2, 2);
       a.At(0, 0) = Z(0, 1);
       a.At(1, 0) = Z(2, -0.5);
@@ -181,6 +177,7 @@ class SabutayARunFuncTestsOmpFix : public ppc::util::BaseRunFuncTests<InType, Ou
       b_in_ = DenseToCcs(b, drop);
       expected_dense_ = Matmul(a, b);
     } else {
+      // Single nonzeros on a chain; 4x1 * 1x3 -> 4x3 rank-one.
       Dense a = Dense::New(4, 1);
       a.At(1, 0) = Z(1, 1);
       Dense b = Dense::New(1, 3);
@@ -209,21 +206,21 @@ class SabutayARunFuncTestsOmpFix : public ppc::util::BaseRunFuncTests<InType, Ou
 
 namespace {
 
-TEST_P(SabutayARunFuncTestsOmpFix, MatmulFromPic) {
+TEST_P(SabutayARunFuncTestsThreadsFIX, MatmulFromPic) {
   ExecuteTest(GetParam());
 }
 
 const std::array<TestType, 3> kTestParam{0, 1, 2};
 
-const auto kTestTasksList =
-    ppc::util::AddFuncTask<SabutaySparseComplexCcsMultOmpFix, InType>(kTestParam, kSettingsPath);
+const auto kTestTasksList = ppc::util::AddFuncTask<SabutaySparseComplexCcsMultFixSEQ, InType>(
+    kTestParam, PPC_SETTINGS_sabutay_sparse_complex_ccs_multfix);
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
-const auto kPerfTestName = SabutayARunFuncTestsOmpFix::PrintFuncTestName<SabutayARunFuncTestsOmpFix>;
+const auto kPerfTestName = SabutayARunFuncTestsThreadsFIX::PrintFuncTestName<SabutayARunFuncTestsThreadsFIX>;
 
-INSTANTIATE_TEST_SUITE_P(PicMatrixTests, SabutayARunFuncTestsOmpFix, kGtestValues, kPerfTestName);
+INSTANTIATE_TEST_SUITE_P(PicMatrixTests, SabutayARunFuncTestsThreadsFIX, kGtestValues, kPerfTestName);
 
 }  // namespace
 
-}  // namespace sabutay_sparse_complex_ccs_mult_ompfix
+}  // namespace sabutay_sparse_complex_ccs_multfix

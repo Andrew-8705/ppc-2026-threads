@@ -8,20 +8,12 @@
 #include <utility>
 #include <vector>
 
-#include "sabutay_sparse_complex_ccs_mult_ompfix/common/include/common.hpp"
-#include "sabutay_sparse_complex_ccs_mult_ompfix/omp/include/ops_omp.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/common/include/common.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/seq/include/ops_seq.hpp"
 #include "util/include/perf_test_util.hpp"
 
-namespace sabutay_sparse_complex_ccs_mult_ompfix {
-
+namespace sabutay_sparse_complex_ccs_multfix {
 namespace {
-
-constexpr const char *kSettingsPath =
-#ifdef PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_ompfix
-    PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_ompfix;
-#else
-    "tasks/sabutay_sparse_complex_ccs_mult_ompfix/settings.json";
-#endif
 
 CCS BuildRandomCcs(int rows, int cols, int seed, int max_per_col) {
   std::mt19937 gen(static_cast<std::uint32_t>(seed));
@@ -53,7 +45,7 @@ CCS BuildRandomCcs(int rows, int cols, int seed, int max_per_col) {
 
 }  // namespace
 
-class SabutayRunPerfTestOmpFix : public ppc::util::BaseRunPerfTests<InType, OutType> {
+class SabutayRunPerfTestThreadsFIX : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
   void SetUp() override {
     in_ = std::make_tuple(BuildRandomCcs(80, 90, 2027, 7), BuildRandomCcs(90, 70, 4044, 6));
@@ -82,20 +74,21 @@ class SabutayRunPerfTestOmpFix : public ppc::util::BaseRunPerfTests<InType, OutT
   InType in_;
 };
 
-TEST_P(SabutayRunPerfTestOmpFix, RunPerfModes) {
+namespace {
+
+TEST_P(SabutayRunPerfTestThreadsFIX, RunPerfModes) {
   ExecuteTest(GetParam());
 }
 
-namespace {
-
-const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, SabutaySparseComplexCcsMultOmpFix>(kSettingsPath);
+const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, SabutaySparseComplexCcsMultFixSEQ>(
+    PPC_SETTINGS_sabutay_sparse_complex_ccs_multfix);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
-const auto kPerfTestName = SabutayRunPerfTestOmpFix::CustomPerfTestName;
+const auto kPerfTestName = SabutayRunPerfTestThreadsFIX::CustomPerfTestName;
 
-INSTANTIATE_TEST_SUITE_P(RunModeTests, SabutayRunPerfTestOmpFix, kGtestValues, kPerfTestName);
+INSTANTIATE_TEST_SUITE_P(RunModeTests, SabutayRunPerfTestThreadsFIX, kGtestValues, kPerfTestName);
 
 }  // namespace
 
-}  // namespace sabutay_sparse_complex_ccs_mult_ompfix
+}  // namespace sabutay_sparse_complex_ccs_multfix
