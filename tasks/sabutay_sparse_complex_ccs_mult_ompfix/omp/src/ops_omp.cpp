@@ -87,6 +87,10 @@ void CoalesceBufferToColumn(const std::vector<std::pair<int, std::complex<double
   }
 }
 
+void SortBufferByRow(std::vector<std::pair<int, std::complex<double>>> &buffer) {
+  std::ranges::sort(buffer, {}, &std::pair<int, std::complex<double>>::first);
+}
+
 }  // namespace
 
 SabutaySparseComplexCcsMultOmpFix::SabutaySparseComplexCcsMultOmpFix(const InType &in) {
@@ -126,7 +130,7 @@ void SabutaySparseComplexCcsMultOmpFix::BuildProductMatrix(const CCS &left, cons
       auto &column = columns[static_cast<std::size_t>(j)];
       BuildColumnFromRight(left, right, j, buffer);
       if (!buffer.empty()) {
-        std::ranges::sort(buffer, {}, &std::pair<int, std::complex<double>>::first);
+        SortBufferByRow(buffer);
       }
       CoalesceBufferToColumn(buffer, column);
     }
