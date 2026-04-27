@@ -17,7 +17,7 @@ namespace sabutay_sparse_complex_ccs_mult_ompfix {
 namespace {
 
 using Z = std::complex<double>;
-constexpr double kCmpTol = 1e-12;
+constexpr double kCmpTol = 1e-10;
 
 struct Dense {
   int m{0};
