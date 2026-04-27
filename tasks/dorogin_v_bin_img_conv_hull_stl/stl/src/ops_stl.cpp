@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <execution>
+#include <numeric>
 #include <queue>
 #include <ranges>
 #include <vector>
@@ -11,7 +13,6 @@
 
 namespace nesterov_a_test_task_threads {
 namespace {
-
 inline bool InBounds(const int x, const int y, const int w, const int h) {
   return (x >= 0) && (y >= 0) && (x < w) && (y < h);
 }
@@ -29,17 +30,15 @@ inline std::vector<Point> ConvexHullMonotonicChain(std::vector<Point> pts) {
   if (pts.empty()) {
     return {};
   }
-
   std::ranges::sort(pts, [](const Point &a, const Point &b) { return (a.x < b.x) || ((a.x == b.x) && (a.y < b.y)); });
   const auto uniq =
       std::ranges::unique(pts, [](const Point &a, const Point &b) { return (a.x == b.x) && (a.y == b.y); });
   pts.erase(uniq.begin(), pts.end());
-
   if (pts.size() <= 1) {
     return pts;
   }
 
-  std::vector<Point> lower{};
+  std::vector<Point> lower;
   lower.reserve(pts.size());
   for (const auto &p : pts) {
     while ((lower.size() >= 2) && (Cross(lower[lower.size() - 2], lower[lower.size() - 1], p) <= 0)) {
@@ -48,7 +47,7 @@ inline std::vector<Point> ConvexHullMonotonicChain(std::vector<Point> pts) {
     lower.push_back(p);
   }
 
-  std::vector<Point> upper{};
+  std::vector<Point> upper;
   upper.reserve(pts.size());
   for (std::size_t i = pts.size(); i-- > 0;) {
     const auto &p = pts[i];
@@ -69,7 +68,7 @@ inline void TryPush4(const BinaryImage &img, const int w, const int h, const int
   if (!InBounds(nx, ny, w, h)) {
     return;
   }
-  const auto nid = Idx(nx, ny, w);
+  const std::size_t nid = Idx(nx, ny, w);
   if ((img.data[nid] == 1U) && (vis[nid] == 0U)) {
     vis[nid] = 1U;
     q.push(Point{.x = nx, .y = ny});
@@ -78,14 +77,13 @@ inline void TryPush4(const BinaryImage &img, const int w, const int h, const int
 
 inline std::vector<Point> BfsComponent4(const BinaryImage &img, const int w, const int h, const int sx, const int sy,
                                         std::vector<std::uint8_t> &vis) {
-  std::vector<Point> pts{};
-  std::queue<Point> q{};
-  const auto sid = Idx(sx, sy, w);
+  std::vector<Point> pts;
+  std::queue<Point> q;
+  const std::size_t sid = Idx(sx, sy, w);
   vis[sid] = 1U;
   q.push(Point{.x = sx, .y = sy});
-
   while (!q.empty()) {
-    const auto p = q.front();
+    const Point p = q.front();
     q.pop();
     pts.push_back(p);
     TryPush4(img, w, h, p.x + 1, p.y, vis, q);
@@ -97,16 +95,15 @@ inline std::vector<Point> BfsComponent4(const BinaryImage &img, const int w, con
 }
 
 inline std::vector<std::vector<Point>> ExtractComponents4(const BinaryImage &img) {
-  std::vector<std::vector<Point>> comps{};
+  std::vector<std::vector<Point>> comps;
   if ((img.width <= 0) || (img.height <= 0)) {
     return comps;
   }
-
-  const auto n = static_cast<std::size_t>(img.width) * static_cast<std::size_t>(img.height);
+  const std::size_t n = static_cast<std::size_t>(img.width) * static_cast<std::size_t>(img.height);
   std::vector<std::uint8_t> vis(n, 0U);
   for (int y = 0; y < img.height; ++y) {
     for (int x = 0; x < img.width; ++x) {
-      const auto id = Idx(x, y, img.width);
+      const std::size_t id = Idx(x, y, img.width);
       if ((img.data[id] == 0U) || (vis[id] != 0U)) {
         continue;
       }
@@ -114,6 +111,25 @@ inline std::vector<std::vector<Point>> ExtractComponents4(const BinaryImage &img
     }
   }
   return comps;
+}
+
+inline bool ValidateInput(const BinaryImage &img) {
+  if ((img.width <= 0) || (img.height <= 0)) {
+    return false;
+  }
+  const std::size_t need = static_cast<std::size_t>(img.width) * static_cast<std::size_t>(img.height);
+  return img.data.size() == need;
+}
+
+inline OutType SolveSTL(const BinaryImage &img) {
+  auto comps = ExtractComponents4(img);
+  OutType hulls;
+  hulls.resize(comps.size());
+  std::vector<std::size_t> indices(comps.size());
+  std::ranges::iota(indices, static_cast<std::size_t>(0));
+  std::for_each(std::execution::par, indices.begin(), indices.end(),
+                [&](const std::size_t i) { hulls[i] = ConvexHullMonotonicChain(std::move(comps[i])); });
+  return hulls;
 }
 
 }  // namespace
@@ -125,11 +141,7 @@ NesterovATestTaskSTL::NesterovATestTaskSTL(const InType &in) {
 }
 
 bool NesterovATestTaskSTL::ValidationImpl() {
-  if ((GetInput().width <= 0) || (GetInput().height <= 0)) {
-    return false;
-  }
-  const auto need = static_cast<std::size_t>(GetInput().width) * static_cast<std::size_t>(GetInput().height);
-  return GetInput().data.size() == need;
+  return ValidateInput(GetInput());
 }
 
 bool NesterovATestTaskSTL::PreProcessingImpl() {
@@ -142,11 +154,7 @@ bool NesterovATestTaskSTL::RunImpl() {
     return false;
   }
 
-  auto comps = ExtractComponents4(GetInput());
-  local_out_.resize(comps.size());
-  for (std::size_t i = 0; i < comps.size(); ++i) {
-    local_out_[i] = ConvexHullMonotonicChain(std::move(comps[i]));
-  }
+  local_out_ = SolveSTL(GetInput());
   return true;
 }
 

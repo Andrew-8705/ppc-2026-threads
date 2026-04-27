@@ -8,9 +8,14 @@
 #include <tuple>
 #include <vector>
 
+#include "dorogin_v_bin_img_conv_hull_stl/all/include/ops_all.hpp"
 #include "dorogin_v_bin_img_conv_hull_stl/common/include/common.hpp"
+#include "dorogin_v_bin_img_conv_hull_stl/omp/include/ops_omp.hpp"
+#include "dorogin_v_bin_img_conv_hull_stl/seq/include/ops_seq.hpp"
 #include "dorogin_v_bin_img_conv_hull_stl/stl/include/ops_stl.hpp"
+#include "dorogin_v_bin_img_conv_hull_stl/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
+#include "util/include/util.hpp"
 
 namespace nesterov_a_test_task_threads {
 
@@ -79,7 +84,19 @@ class NesterovARunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, 
 
 namespace {
 
-TEST_P(NesterovARunFuncTestsThreads, ConvexHullForBinaryComponents) {
+TEST_P(NesterovARunFuncTestsThreads, ConvexHullForBinaryComponentsSEQ) {
+  ExecuteTest(GetParam());
+}
+TEST_P(NesterovARunFuncTestsThreads, ConvexHullForBinaryComponentsOMP) {
+  ExecuteTest(GetParam());
+}
+TEST_P(NesterovARunFuncTestsThreads, ConvexHullForBinaryComponentsTBB) {
+  ExecuteTest(GetParam());
+}
+TEST_P(NesterovARunFuncTestsThreads, ConvexHullForBinaryComponentsSTL) {
+  ExecuteTest(GetParam());
+}
+TEST_P(NesterovARunFuncTestsThreads, ConvexHullForBinaryComponentsALL) {
   ExecuteTest(GetParam());
 }
 
@@ -92,14 +109,30 @@ const std::array<TestType, 3> kTestParam = {
                                                                    0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1}),
                     "two_components")};
 
-const auto kTestTasksList = std::tuple_cat(
+const auto kSeqTasksList = std::tuple_cat(
+    ppc::util::AddFuncTask<NesterovATestTaskSEQ, InType>(kTestParam, PPC_SETTINGS_dorogin_v_bin_img_conv_hull_stl));
+const auto kOmpTasksList = std::tuple_cat(
+    ppc::util::AddFuncTask<NesterovATestTaskOMP, InType>(kTestParam, PPC_SETTINGS_dorogin_v_bin_img_conv_hull_stl));
+const auto kTbbTasksList = std::tuple_cat(
+    ppc::util::AddFuncTask<NesterovATestTaskTBB, InType>(kTestParam, PPC_SETTINGS_dorogin_v_bin_img_conv_hull_stl));
+const auto kStlTasksList = std::tuple_cat(
     ppc::util::AddFuncTask<NesterovATestTaskSTL, InType>(kTestParam, PPC_SETTINGS_dorogin_v_bin_img_conv_hull_stl));
+const auto kAllTasksList = std::tuple_cat(
+    ppc::util::AddFuncTask<NesterovATestTaskALL, InType>(kTestParam, PPC_SETTINGS_dorogin_v_bin_img_conv_hull_stl));
 
-const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
+const auto kSeqValues = ppc::util::ExpandToValues(kSeqTasksList);
+const auto kOmpValues = ppc::util::ExpandToValues(kOmpTasksList);
+const auto kTbbValues = ppc::util::ExpandToValues(kTbbTasksList);
+const auto kStlValues = ppc::util::ExpandToValues(kStlTasksList);
+const auto kAllValues = ppc::util::ExpandToValues(kAllTasksList);
 
-const auto kPerfTestName = NesterovARunFuncTestsThreads::PrintFuncTestName<NesterovARunFuncTestsThreads>;
+const auto kNameFn = NesterovARunFuncTestsThreads::PrintFuncTestName<NesterovARunFuncTestsThreads>;
 
-INSTANTIATE_TEST_SUITE_P(BinaryImageConvexHullTests, NesterovARunFuncTestsThreads, kGtestValues, kPerfTestName);
+INSTANTIATE_TEST_SUITE_P(BinaryImageConvexHullSeqTests, NesterovARunFuncTestsThreads, kSeqValues, kNameFn);
+INSTANTIATE_TEST_SUITE_P(BinaryImageConvexHullOmpTests, NesterovARunFuncTestsThreads, kOmpValues, kNameFn);
+INSTANTIATE_TEST_SUITE_P(BinaryImageConvexHullTbbTests, NesterovARunFuncTestsThreads, kTbbValues, kNameFn);
+INSTANTIATE_TEST_SUITE_P(BinaryImageConvexHullStlTests, NesterovARunFuncTestsThreads, kStlValues, kNameFn);
+INSTANTIATE_TEST_SUITE_P(BinaryImageConvexHullAllTests, NesterovARunFuncTestsThreads, kAllValues, kNameFn);
 
 }  // namespace
 

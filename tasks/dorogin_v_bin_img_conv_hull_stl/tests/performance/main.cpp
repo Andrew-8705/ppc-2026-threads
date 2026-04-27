@@ -3,8 +3,12 @@
 #include <cstdint>
 #include <vector>
 
+#include "dorogin_v_bin_img_conv_hull_stl/all/include/ops_all.hpp"
 #include "dorogin_v_bin_img_conv_hull_stl/common/include/common.hpp"
+#include "dorogin_v_bin_img_conv_hull_stl/omp/include/ops_omp.hpp"
+#include "dorogin_v_bin_img_conv_hull_stl/seq/include/ops_seq.hpp"
 #include "dorogin_v_bin_img_conv_hull_stl/stl/include/ops_stl.hpp"
+#include "dorogin_v_bin_img_conv_hull_stl/tbb/include/ops_tbb.hpp"
 #include "util/include/perf_test_util.hpp"
 
 namespace nesterov_a_test_task_threads {
@@ -45,7 +49,9 @@ TEST_P(ExampleRunPerfTestThreads, RunPerfModes) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, NesterovATestTaskSTL>(PPC_SETTINGS_dorogin_v_bin_img_conv_hull_stl);
+    ppc::util::MakeAllPerfTasks<InType, NesterovATestTaskALL, NesterovATestTaskOMP, NesterovATestTaskSEQ,
+                                NesterovATestTaskSTL, NesterovATestTaskTBB>(
+        PPC_SETTINGS_dorogin_v_bin_img_conv_hull_stl);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
