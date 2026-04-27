@@ -12,6 +12,7 @@
 #include "sabutay_sparse_complex_ccs_mult_ompfix/common/include/common.hpp"
 #include "sabutay_sparse_complex_ccs_mult_ompfix/omp/include/ops_omp.hpp"
 #include "util/include/func_test_util.hpp"
+#include "util/include/util.hpp"
 
 namespace sabutay_sparse_complex_ccs_mult_ompfix {
 
@@ -114,10 +115,11 @@ class SabutayARunFuncTestsOmpFix : public ppc::util::BaseRunFuncTests<InType, Ou
       std::vector<std::pair<int, std::complex<double>>> expected_column;
       std::vector<std::pair<int, std::complex<double>>> actual_column;
 
-      const int col_begin = test_result_.col_start[static_cast<std::size_t>(j)];
-      const int col_end = test_result_.col_start[static_cast<std::size_t>(j + 1)];
+      const auto col_index = static_cast<std::size_t>(j);
+      const int col_begin = test_result_.col_start[col_index];
+      const int col_end = test_result_.col_start[col_index + 1U];
       for (int idx = col_begin; idx < col_end; ++idx) {
-        const std::size_t pos = static_cast<std::size_t>(idx);
+        const auto pos = static_cast<std::size_t>(idx);
         expected_column.emplace_back(test_result_.row_index[pos], test_result_.nz[pos]);
         actual_column.emplace_back(output_data.row_index[pos], output_data.nz[pos]);
       }
@@ -141,8 +143,8 @@ class SabutayARunFuncTestsOmpFix : public ppc::util::BaseRunFuncTests<InType, Ou
   }
 
  private:
-  InType input_data_{};
-  OutType test_result_{};
+  InType input_data_;
+  OutType test_result_;
 };
 
 namespace {
