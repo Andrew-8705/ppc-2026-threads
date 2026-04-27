@@ -18,7 +18,7 @@ struct Point {
 struct BinaryImage {
   int width{};
   int height{};
-  std::vector<std::uint8_t> data{};
+  std::vector<std::uint8_t> data;
 };
 
 using InType = BinaryImage;

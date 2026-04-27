@@ -17,7 +17,7 @@ class NesterovATestTaskSTL : public BaseTask {
   bool PreProcessingImpl() override;
   bool RunImpl() override;
   bool PostProcessingImpl() override;
-  OutType local_out_{};
+  OutType local_out_;
 };
 
 }  // namespace nesterov_a_test_task_threads

@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "dorogin_v_bin_img_conv_hull_stl/all/include/ops_all.hpp"
@@ -17,20 +19,20 @@ class ExampleRunPerfTestThreads : public ppc::util::BaseRunPerfTests<InType, Out
   InType input_data_{};
 
   void SetUp() override {
-    constexpr int w = 256;
-    constexpr int h = 256;
-    std::vector<std::uint8_t> data(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 0U);
-    for (int y = 24; y < 120; ++y) {
-      for (int x = 18; x < 125; ++x) {
-        data[(static_cast<std::size_t>(y) * static_cast<std::size_t>(w)) + static_cast<std::size_t>(x)] = 1U;
+    constexpr int kWidth = 256;
+    constexpr int kHeight = 256;
+    std::vector<std::uint8_t> data(static_cast<std::size_t>(kWidth) * static_cast<std::size_t>(kHeight), 0U);
+    for (int row = 24; row < 120; ++row) {
+      for (int col = 18; col < 125; ++col) {
+        data[(static_cast<std::size_t>(row) * static_cast<std::size_t>(kWidth)) + static_cast<std::size_t>(col)] = 1U;
       }
     }
-    for (int y = 130; y < 230; ++y) {
-      for (int x = 145; x < 245; ++x) {
-        data[(static_cast<std::size_t>(y) * static_cast<std::size_t>(w)) + static_cast<std::size_t>(x)] = 1U;
+    for (int row = 130; row < 230; ++row) {
+      for (int col = 145; col < 245; ++col) {
+        data[(static_cast<std::size_t>(row) * static_cast<std::size_t>(kWidth)) + static_cast<std::size_t>(col)] = 1U;
       }
     }
-    input_data_ = InType{.width = w, .height = h, .data = std::move(data)};
+    input_data_ = InType{.width = kWidth, .height = kHeight, .data = std::move(data)};
   }
 
   bool CheckTestOutputData(OutType &output_data) final {

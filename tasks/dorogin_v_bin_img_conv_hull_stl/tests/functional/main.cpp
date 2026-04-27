@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "dorogin_v_bin_img_conv_hull_stl/all/include/ops_all.hpp"
@@ -79,7 +80,7 @@ class NesterovARunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, 
 
  private:
   InType input_data_{};
-  std::string expected_tag_{};
+  std::string expected_tag_;
 };
 
 namespace {

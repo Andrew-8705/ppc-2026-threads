@@ -7,6 +7,7 @@
 #include <numeric>
 #include <queue>
 #include <ranges>
+#include <utility>
 #include <vector>
 
 #include "dorogin_v_bin_img_conv_hull_stl/common/include/common.hpp"
@@ -101,13 +102,13 @@ inline std::vector<std::vector<Point>> ExtractComponents4(const BinaryImage &img
   }
   const std::size_t n = static_cast<std::size_t>(img.width) * static_cast<std::size_t>(img.height);
   std::vector<std::uint8_t> vis(n, 0U);
-  for (int y = 0; y < img.height; ++y) {
-    for (int x = 0; x < img.width; ++x) {
-      const std::size_t id = Idx(x, y, img.width);
+  for (int row = 0; row < img.height; ++row) {
+    for (int col = 0; col < img.width; ++col) {
+      const std::size_t id = Idx(col, row, img.width);
       if ((img.data[id] == 0U) || (vis[id] != 0U)) {
         continue;
       }
-      comps.push_back(BfsComponent4(img, img.width, img.height, x, y, vis));
+      comps.push_back(BfsComponent4(img, img.width, img.height, col, row, vis));
     }
   }
   return comps;
