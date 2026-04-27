@@ -9,11 +9,11 @@
 namespace sabutay_sparse_complex_ccs_mult_tbb {
 
 struct CCS {
-  int m = 0;
-  int n = 0;
-  std::vector<int> col_ptr;
-  std::vector<int> row_ind;
-  std::vector<std::complex<double>> values;
+  int row_count{0};
+  int col_count{0};
+  std::vector<int> col_start;
+  std::vector<int> row_index;
+  std::vector<std::complex<double>> nz;
 
   CCS() = default;
   CCS(const CCS &) = default;

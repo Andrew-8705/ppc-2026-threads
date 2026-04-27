@@ -1,18 +1,18 @@
 #pragma once
 
-#include "../../common/include/common.hpp"
+#include "sabutay_sparse_complex_ccs_mult_tbb/common/include/common.hpp"
 #include "task/include/task.hpp"
 
 namespace sabutay_sparse_complex_ccs_mult_tbb {
 
-class SabutayASparseComplexCcsMultTBB : public BaseTask {
+class SabutaySparseComplexCcsMultFixTBB : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return ppc::task::TypeOfTask::kTBB;
   }
-  explicit SabutayASparseComplexCcsMultTBB(const InType &in);
+  explicit SabutaySparseComplexCcsMultFixTBB(const InType &in);
 
-  static void SpMM(const CCS &a, const CCS &b, CCS &c);
+  static void BuildProductMatrix(const CCS &left, const CCS &right, CCS &out);
 
  private:
   bool ValidationImpl() override;

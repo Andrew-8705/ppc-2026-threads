@@ -1,12 +1,12 @@
-#include "../include/ops_tbb.hpp"
+#include "sabutay_sparse_complex_ccs_mult_tbb/tbb/include/ops_tbb.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
-#include "../../common/include/common.hpp"
 #include "oneapi/tbb/blocked_range.h"
 #include "oneapi/tbb/parallel_for.h"
 
@@ -14,135 +14,149 @@ namespace sabutay_sparse_complex_ccs_mult_tbb {
 
 namespace {
 
-constexpr double kEps = 1e-14;
+constexpr double kDropMagnitude = 1e-14;
 
-void AccumulateColumnContributions(const CCS &a, const CCS &b, int col, std::vector<int> &rows,
-                                   std::vector<int> &marker, std::vector<std::complex<double>> &acc) {
-  for (int k = b.col_ptr[col]; k < b.col_ptr[col + 1]; ++k) {
-    const std::complex<double> b_value = b.values[k];
-    const int b_row = b.row_ind[k];
-
-    for (int a_pos = a.col_ptr[b_row]; a_pos < a.col_ptr[b_row + 1]; ++a_pos) {
-      const int a_row = a.row_ind[a_pos];
-      acc[a_row] += b_value * a.values[a_pos];
-      if (marker[a_row] == -1) {
-        rows.push_back(a_row);
-        marker[a_row] = 1;
+void CoalesceSortedPairs(const std::vector<std::pair<int, std::complex<double>>> &row_sorted, CCS &out) {
+  if (row_sorted.empty()) {
+    return;
+  }
+  int active_row = row_sorted[0].first;
+  std::complex<double> running = row_sorted[0].second;
+  for (std::size_t idx = 1; idx < row_sorted.size(); ++idx) {
+    const int r = row_sorted[idx].first;
+    if (r == active_row) {
+      running += row_sorted[idx].second;
+    } else {
+      if (std::abs(running) > kDropMagnitude) {
+        out.row_index.push_back(active_row);
+        out.nz.push_back(running);
       }
+      active_row = r;
+      running = row_sorted[idx].second;
     }
+  }
+  if (std::abs(running) > kDropMagnitude) {
+    out.row_index.push_back(active_row);
+    out.nz.push_back(running);
   }
 }
 
-void FlushAccumulatedValues(const std::vector<int> &rows, std::vector<int> &marker,
-                            std::vector<std::complex<double>> &acc, std::vector<int> &out_rows,
-                            std::vector<std::complex<double>> &out_values) {
-  out_rows.reserve(rows.size());
-  out_values.reserve(rows.size());
-
-  for (const int row : rows) {
-    if (std::abs(acc[row]) > kEps) {
-      out_values.push_back(acc[row]);
-      out_rows.push_back(row);
+void BuildColumn(const CCS &left, const CCS &right, int jcol,
+                 std::vector<std::pair<int, std::complex<double>>> &buffer) {
+  const int b_begin = right.col_start[static_cast<std::size_t>(jcol)];
+  const int b_end = right.col_start[static_cast<std::size_t>(jcol) + 1U];
+  buffer.clear();
+  for (int b_pos = b_begin; b_pos < b_end; ++b_pos) {
+    const int k = right.row_index[static_cast<std::size_t>(b_pos)];
+    const std::complex<double> s = right.nz[static_cast<std::size_t>(b_pos)];
+    const int a_lo = left.col_start[static_cast<std::size_t>(k)];
+    const int a_hi = left.col_start[static_cast<std::size_t>(k) + 1U];
+    for (int s_idx = a_lo; s_idx < a_hi; ++s_idx) {
+      const int i = left.row_index[static_cast<std::size_t>(s_idx)];
+      buffer.emplace_back(i, left.nz[static_cast<std::size_t>(s_idx)] * s);
     }
-    acc[row] = std::complex<double>(0.0, 0.0);
-    marker[row] = -1;
   }
 }
 
 bool IsValidCCS(const CCS &matrix) {
-  if (matrix.m < 0 || matrix.n < 0) {
+  if (matrix.row_count < 0 || matrix.col_count < 0) {
     return false;
   }
-  if (matrix.col_ptr.size() != static_cast<std::size_t>(matrix.n) + 1) {
+  if (matrix.col_start.size() != static_cast<std::size_t>(matrix.col_count) + 1U) {
     return false;
   }
-  if (matrix.row_ind.size() != matrix.values.size()) {
+  if (matrix.row_index.size() != matrix.nz.size()) {
     return false;
   }
-  if (matrix.col_ptr.empty() || matrix.col_ptr[0] != 0) {
+  if (matrix.col_start.empty() || matrix.col_start[0] != 0) {
     return false;
   }
-  if (static_cast<std::size_t>(matrix.col_ptr.back()) != matrix.row_ind.size()) {
+  if (static_cast<std::size_t>(matrix.col_start.back()) != matrix.row_index.size()) {
     return false;
   }
-  for (int j = 0; j < matrix.n; ++j) {
-    if (matrix.col_ptr[j] > matrix.col_ptr[j + 1]) {
+  for (int jcol = 0; jcol < matrix.col_count; ++jcol) {
+    if (matrix.col_start[static_cast<std::size_t>(jcol)] > matrix.col_start[static_cast<std::size_t>(jcol) + 1U]) {
       return false;
     }
   }
-  return std::ranges::all_of(matrix.row_ind, [&](int row) { return row >= 0 && row < matrix.m; });
+  return std::ranges::all_of(matrix.row_index, [&](int row) { return row >= 0 && row < matrix.row_count; });
 }
 
 }  // namespace
 
-SabutayASparseComplexCcsMultTBB::SabutayASparseComplexCcsMultTBB(const InType &in) {
+SabutaySparseComplexCcsMultFixTBB::SabutaySparseComplexCcsMultFixTBB(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
   GetOutput() = CCS();
 }
 
-void SabutayASparseComplexCcsMultTBB::SpMM(const CCS &a, const CCS &b, CCS &c) {
-  c.m = a.m;
-  c.n = b.n;
-  c.col_ptr.assign(b.n + 1, 0);
-  c.row_ind.clear();
-  c.values.clear();
+void SabutaySparseComplexCcsMultFixTBB::BuildProductMatrix(const CCS &left, const CCS &right, CCS &out) {
+  out.row_count = left.row_count;
+  out.col_count = right.col_count;
+  out.col_start.assign(static_cast<std::size_t>(out.col_count) + 1U, 0);
+  out.row_index.clear();
+  out.nz.clear();
+  if (out.col_count == 0) {
+    return;
+  }
 
-  std::vector<std::vector<int>> local_row_ind(b.n);
-  std::vector<std::vector<std::complex<double>>> local_values(b.n);
-  std::vector<int> local_sizes(b.n, 0);
+  std::vector<std::vector<int>> local_row_index(static_cast<std::size_t>(right.col_count));
+  std::vector<std::vector<std::complex<double>>> local_nz(static_cast<std::size_t>(right.col_count));
+  std::vector<int> local_sizes(static_cast<std::size_t>(right.col_count), 0);
 
-  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<int>(0, b.n), [&](const oneapi::tbb::blocked_range<int> &range) {
-    std::vector<int> rows;
-    std::vector<int> marker(a.m, -1);
-    std::vector<std::complex<double>> acc(a.m);
-
-    for (int j = range.begin(); j < range.end(); ++j) {
-      rows.clear();
-      local_row_ind[j].clear();
-      local_values[j].clear();
-
-      AccumulateColumnContributions(a, b, j, rows, marker, acc);
-      FlushAccumulatedValues(rows, marker, acc, local_row_ind[j], local_values[j]);
-
-      local_sizes[j] = static_cast<int>(local_values[j].size());
+  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<int>(0, right.col_count),
+                            [&](const oneapi::tbb::blocked_range<int> &range) {
+    std::vector<std::pair<int, std::complex<double>>> buffer;
+    buffer.reserve(128U);
+    for (int jcol = range.begin(); jcol < range.end(); ++jcol) {
+      BuildColumn(left, right, jcol, buffer);
+      if (!buffer.empty()) {
+        std::ranges::sort(buffer, {}, &std::pair<int, std::complex<double>>::first);
+        CCS tmp;
+        CoalesceSortedPairs(buffer, tmp);
+        local_row_index[static_cast<std::size_t>(jcol)] = std::move(tmp.row_index);
+        local_nz[static_cast<std::size_t>(jcol)] = std::move(tmp.nz);
+      } else {
+        local_row_index[static_cast<std::size_t>(jcol)].clear();
+        local_nz[static_cast<std::size_t>(jcol)].clear();
+      }
+      local_sizes[static_cast<std::size_t>(jcol)] = static_cast<int>(local_nz[static_cast<std::size_t>(jcol)].size());
     }
   });
 
-  for (int j = 0; j < b.n; ++j) {
-    c.col_ptr[j + 1] = c.col_ptr[j] + local_sizes[j];
+  for (int jcol = 0; jcol < right.col_count; ++jcol) {
+    out.col_start[static_cast<std::size_t>(jcol) + 1U] =
+        out.col_start[static_cast<std::size_t>(jcol)] + local_sizes[static_cast<std::size_t>(jcol)];
   }
 
-  c.row_ind.reserve(c.col_ptr.back());
-  c.values.reserve(c.col_ptr.back());
+  out.row_index.reserve(static_cast<std::size_t>(out.col_start[static_cast<std::size_t>(out.col_count)]));
+  out.nz.reserve(static_cast<std::size_t>(out.col_start[static_cast<std::size_t>(out.col_count)]));
 
-  for (int j = 0; j < b.n; ++j) {
-    c.row_ind.insert(c.row_ind.end(), local_row_ind[j].begin(), local_row_ind[j].end());
-    c.values.insert(c.values.end(), local_values[j].begin(), local_values[j].end());
+  for (int jcol = 0; jcol < right.col_count; ++jcol) {
+    const auto idx = static_cast<std::size_t>(jcol);
+    out.row_index.insert(out.row_index.end(), local_row_index[idx].begin(), local_row_index[idx].end());
+    out.nz.insert(out.nz.end(), local_nz[idx].begin(), local_nz[idx].end());
   }
 }
 
-bool SabutayASparseComplexCcsMultTBB::ValidationImpl() {
-  const CCS &a = std::get<0>(GetInput());
-  const CCS &b = std::get<1>(GetInput());
-  return IsValidCCS(a) && IsValidCCS(b) && a.n == b.m;
+bool SabutaySparseComplexCcsMultFixTBB::ValidationImpl() {
+  const CCS &left = std::get<0>(GetInput());
+  const CCS &right = std::get<1>(GetInput());
+  return IsValidCCS(left) && IsValidCCS(right) && left.col_count == right.row_count;
 }
 
-bool SabutayASparseComplexCcsMultTBB::PreProcessingImpl() {
+bool SabutaySparseComplexCcsMultFixTBB::PreProcessingImpl() {
   return true;
 }
 
-bool SabutayASparseComplexCcsMultTBB::RunImpl() {
-  const CCS &a = std::get<0>(GetInput());
-  const CCS &b = std::get<1>(GetInput());
-  CCS &c = GetOutput();
-
-  SpMM(a, b, c);
-
+bool SabutaySparseComplexCcsMultFixTBB::RunImpl() {
+  const CCS &left = std::get<0>(GetInput());
+  const CCS &right = std::get<1>(GetInput());
+  BuildProductMatrix(left, right, GetOutput());
   return true;
 }
 
-bool SabutayASparseComplexCcsMultTBB::PostProcessingImpl() {
+bool SabutaySparseComplexCcsMultFixTBB::PostProcessingImpl() {
   return true;
 }
 
