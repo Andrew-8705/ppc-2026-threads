@@ -8,11 +8,11 @@
 #include <utility>
 #include <vector>
 
-#include "sabutay_sparse_complex_ccs_mult_stl/common/include/common.hpp"
-#include "sabutay_sparse_complex_ccs_mult_stl/stl/include/ops_stl.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/common/include/common.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/seq/include/ops_seq.hpp"
 #include "util/include/perf_test_util.hpp"
 
-namespace sabutay_sparse_complex_ccs_mult_stl {
+namespace sabutay_sparse_complex_ccs_multfix {
 namespace {
 
 CCS BuildRandomCcs(int rows, int cols, int seed, int max_per_col) {
@@ -45,7 +45,7 @@ CCS BuildRandomCcs(int rows, int cols, int seed, int max_per_col) {
 
 }  // namespace
 
-class SabutayRunPerfTestThreadsSTL : public ppc::util::BaseRunPerfTests<InType, OutType> {
+class SabutayRunPerfTestThreadsFIX : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
   void SetUp() override {
     in_ = std::make_tuple(BuildRandomCcs(80, 90, 2027, 7), BuildRandomCcs(90, 70, 4044, 6));
@@ -76,19 +76,19 @@ class SabutayRunPerfTestThreadsSTL : public ppc::util::BaseRunPerfTests<InType, 
 
 namespace {
 
-TEST_P(SabutayRunPerfTestThreadsSTL, RunPerfModes) {
+TEST_P(SabutayRunPerfTestThreadsFIX, RunPerfModes) {
   ExecuteTest(GetParam());
 }
 
-const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, SabutaySparseComplexCcsMultSTL>(
-    PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_stl);
+const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, SabutaySparseComplexCcsMultFixSEQ>(
+    PPC_SETTINGS_sabutay_sparse_complex_ccs_multfix);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
-const auto kPerfTestName = SabutayRunPerfTestThreadsSTL::CustomPerfTestName;
+const auto kPerfTestName = SabutayRunPerfTestThreadsFIX::CustomPerfTestName;
 
-INSTANTIATE_TEST_SUITE_P(RunModeTests, SabutayRunPerfTestThreadsSTL, kGtestValues, kPerfTestName);
+INSTANTIATE_TEST_SUITE_P(RunModeTests, SabutayRunPerfTestThreadsFIX, kGtestValues, kPerfTestName);
 
 }  // namespace
 
-}  // namespace sabutay_sparse_complex_ccs_mult_stl
+}  // namespace sabutay_sparse_complex_ccs_multfix

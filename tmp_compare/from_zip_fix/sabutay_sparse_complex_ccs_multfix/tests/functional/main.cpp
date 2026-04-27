@@ -1,21 +1,19 @@
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
-#include <utility>
 #include <vector>
 
-#include "sabutay_sparse_complex_ccs_mult_stl/common/include/common.hpp"
-#include "sabutay_sparse_complex_ccs_mult_stl/stl/include/ops_stl.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/common/include/common.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
-namespace sabutay_sparse_complex_ccs_mult_stl {
+namespace sabutay_sparse_complex_ccs_multfix {
 namespace {
 
 using Z = std::complex<double>;
@@ -139,7 +137,7 @@ bool CcsEqualsDenseView(const CCS &got, const Dense &ref) {
 
 }  // namespace
 
-class SabutayARunFuncTestsThreadsSTL : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
+class SabutayARunFuncTestsThreadsFIX : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
   static auto PrintTestParam(const TestType &id) -> std::string {
     return std::to_string(id);
@@ -208,21 +206,21 @@ class SabutayARunFuncTestsThreadsSTL : public ppc::util::BaseRunFuncTests<InType
 
 namespace {
 
-TEST_P(SabutayARunFuncTestsThreadsSTL, MatmulFromPic) {
+TEST_P(SabutayARunFuncTestsThreadsFIX, MatmulFromPic) {
   ExecuteTest(GetParam());
 }
 
 const std::array<TestType, 3> kTestParam{0, 1, 2};
 
-const auto kTestTasksList = ppc::util::AddFuncTask<SabutaySparseComplexCcsMultSTL, InType>(
-    kTestParam, PPC_SETTINGS_sabutay_sparse_complex_ccs_mult_stl);
+const auto kTestTasksList = ppc::util::AddFuncTask<SabutaySparseComplexCcsMultFixSEQ, InType>(
+    kTestParam, PPC_SETTINGS_sabutay_sparse_complex_ccs_multfix);
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
-const auto kPerfTestName = SabutayARunFuncTestsThreadsSTL::PrintFuncTestName<SabutayARunFuncTestsThreadsSTL>;
+const auto kPerfTestName = SabutayARunFuncTestsThreadsFIX::PrintFuncTestName<SabutayARunFuncTestsThreadsFIX>;
 
-INSTANTIATE_TEST_SUITE_P(PicMatrixTests, SabutayARunFuncTestsThreadsSTL, kGtestValues, kPerfTestName);
+INSTANTIATE_TEST_SUITE_P(PicMatrixTests, SabutayARunFuncTestsThreadsFIX, kGtestValues, kPerfTestName);
 
 }  // namespace
 
-}  // namespace sabutay_sparse_complex_ccs_mult_stl
+}  // namespace sabutay_sparse_complex_ccs_multfix

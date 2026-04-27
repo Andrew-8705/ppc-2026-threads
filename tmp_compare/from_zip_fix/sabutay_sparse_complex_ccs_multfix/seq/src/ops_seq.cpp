@@ -1,4 +1,4 @@
-#include "sabutay_sparse_complex_ccs_mult_stl/stl/include/ops_stl.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/seq/include/ops_seq.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,9 +7,9 @@
 #include <utility>
 #include <vector>
 
-#include "sabutay_sparse_complex_ccs_mult_stl/common/include/common.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/common/include/common.hpp"
 
-namespace sabutay_sparse_complex_ccs_mult_stl {
+namespace sabutay_sparse_complex_ccs_multfix {
 namespace {
 
 constexpr double kDropMagnitude = 1e-14;
@@ -78,35 +78,35 @@ void SpmmAbc(const CCS &a, const CCS &b, CCS &c) {
 
 }  // namespace
 
-SabutaySparseComplexCcsMultSTL::SabutaySparseComplexCcsMultSTL(const InType &in) {
+SabutaySparseComplexCcsMultFixSEQ::SabutaySparseComplexCcsMultFixSEQ(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
   GetOutput() = CCS();
 }
 
-void SabutaySparseComplexCcsMultSTL::BuildProductMatrix(const CCS &left, const CCS &right, CCS &out) {
+void SabutaySparseComplexCcsMultFixSEQ::BuildProductMatrix(const CCS &left, const CCS &right, CCS &out) {
   SpmmAbc(left, right, out);
 }
 
-bool SabutaySparseComplexCcsMultSTL::ValidationImpl() {
+bool SabutaySparseComplexCcsMultFixSEQ::ValidationImpl() {
   const CCS &left = std::get<0>(GetInput());
   const CCS &right = std::get<1>(GetInput());
   return left.col_count == right.row_count;
 }
 
-bool SabutaySparseComplexCcsMultSTL::PreProcessingImpl() {
+bool SabutaySparseComplexCcsMultFixSEQ::PreProcessingImpl() {
   return true;
 }
 
-bool SabutaySparseComplexCcsMultSTL::RunImpl() {
+bool SabutaySparseComplexCcsMultFixSEQ::RunImpl() {
   const CCS &left = std::get<0>(GetInput());
   const CCS &right = std::get<1>(GetInput());
   BuildProductMatrix(left, right, GetOutput());
   return true;
 }
 
-bool SabutaySparseComplexCcsMultSTL::PostProcessingImpl() {
+bool SabutaySparseComplexCcsMultFixSEQ::PostProcessingImpl() {
   return true;
 }
 
-}  // namespace sabutay_sparse_complex_ccs_mult_stl
+}  // namespace sabutay_sparse_complex_ccs_multfix

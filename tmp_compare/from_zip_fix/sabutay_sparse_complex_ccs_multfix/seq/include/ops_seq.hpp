@@ -1,16 +1,17 @@
 #pragma once
 
-#include "sabutay_sparse_complex_ccs_mult_stl/common/include/common.hpp"
+#include "sabutay_sparse_complex_ccs_multfix/common/include/common.hpp"
 #include "task/include/task.hpp"
 
-namespace sabutay_sparse_complex_ccs_mult_stl {
+namespace sabutay_sparse_complex_ccs_multfix {
 
-class SabutaySparseComplexCcsMultSTL : public BaseTask {
+class SabutaySparseComplexCcsMultFixSEQ : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
-    return ppc::task::TypeOfTask::kSTL;
+    return ppc::task::TypeOfTask::kSEQ;
   }
-  explicit SabutaySparseComplexCcsMultSTL(const InType &in);
+  explicit SabutaySparseComplexCcsMultFixSEQ(const InType &in);
+
   static void BuildProductMatrix(const CCS &left, const CCS &right, CCS &out);
 
  private:
@@ -20,4 +21,4 @@ class SabutaySparseComplexCcsMultSTL : public BaseTask {
   bool PostProcessingImpl() override;
 };
 
-}  // namespace sabutay_sparse_complex_ccs_mult_stl
+}  // namespace sabutay_sparse_complex_ccs_multfix
