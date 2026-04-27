@@ -17,6 +17,15 @@ class LukinITestTaskSTL : public BaseTask {
   bool PreProcessingImpl() override;
   bool RunImpl() override;
   bool PostProcessingImpl() override;
+
+  void GetLocMinMax(std::vector<unsigned char> &loc_mins, std::vector<unsigned char> &loc_maxs);
+  void Process(const int min, const int max);
+
+  int thread_count = 0;
+  int chunk_size = 0;
+  int size = 0;
+  const InType &input = GetInput();
+  OutType &output = GetOutput();
 };
 
 }  // namespace lukin_i_ench_contr_lin_hist
