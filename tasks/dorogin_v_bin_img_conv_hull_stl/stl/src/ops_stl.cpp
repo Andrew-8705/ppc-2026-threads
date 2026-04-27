@@ -126,7 +126,9 @@ inline OutType SolveSTL(const BinaryImage &img) {
   OutType hulls;
   hulls.resize(comps.size());
   std::vector<std::size_t> indices(comps.size());
-  std::iota(indices.begin(), indices.end(), static_cast<std::size_t>(0));
+  for (std::size_t i = 0; i < indices.size(); ++i) {
+    indices[i] = i;
+  }
   for (const std::size_t i : indices) {
     hulls[i] = ConvexHullMonotonicChain(std::move(comps[i]));
   }

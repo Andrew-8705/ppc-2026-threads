@@ -12,6 +12,7 @@
 #include "dorogin_v_bin_img_conv_hull_stl/common/include/common.hpp"
 #include "dorogin_v_bin_img_conv_hull_stl/stl/include/ops_stl.hpp"
 #include "util/include/func_test_util.hpp"
+#include "util/include/util.hpp"
 
 namespace nesterov_a_test_task_threads {
 
