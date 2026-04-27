@@ -117,7 +117,7 @@ bool BaldinARadixSortSTL::RunImpl() {
 
   for (int step = 1; step < num_chunks; step *= 2) {
     int num_merges = (num_chunks + (2 * step) - 1) / (2 * step);
-    
+
     std::vector<std::future<void>> merge_futures;
 
     for (int m_idx = 0; m_idx < num_merges; ++m_idx) {
