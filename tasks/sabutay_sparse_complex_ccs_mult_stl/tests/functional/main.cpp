@@ -208,7 +208,6 @@ class SabutayARunFuncTestsThreadsSTL : public ppc::util::BaseRunFuncTests<InType
 
 namespace {
 
-  
 TEST_P(SabutayARunFuncTestsThreadsSTL, MatmulFromPic) {
   ExecuteTest(GetParam());
 }
