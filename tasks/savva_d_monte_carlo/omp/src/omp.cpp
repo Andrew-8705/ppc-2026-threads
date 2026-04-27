@@ -72,9 +72,7 @@ bool SavvaDMonteCarloOMP::RunImpl() {
 // Открываем параллельную секцию. Суммирование собираем через редукцию
 #pragma omp parallel default(none) shared(distributions, func, dim, n_blocks) reduction(+ : sum)
   {
-
     std::minstd_rand generator(std::random_device{}() ^ omp_get_thread_num());
-
 
     std::vector<double> p1(dim);
     std::vector<double> p2(dim);
@@ -94,7 +92,6 @@ bool SavvaDMonteCarloOMP::RunImpl() {
     }
   }
 
-  
   if (tail > 0) {
     std::minstd_rand generator(std::random_device{}());
     std::vector<double> p_tail(dim);
