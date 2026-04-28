@@ -1,6 +1,7 @@
 ﻿#include "shkryleva_s_shell_sort_simple_merge/stl/include/ops_stl.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <thread>
 #include <vector>
 
@@ -36,7 +37,6 @@ void ShkrylevaSShellMergeSTL::ShellSort(int left, int right, std::vector<int> &a
         arr[j] = arr[j - gap];
         j -= gap;
       }
-
       arr[j] = temp;
     }
   }
@@ -64,6 +64,47 @@ void ShkrylevaSShellMergeSTL::Merge(int left, int mid, int right, std::vector<in
   }
 }
 
+void ShkrylevaSShellMergeSTL::SortSegments(std::vector<int> &arr, int num_threads, int sub_arr_size) {
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; ++i) {
+    int left = i * sub_arr_size;
+    int right = std::min(left + sub_arr_size - 1, static_cast<int>(arr.size()) - 1);
+    if (left < right) {
+      threads.emplace_back([&arr, left, right] { ShellSort(left, right, arr); });
+    }
+  }
+  for (auto &t : threads) {
+    if (t.joinable()) {
+      t.join();
+    }
+  }
+}
+
+void ShkrylevaSShellMergeSTL::HierarchicalMerge(std::vector<int> &arr, int num_threads, int sub_arr_size) {
+  while (num_threads > 1) {
+    int new_num_threads = (num_threads + 1) / 2;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < new_num_threads; ++i) {
+      int left = i * 2 * sub_arr_size;
+      int mid = std::min(left + sub_arr_size - 1, static_cast<int>(arr.size()) - 1);
+      int right = std::min(left + (2 * sub_arr_size) - 1, static_cast<int>(arr.size()) - 1);
+      if (mid < right) {
+        threads.emplace_back([&arr, left, mid, right] {
+          std::vector<int> local_buffer;
+          Merge(left, mid, right, arr, local_buffer);
+        });
+      }
+    }
+    for (auto &t : threads) {
+      if (t.joinable()) {
+        t.join();
+      }
+    }
+    sub_arr_size *= 2;
+    num_threads = new_num_threads;
+  }
+}
+
 bool ShkrylevaSShellMergeSTL::RunImpl() {
   if (input_data_.empty()) {
     output_data_.clear();
@@ -79,45 +120,8 @@ bool ShkrylevaSShellMergeSTL::RunImpl() {
 
   int sub_arr_size = (array_size + num_threads - 1) / num_threads;
 
-  std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; ++i) {
-    int left = i * sub_arr_size;
-    int right = std::min(left + sub_arr_size - 1, array_size - 1);
-    if (left < right) {
-      threads.emplace_back([&arr, left, right] { ShellSort(left, right, arr); });
-    }
-  }
-  for (auto &t : threads) {
-    if (t.joinable()) {
-      t.join();
-    }
-  }
-
-  while (num_threads > 1) {
-    int new_num_threads = (num_threads + 1) / 2;
-    threads.clear();
-
-    for (int i = 0; i < new_num_threads; ++i) {
-      int left = i * 2 * sub_arr_size;
-      int mid = std::min(left + sub_arr_size - 1, array_size - 1);
-      int right = std::min(left + (2 * sub_arr_size) - 1, array_size - 1);
-      if (mid < right) {
-        threads.emplace_back([&arr, left, mid, right] {
-          std::vector<int> local_buffer;
-          Merge(left, mid, right, arr, local_buffer);
-        });
-      }
-    }
-
-    for (auto &t : threads) {
-      if (t.joinable()) {
-        t.join();
-      }
-    }
-
-    sub_arr_size *= 2;
-    num_threads = new_num_threads;
-  }
+  SortSegments(arr, num_threads, sub_arr_size);
+  HierarchicalMerge(arr, num_threads, sub_arr_size);
 
   output_data_ = arr;
   return true;
