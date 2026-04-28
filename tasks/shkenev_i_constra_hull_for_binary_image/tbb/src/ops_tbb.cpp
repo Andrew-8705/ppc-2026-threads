@@ -74,7 +74,7 @@ void ShkenevIConstrHullTBB::AddNeighbors(const Point &current, int width, int he
 
     size_t neighbor_idx = Index(neighbor_x, neighbor_y, width);
 
-    if (visited[neighbor_idx] != 0u || work_.pixels[neighbor_idx] == 0) {
+    if (visited[neighbor_idx] != 0U || work_.pixels[neighbor_idx] == 0) {
       continue;
     }
 
@@ -112,7 +112,7 @@ void ShkenevIConstrHullTBB::FindComponents() {
     for (int x_coord = 0; x_coord < width; ++x_coord) {
       size_t idx = Index(x_coord, y_coord, width);
 
-      if (visited[idx] != 0u || work_.pixels[idx] == 0) {
+      if (visited[idx] != 0U || work_.pixels[idx] == 0) {
         continue;
       }
 
