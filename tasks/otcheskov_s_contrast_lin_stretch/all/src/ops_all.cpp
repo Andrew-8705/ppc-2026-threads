@@ -52,7 +52,7 @@ bool OtcheskovSContrastLinStretchALL::RunImpl() {
   }
   MPI_Bcast(&global_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  // --- 1. Разделение данных ---
+
   std::vector<int> counts(size_);
   std::vector<int> displs(size_);
   int base = global_size / size_;
@@ -66,21 +66,18 @@ bool OtcheskovSContrastLinStretchALL::RunImpl() {
   std::vector<uint8_t> local_input(local_size);
   std::vector<uint8_t> local_output(local_size);
 
-  // --- 2. Scatter ---
+
   MPI_Scatterv(rank_ == 0 ? input.data() : nullptr, counts.data(), displs.data(), MPI_UINT8_T, local_input.data(),
                static_cast<int>(local_size), MPI_UINT8_T, 0, MPI_COMM_WORLD);
 
-  // --- 3. Локальный min/max  ---
   MinMax local = ComputeMinMax(local_input);
 
-  // --- 4. Глобальный min/max ---
   uint8_t global_min{};
   uint8_t global_max{};
 
   MPI_Allreduce(&local.min, &global_min, 1, MPI_UINT8_T, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&local.max, &global_max, 1, MPI_UINT8_T, MPI_MAX, MPI_COMM_WORLD);
 
-  // --- 5. Обработка ---
   if (global_min == global_max) {
     CopyInput(local_input, local_output);
   } else {
@@ -90,7 +87,6 @@ bool OtcheskovSContrastLinStretchALL::RunImpl() {
     LinearStretch(local_input, local_output, min_i, range);
   }
 
-  // --- 6. Сбор ---
   MPI_Gatherv(local_output.data(), static_cast<int>(local_size), MPI_UINT8_T, rank_ == 0 ? output.data() : nullptr,
               counts.data(), displs.data(), MPI_UINT8_T, 0, MPI_COMM_WORLD);
   return true;
