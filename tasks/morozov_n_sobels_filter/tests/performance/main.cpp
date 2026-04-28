@@ -53,8 +53,9 @@ TEST_P(MorozovNRunPerfTests, RunPerfModes) {
 
 namespace {
 
-const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, MorozovNSobelsFilterSEQ, MorozovNSobelsFilterOMP, MorozovNSobelsFilterSTL> (
-    PPC_SETTINGS_morozov_n_sobels_filter);
+const auto kAllPerfTasks =
+    ppc::util::MakeAllPerfTasks<InType, MorozovNSobelsFilterSEQ, MorozovNSobelsFilterOMP, MorozovNSobelsFilterSTL>(
+        PPC_SETTINGS_morozov_n_sobels_filter);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
