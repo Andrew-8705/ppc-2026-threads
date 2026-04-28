@@ -12,7 +12,7 @@
 #include "util/include/util.hpp"
 #include "zavyalov_a_complex_sparse_matrix_mult/common/include/common.hpp"
 
-namespace zavyalov_a_compl_sparse_matr_mult {  // comm for ci123radiboga
+namespace zavyalov_a_compl_sparse_matr_mult {  // comm for ci1234
 
 void ZavyalovAComplSparseMatrMultSTL::Worker(
     int tid, std::size_t start, std::size_t end, const SparseMatrix &matr_a, const SparseMatrix &matr_b,
