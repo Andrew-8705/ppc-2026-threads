@@ -52,7 +52,6 @@ bool OtcheskovSContrastLinStretchALL::RunImpl() {
   }
   MPI_Bcast(&global_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-
   std::vector<int> counts(size_);
   std::vector<int> displs(size_);
   int base = global_size / size_;
@@ -65,7 +64,6 @@ bool OtcheskovSContrastLinStretchALL::RunImpl() {
   auto local_size = static_cast<size_t>(counts[rank_]);
   std::vector<uint8_t> local_input(local_size);
   std::vector<uint8_t> local_output(local_size);
-
 
   MPI_Scatterv(rank_ == 0 ? input.data() : nullptr, counts.data(), displs.data(), MPI_UINT8_T, local_input.data(),
                static_cast<int>(local_size), MPI_UINT8_T, 0, MPI_COMM_WORLD);
