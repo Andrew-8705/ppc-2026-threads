@@ -210,13 +210,12 @@ const std::array<TestType, 5> kFixedTestParams = {std::make_tuple(1, ""), std::m
                                                   std::make_tuple(3, ""), std::make_tuple(4, ""),
                                                   std::make_tuple(5, "")};
 
-const auto kTestTasksList = std::tuple_cat(
-    ppc::util::AddFuncTask<KapanovaSSparseMatrixMultCCSSeq, InType>(
-        kFixedTestParams, PPC_SETTINGS_kapanova_s_sparse_matrix_mult_ccs),
-    ppc::util::AddFuncTask<KapanovaSSparseMatrixMultCCSOMP, InType>(
-        kFixedTestParams, PPC_SETTINGS_kapanova_s_sparse_matrix_mult_ccs),
-    ppc::util::AddFuncTask<KapanovaSSparseMatrixMultCCSTBB, InType>(
-        kFixedTestParams, PPC_SETTINGS_kapanova_s_sparse_matrix_mult_ccs));
+const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<KapanovaSSparseMatrixMultCCSSeq, InType>(
+                                               kFixedTestParams, PPC_SETTINGS_kapanova_s_sparse_matrix_mult_ccs),
+                                           ppc::util::AddFuncTask<KapanovaSSparseMatrixMultCCSOMP, InType>(
+                                               kFixedTestParams, PPC_SETTINGS_kapanova_s_sparse_matrix_mult_ccs),
+                                           ppc::util::AddFuncTask<KapanovaSSparseMatrixMultCCSTBB, InType>(
+                                               kFixedTestParams, PPC_SETTINGS_kapanova_s_sparse_matrix_mult_ccs));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
