@@ -5,6 +5,8 @@
 #include <thread>
 #include <vector>
 
+#include "shkryleva_s_shell_sort_simple_merge/common/include/common.hpp"
+
 namespace shkryleva_s_shell_sort_simple_merge {
 
 ShkrylevaSShellMergeSTL::ShkrylevaSShellMergeSTL(const InType &in) {
