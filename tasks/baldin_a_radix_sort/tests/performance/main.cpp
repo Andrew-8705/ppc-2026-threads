@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <climits>
 
+#include "baldin_a_radix_sort/all/include/ops_all.hpp"
 #include "baldin_a_radix_sort/common/include/common.hpp"
 #include "baldin_a_radix_sort/omp/include/ops_omp.hpp"
 #include "baldin_a_radix_sort/seq/include/ops_seq.hpp"
@@ -47,7 +48,7 @@ namespace {
 
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, BaldinARadixSortSEQ, BaldinARadixSortOMP, BaldinARadixSortTBB,
-                                BaldinARadixSortSTL>(PPC_SETTINGS_baldin_a_radix_sort);
+                                BaldinARadixSortSTL, BaldinARadixSortALL>(PPC_SETTINGS_baldin_a_radix_sort);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 

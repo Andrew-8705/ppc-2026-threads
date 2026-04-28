@@ -8,6 +8,7 @@
 #include <tuple>
 #include <vector>
 
+#include "baldin_a_radix_sort/all/include/ops_all.hpp"
 #include "baldin_a_radix_sort/common/include/common.hpp"
 #include "baldin_a_radix_sort/omp/include/ops_omp.hpp"
 #include "baldin_a_radix_sort/seq/include/ops_seq.hpp"
@@ -87,7 +88,8 @@ const auto kTestTasksList =
     std::tuple_cat(ppc::util::AddFuncTask<BaldinARadixSortSEQ, InType>(kTestParam, PPC_SETTINGS_baldin_a_radix_sort),
                    ppc::util::AddFuncTask<BaldinARadixSortOMP, InType>(kTestParam, PPC_SETTINGS_baldin_a_radix_sort),
                    ppc::util::AddFuncTask<BaldinARadixSortTBB, InType>(kTestParam, PPC_SETTINGS_baldin_a_radix_sort),
-                   ppc::util::AddFuncTask<BaldinARadixSortSTL, InType>(kTestParam, PPC_SETTINGS_baldin_a_radix_sort));
+                   ppc::util::AddFuncTask<BaldinARadixSortSTL, InType>(kTestParam, PPC_SETTINGS_baldin_a_radix_sort),
+                   ppc::util::AddFuncTask<BaldinARadixSortALL, InType>(kTestParam, PPC_SETTINGS_baldin_a_radix_sort));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
