@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "shkryleva_s_shell_sort_simple_merge/common/include/common.hpp"
+#include "task/include/task.hpp"
 
 namespace shkryleva_s_shell_sort_simple_merge {
 
