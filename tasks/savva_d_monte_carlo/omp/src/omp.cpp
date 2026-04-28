@@ -54,59 +54,45 @@ bool SavvaDMonteCarloOMP::RunImpl() {
 
   const size_t dim = input.Dimension();
   const double vol = input.Volume();
-
   const auto n = static_cast<int64_t>(input.count_points);
   const auto &func = input.f;
 
-  std::vector<std::uniform_real_distribution<double>> distributions(dim);
-  for (size_t i = 0; i < dim; ++i) {
-    distributions[i] = std::uniform_real_distribution<double>(input.lower_bounds[i], input.upper_bounds[i]);
-  }
-
-  double sum = 0.0;
-
-  // Вычисляем количество полных блоков по 4 элемента и остаток
   const int64_t n_blocks = n / 4;
   const int64_t tail = n % 4;
 
-// Открываем параллельную секцию. Суммирование собираем через редукцию
-#pragma omp parallel default(none) shared(distributions, func, dim, n_blocks) reduction(+ : sum)
+  double sum = 0.0;
+
+#pragma omp parallel default(none) shared(input, func, dim, n_blocks, tail) reduction(+ : sum)
   {
-    std::minstd_rand generator(std::random_device{}() ^ omp_get_thread_num());
+    std::minstd_rand gen(1337 + omp_get_thread_num());
 
-    std::vector<double> p1(dim);
-    std::vector<double> p2(dim);
-    std::vector<double> p3(dim);
-    std::vector<double> p4(dim);
+    std::vector<std::uniform_real_distribution<double>> dists(dim);
+    for (size_t i = 0; i < dim; ++i) {
+      dists[i] = std::uniform_real_distribution<double>(input.lower_bounds[i], input.upper_bounds[i]);
+    }
 
-// Параллельный цикл по блокам
+    std::vector<double> point(dim);
+
 #pragma omp for schedule(static)
     for (int64_t i = 0; i < n_blocks; ++i) {
-      for (size_t j = 0; j < dim; ++j) {
-        p1[j] = distributions[j](generator);
-        p2[j] = distributions[j](generator);
-        p3[j] = distributions[j](generator);
-        p4[j] = distributions[j](generator);
+      for (int k = 0; k < 4; ++k) {
+        for (size_t j = 0; j < dim; ++j) {
+          point[j] = dists[j](gen);
+        }
+        sum += func(point);
       }
-      sum += func(p1) + func(p2) + func(p3) + func(p4);
     }
-  }
 
-  if (tail > 0) {
-    std::minstd_rand generator(std::random_device{}());
-    std::vector<double> p_tail(dim);
+#pragma omp for schedule(static)
     for (int64_t i = 0; i < tail; ++i) {
       for (size_t j = 0; j < dim; ++j) {
-        p_tail[j] = distributions[j](generator);
+        point[j] = dists[j](gen);
       }
-      sum += func(p_tail);
+      sum += func(point);
     }
   }
 
-  // Вычисляем интеграл: среднее значение функции умноженное на объем области
-  double mean = sum / static_cast<double>(n);
-  result = mean * vol;
-
+  result = vol * sum / static_cast<double>(n);
   return true;
 }
 
