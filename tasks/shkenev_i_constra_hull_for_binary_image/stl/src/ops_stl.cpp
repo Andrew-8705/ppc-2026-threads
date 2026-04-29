@@ -2,7 +2,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "util/include/util.hpp"
@@ -13,14 +16,16 @@ namespace {
 
 constexpr uint8_t kThreshold = 128;
 
-constexpr std::pair<int, int> dirs[4] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+constexpr std::array<std::pair<int, int>, 4> kDirs = {std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1},
+                                                      std::pair{0, -1}};
 
 inline bool InBounds(int x, int y, int w, int h) {
   return x >= 0 && x < w && y >= 0 && y < h;
 }
 
 inline int64_t Cross(const Point &a, const Point &b, const Point &c) {
-  return int64_t(b.x - a.x) * (c.y - a.y) - int64_t(b.y - a.y) * (c.x - a.x);
+  return (static_cast<int64_t>(b.x - a.x) * static_cast<int64_t>(c.y - a.y)) -
+         (static_cast<int64_t>(b.y - a.y) * static_cast<int64_t>(c.x - a.x));
 }
 
 }  // namespace
@@ -32,7 +37,8 @@ ShkenevIConstrHullSTL::ShkenevIConstrHullSTL(const InType &in) : work_(in) {
 
 bool ShkenevIConstrHullSTL::ValidationImpl() {
   const auto &in = GetInput();
-  return in.width > 0 && in.height > 0 && in.pixels.size() == size_t(in.width) * size_t(in.height);
+  return in.width > 0 && in.height > 0 &&
+         in.pixels.size() == static_cast<size_t>(in.width) * static_cast<size_t>(in.height);
 }
 
 bool ShkenevIConstrHullSTL::PreProcessingImpl() {
@@ -42,69 +48,70 @@ bool ShkenevIConstrHullSTL::PreProcessingImpl() {
 }
 
 void ShkenevIConstrHullSTL::ThresholdImage() {
-  for (auto &p : work_.pixels) {
-    p = (p > kThreshold) ? 255 : 0;
+  for (auto &pixel : work_.pixels) {
+    pixel = (pixel > kThreshold) ? 255 : 0;
   }
 }
 
-size_t ShkenevIConstrHullSTL::Index(int x, int y, int w) {
-  return size_t(y) * size_t(w) + size_t(x);
+size_t ShkenevIConstrHullSTL::Index(int x, int y, int width) {
+  return (static_cast<size_t>(y) * static_cast<size_t>(width)) + static_cast<size_t>(x);
 }
 
-void ShkenevIConstrHullSTL::ExploreComponent(int sx, int sy, int w, int h, std::vector<uint8_t> &visited,
-                                             std::vector<Point> &comp) {
+void ShkenevIConstrHullSTL::ExploreComponent(int start_x, int start_y, int width, int height,
+                                             std::vector<uint8_t> &visited, std::vector<Point> &component) {
   std::vector<Point> stack;
   stack.reserve(256);
+  component.reserve(256);
 
-  stack.emplace_back(sx, sy);
-  visited[Index(sx, sy, w)] = 1;
+  stack.emplace_back(start_x, start_y);
+  visited[Index(start_x, start_y, width)] = 1;
 
   while (!stack.empty()) {
-    Point cur = stack.back();
+    Point current = stack.back();
     stack.pop_back();
 
-    comp.push_back(cur);
+    component.push_back(current);
 
-    for (auto [dx, dy] : dirs) {
-      int nx = cur.x + dx;
-      int ny = cur.y + dy;
+    for (const auto &[delta_x, delta_y] : kDirs) {
+      int neighbor_x = current.x + delta_x;
+      int neighbor_y = current.y + delta_y;
 
-      if (!InBounds(nx, ny, w, h)) {
+      if (!InBounds(neighbor_x, neighbor_y, width, height)) {
         continue;
       }
 
-      size_t idx = Index(nx, ny, w);
+      size_t idx = Index(neighbor_x, neighbor_y, width);
 
-      if (visited[idx] || work_.pixels[idx] == 0) {
+      if (visited[idx] != 0U || work_.pixels[idx] == 0) {
         continue;
       }
 
       visited[idx] = 1;
-      stack.emplace_back(nx, ny);
+      stack.emplace_back(neighbor_x, neighbor_y);
     }
   }
 }
 
 void ShkenevIConstrHullSTL::FindComponents() {
-  int w = work_.width;
-  int h = work_.height;
+  int width = work_.width;
+  int height = work_.height;
 
-  std::vector<uint8_t> visited(size_t(w) * size_t(h), 0);
+  std::vector<uint8_t> visited(static_cast<size_t>(width) * static_cast<size_t>(height), 0);
   work_.components.clear();
 
-  for (int y = 0; y < h; ++y) {
-    for (int x = 0; x < w; ++x) {
-      size_t idx = Index(x, y, w);
+  for (int row = 0; row < height; ++row) {
+    for (int col = 0; col < width; ++col) {
+      size_t idx = Index(col, row, width);
 
-      if (visited[idx] || work_.pixels[idx] == 0) {
+      if (visited[idx] != 0U || work_.pixels[idx] == 0) {
         continue;
       }
 
-      std::vector<Point> comp;
-      ExploreComponent(x, y, w, h, visited, comp);
+      std::vector<Point> component;
+      ExploreComponent(col, row, width, height, visited, component);
 
-      if (!comp.empty()) {
-        work_.components.emplace_back(std::move(comp));
+      if (!component.empty()) {
+        work_.components.emplace_back(std::move(component));
       }
     }
   }
@@ -113,73 +120,81 @@ void ShkenevIConstrHullSTL::FindComponents() {
 bool ShkenevIConstrHullSTL::RunImpl() {
   FindComponents();
 
-  auto &comps = work_.components;
+  auto &components = work_.components;
   auto &hulls = work_.convex_hulls;
 
-  if (comps.empty()) {
+  if (components.empty()) {
     GetOutput() = work_;
     return true;
   }
 
-  hulls.resize(comps.size());
+  hulls.resize(components.size());
 
-  int num_threads = std::min<int>(ppc::util::GetNumThreads(), comps.size());
+  int num_threads = std::min<int>(ppc::util::GetNumThreads(), static_cast<int>(components.size()));
   std::vector<std::thread> threads;
-  std::atomic<size_t> index{0};
+  threads.reserve(static_cast<size_t>(num_threads));
 
-  for (int t = 0; t < num_threads; ++t) {
+  std::atomic<size_t> current_index{0};
+
+  for (int thread_id = 0; thread_id < num_threads; ++thread_id) {
     threads.emplace_back([&]() {
       while (true) {
-        size_t i = index.fetch_add(1, std::memory_order_relaxed);
-        if (i >= comps.size()) {
+        size_t idx = current_index.fetch_add(1, std::memory_order_relaxed);
+        if (idx >= components.size()) {
           break;
         }
 
-        const auto &comp = comps[i];
+        const auto &component = components[idx];
 
-        if (comp.size() <= 2) {
-          hulls[i] = comp;
+        if (component.size() <= 2) {
+          hulls[idx] = component;
         } else {
-          hulls[i] = BuildHull(comp);
+          hulls[idx] = BuildHull(component);
         }
       }
     });
   }
 
-  for (auto &th : threads) {
-    th.join();
+  for (auto &thread : threads) {
+    thread.join();
   }
 
   GetOutput() = work_;
   return true;
 }
 
-std::vector<Point> ShkenevIConstrHullSTL::BuildHull(const std::vector<Point> &pts_in) {
-  std::vector<Point> pts = pts_in;
+std::vector<Point> ShkenevIConstrHullSTL::BuildHull(const std::vector<Point> &points) {
+  std::vector<Point> pts = points;
 
-  std::sort(pts.begin(), pts.end());
-  pts.erase(std::unique(pts.begin(), pts.end()), pts.end());
+  std::sort(pts.begin(), pts.end(),
+            [](const Point &a, const Point &b) { return (a.x < b.x) || (a.x == b.x && a.y < b.y); });
+
+  auto last =
+      std::unique(pts.begin(), pts.end(), [](const Point &a, const Point &b) { return a.x == b.x && a.y == b.y; });
+  pts.erase(last, pts.end());
 
   if (pts.size() <= 2) {
     return pts;
   }
 
-  std::vector<Point> lower, upper;
+  std::vector<Point> lower;
+  std::vector<Point> upper;
   lower.reserve(pts.size());
   upper.reserve(pts.size());
 
-  for (const auto &p : pts) {
-    while (lower.size() >= 2 && Cross(lower[lower.size() - 2], lower.back(), p) <= 0) {
+  for (const auto &point : pts) {
+    while (lower.size() >= 2 && Cross(lower[lower.size() - 2], lower.back(), point) <= 0) {
       lower.pop_back();
     }
-    lower.push_back(p);
+    lower.push_back(point);
   }
 
-  for (auto it = pts.rbegin(); it != pts.rend(); ++it) {
-    while (upper.size() >= 2 && Cross(upper[upper.size() - 2], upper.back(), *it) <= 0) {
+  for (int i = static_cast<int>(pts.size()) - 1; i >= 0; --i) {
+    const auto &point = pts[i];
+    while (upper.size() >= 2 && Cross(upper[upper.size() - 2], upper.back(), point) <= 0) {
       upper.pop_back();
     }
-    upper.push_back(*it);
+    upper.push_back(point);
   }
 
   lower.pop_back();

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <thread>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "shkenev_i_constra_hull_for_binary_image/common/include/common.hpp"
@@ -24,9 +25,10 @@ class ShkenevIConstrHullSTL : public BaseTask {
 
   void ThresholdImage();
   void FindComponents();
-  void ExploreComponent(int sx, int sy, int w, int h, std::vector<uint8_t> &visited, std::vector<Point> &comp);
+  void ExploreComponent(int start_x, int start_y, int width, int height, std::vector<uint8_t> &visited,
+                        std::vector<Point> &component);
 
-  static std::vector<Point> BuildHull(const std::vector<Point> &points);
+  static std::vector<Point> BuildHull(const std::vector<Point> &pts_in);
   static size_t Index(int x, int y, int width);
 
   BinaryImage work_;
