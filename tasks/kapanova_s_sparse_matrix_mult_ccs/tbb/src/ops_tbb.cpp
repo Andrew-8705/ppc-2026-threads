@@ -3,10 +3,8 @@
 #include <tbb/blocked_range.h>
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
-#include <tbb/partitioner.h>
 
 #include <algorithm>
-#include <cstddef>
 #include <vector>
 
 #include "kapanova_s_sparse_matrix_mult_ccs/common/include/common.hpp"
@@ -57,6 +55,77 @@ bool KapanovaSSparseMatrixMultCCSTBB::PreProcessingImpl() {
   return true;
 }
 
+namespace {
+
+struct ThreadLocalBuffers {
+  std::vector<double> accum;
+  std::vector<bool> mask;
+  std::vector<size_t> active_rows;
+  std::vector<std::vector<size_t>> col_rows;
+  std::vector<std::vector<double>> col_vals;
+
+  ThreadLocalBuffers(size_t rows, size_t cols) : accum(rows, 0.0), mask(rows, false), col_rows(cols), col_vals(cols) {}
+};
+
+void ProcessColumnRange(const CCSMatrix &a, const CCSMatrix &b, std::vector<std::vector<size_t>> &col_rows,
+                        std::vector<std::vector<double>> &col_vals, std::vector<double> &accum, std::vector<bool> &mask,
+                        std::vector<size_t> &active_rows, const tbb::blocked_range<size_t> &range) {
+  for (size_t j = range.begin(); j != range.end(); ++j) {
+    for (size_t k = b.col_ptrs[j]; k < b.col_ptrs[j + 1]; ++k) {
+      size_t row_b = b.row_indices[k];
+      double val_b = b.values[k];
+      for (size_t zc = a.col_ptrs[row_b]; zc < a.col_ptrs[row_b + 1]; ++zc) {
+        size_t i = a.row_indices[zc];
+        double val_a = a.values[zc];
+        accum[i] += val_a * val_b;
+        if (!mask[i]) {
+          mask[i] = true;
+          active_rows.push_back(i);
+        }
+      }
+    }
+
+    std::sort(active_rows.begin(), active_rows.end());
+
+    for (size_t i : active_rows) {
+      if (accum[i] != 0.0) {
+        col_rows[j].push_back(i);
+        col_vals[j].push_back(accum[i]);
+      }
+      accum[i] = 0.0;
+      mask[i] = false;
+    }
+    active_rows.clear();
+  }
+}
+
+void MergeColumnSizes(const tbb::enumerable_thread_specific<ThreadLocalBuffers> &tls_data, size_t cols,
+                      std::vector<size_t> &col_sizes) {
+  for (const auto &local : tls_data) {
+    for (size_t j = 0; j < cols; ++j) {
+      col_sizes[j] += local.col_rows[j].size();
+    }
+  }
+}
+
+void MergeResults(const tbb::enumerable_thread_specific<ThreadLocalBuffers> &tls_data, size_t cols, CCSMatrix &c) {
+  std::vector<size_t> current_pos(cols, 0);
+  for (const auto &local : tls_data) {
+    for (size_t j = 0; j < cols; ++j) {
+      size_t start = c.col_ptrs[j] + current_pos[j];
+      const auto &rows = local.col_rows[j];
+      const auto &vals = local.col_vals[j];
+      for (size_t idx = 0; idx < rows.size(); ++idx) {
+        c.row_indices[start + idx] = rows[idx];
+        c.values[start + idx] = vals[idx];
+      }
+      current_pos[j] += rows.size();
+    }
+  }
+}
+
+}  // namespace
+
 bool KapanovaSSparseMatrixMultCCSTBB::RunImpl() {
   const auto &a = std::get<0>(GetInput());
   const auto &b = std::get<1>(GetInput());
@@ -67,59 +136,15 @@ bool KapanovaSSparseMatrixMultCCSTBB::RunImpl() {
   c.col_ptrs.assign(c.cols + 1, 0);
   c.nnz = 0;
 
-  struct ThreadLocalData {
-    std::vector<double> accum;
-    std::vector<bool> row_mask;
-    std::vector<size_t> active_rows;
-    std::vector<std::vector<size_t>> col_rows;
-    std::vector<std::vector<double>> col_vals;
+  tbb::enumerable_thread_specific<ThreadLocalBuffers> tls_data([&]() { return ThreadLocalBuffers(a.rows, c.cols); });
 
-    explicit ThreadLocalData(size_t rows, size_t cols)
-        : accum(rows, 0.0), row_mask(rows, false), col_rows(cols), col_vals(cols) {}
-  };
-
-  tbb::enumerable_thread_specific<ThreadLocalData> tls_data([&]() { return ThreadLocalData(a.rows, c.cols); });
-
-  tbb::parallel_for(tbb::blocked_range<size_t>(0, c.cols, 512), [&](const tbb::blocked_range<size_t> &range) {
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, c.cols, 256), [&](const tbb::blocked_range<size_t> &range) {
     auto &local = tls_data.local();
-
-    for (size_t j = range.begin(); j != range.end(); ++j) {
-      for (size_t k = b.col_ptrs[j]; k < b.col_ptrs[j + 1]; ++k) {
-        size_t row_b = b.row_indices[k];
-        double val_b = b.values[k];
-
-        for (size_t zc = a.col_ptrs[row_b]; zc < a.col_ptrs[row_b + 1]; ++zc) {
-          size_t i = a.row_indices[zc];
-          double val_a = a.values[zc];
-
-          local.accum[i] += val_a * val_b;
-          if (!local.row_mask[i]) {
-            local.row_mask[i] = true;
-            local.active_rows.push_back(i);
-          }
-        }
-      }
-
-      std::sort(local.active_rows.begin(), local.active_rows.end());
-
-      for (size_t i : local.active_rows) {
-        if (local.accum[i] != 0.0) {
-          local.col_rows[j].push_back(i);
-          local.col_vals[j].push_back(local.accum[i]);
-        }
-        local.accum[i] = 0.0;
-        local.row_mask[i] = false;
-      }
-      local.active_rows.clear();
-    }
+    ProcessColumnRange(a, b, local.col_rows, local.col_vals, local.accum, local.mask, local.active_rows, range);
   });
 
   std::vector<size_t> col_sizes(c.cols, 0);
-  for (const auto &local : tls_data) {
-    for (size_t j = 0; j < c.cols; ++j) {
-      col_sizes[j] += local.col_rows[j].size();
-    }
-  }
+  MergeColumnSizes(tls_data, c.cols, col_sizes);
 
   size_t offset = 0;
   for (size_t j = 0; j < c.cols; ++j) {
@@ -131,21 +156,7 @@ bool KapanovaSSparseMatrixMultCCSTBB::RunImpl() {
 
   c.values.resize(c.nnz);
   c.row_indices.resize(c.nnz);
-
-  std::vector<size_t> current_pos(c.cols, 0);
-  for (const auto &local : tls_data) {
-    for (size_t j = 0; j < c.cols; ++j) {
-      size_t start = c.col_ptrs[j] + current_pos[j];
-      const auto &rows = local.col_rows[j];
-      const auto &vals = local.col_vals[j];
-      for (size_t idx = 0; idx < rows.size(); ++idx) {
-        size_t pos = start + idx;
-        c.row_indices[pos] = rows[idx];
-        c.values[pos] = vals[idx];
-      }
-      current_pos[j] += rows.size();
-    }
-  }
+  MergeResults(tls_data, c.cols, c);
 
   return true;
 }
