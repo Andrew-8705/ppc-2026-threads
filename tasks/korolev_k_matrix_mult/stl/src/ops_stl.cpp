@@ -7,7 +7,6 @@
 
 #include "korolev_k_matrix_mult/common/include/common.hpp"
 #include "korolev_k_matrix_mult/common/include/strassen_impl.hpp"
-#include "util/include/util.hpp"
 
 namespace korolev_k_matrix_mult {
 
@@ -32,8 +31,7 @@ bool KorolevKMatrixMultSTL::RunImpl() {
   size_t n = in.n;
   size_t np2 = strassen_impl::NextPowerOf2(n);
 
-  const int num_threads = ppc::util::GetNumThreads();
-  auto parallel_run = [num_threads](std::vector<std::function<void()>> &tasks) {
+  auto parallel_run = [](std::vector<std::function<void()>> &tasks) {
     std::vector<std::thread> threads;
     threads.reserve(tasks.size());
     for (auto &t : tasks) {
