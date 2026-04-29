@@ -1,6 +1,7 @@
 #include "shkenev_i_constra_hull_for_binary_image/stl/include/ops_stl.hpp"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -163,11 +164,10 @@ bool ShkenevIConstrHullSTL::RunImpl() {
   return true;
 }
 
-std::vector<Point> ShkenevIConstrHullSTL::BuildHull(const std::vector<Point> &points) {
-  std::vector<Point> pts = points;
+std::vector<Point> ShkenevIConstrHullSTL::BuildHull(const std::vector<Point> &pts_in) {
+  std::vector<Point> pts = pts_in;
 
-  std::sort(pts.begin(), pts.end(),
-            [](const Point &a, const Point &b) { return (a.x < b.x) || (a.x == b.x && a.y < b.y); });
+  std::ranges::sort(pts, [](const Point &a, const Point &b) { return (a.x < b.x) || (a.x == b.x && a.y < b.y); });
 
   auto last =
       std::unique(pts.begin(), pts.end(), [](const Point &a, const Point &b) { return a.x == b.x && a.y == b.y; });
