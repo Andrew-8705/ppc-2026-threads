@@ -5,8 +5,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
-#include <utility>
 #include <vector>
 
 #include "votincev_d_radixmerge_sort/common/include/common.hpp"
@@ -41,14 +41,14 @@ void VotincevDRadixMergeSortALL::LocalRadixSort(uint32_t *begin, uint32_t *end) 
     count.fill(0);
 
     for (int32_t i = 0; i < n; ++i) {
-      size_t digit = static_cast<size_t>((src[static_cast<size_t>(i)] / exp) % 10);
+      auto digit = static_cast<size_t>((src[static_cast<size_t>(i)] / exp) % 10);
       count.at(digit)++;
     }
     for (size_t i = 1; i < 10; ++i) {
       count.at(i) += count.at(i - 1);
     }
     for (int32_t i = n - 1; i >= 0; --i) {
-      size_t digit = static_cast<size_t>((src[static_cast<size_t>(i)] / exp) % 10);
+      auto digit = static_cast<size_t>((src[static_cast<size_t>(i)] / exp) % 10);
       dst[static_cast<size_t>(--count.at(digit))] = src[static_cast<size_t>(i)];
     }
     std::swap(src, dst);
@@ -78,7 +78,7 @@ void VotincevDRadixMergeSortALL::Merge(const uint32_t *src, uint32_t *dst, int32
 }
 
 void VotincevDRadixMergeSortALL::OmpLocalSortAndMerge(std::vector<uint32_t> &local_data) {
-  int32_t local_n = static_cast<int32_t>(local_data.size());
+  auto local_n = static_cast<int32_t>(local_data.size());
   if (local_n <= 0) {
     return;
   }
@@ -87,15 +87,16 @@ void VotincevDRadixMergeSortALL::OmpLocalSortAndMerge(std::vector<uint32_t> &loc
 
 #pragma omp parallel default(none) shared(local_n, local_data, temp_buffer)
   {
-    int32_t tid = static_cast<int32_t>(omp_get_thread_num());
-    int32_t n_threads = static_cast<int32_t>(omp_get_num_threads());
+    auto tid = static_cast<int32_t>(omp_get_thread_num());
+    auto n_threads = static_cast<int32_t>(omp_get_num_threads());
 
     int32_t t_items = local_n / n_threads;
     int32_t t_rem = local_n % n_threads;
 
-    // Замена std::min на тернарный оператор для обхода ошибки C3052 (MSVC + default(none))
-    int32_t l = (tid * t_items) + (tid < t_rem ? tid : t_rem);
-    int32_t r = l + t_items + (tid < t_rem ? 1 : 0);
+    auto get_offset = [&](int32_t id) { return (id * t_items) + (id < t_rem ? id : t_rem); };
+
+    int32_t l = get_offset(tid);
+    int32_t r = get_offset(tid + 1);
 
     if (l < r) {
       LocalRadixSort(local_data.data() + l, local_data.data() + r);
@@ -104,12 +105,9 @@ void VotincevDRadixMergeSortALL::OmpLocalSortAndMerge(std::vector<uint32_t> &loc
     for (int32_t step = 1; step < n_threads; step *= 2) {
 #pragma omp barrier
       if (tid % (2 * step) == 0 && tid + step < n_threads) {
-        int32_t next_tid_offset = tid + step;
-        int32_t m = (next_tid_offset * t_items) + (next_tid_offset < t_rem ? next_tid_offset : t_rem);
-
-        int32_t double_step_tid = tid + (2 * step);
-        int32_t next_tid = (double_step_tid < n_threads ? double_step_tid : n_threads);
-        int32_t next_r = (next_tid * t_items) + (next_tid < t_rem ? next_tid : t_rem);
+        int32_t m = get_offset(tid + step);
+        int32_t next_id = (tid + 2 * step < n_threads) ? (tid + 2 * step) : n_threads;
+        int32_t next_r = get_offset(next_id);
 
         Merge(local_data.data(), temp_buffer.data(), l, m, next_r);
         std::ranges::copy(temp_buffer.begin() + l, temp_buffer.begin() + next_r, local_data.begin() + l);
@@ -124,7 +122,7 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  int32_t n = (rank == 0) ? static_cast<int32_t>(input_.size()) : 0;
+  auto n = (rank == 0) ? static_cast<int32_t>(input_.size()) : 0;
   MPI_Bcast(&n, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
 
   std::vector<int32_t> send_counts(static_cast<size_t>(size));
@@ -138,25 +136,24 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
         (i == 0) ? 0 : displacements.at(static_cast<size_t>(i - 1)) + send_counts.at(static_cast<size_t>(i - 1));
   }
 
-  int32_t local_n = send_counts.at(static_cast<size_t>(rank));
+  auto local_n = send_counts.at(static_cast<size_t>(rank));
   std::vector<uint32_t> local_data(static_cast<size_t>(local_n));
 
   int32_t min_val = 0;
   if (rank == 0) {
     min_val = *std::ranges::min_element(input_);
-  }
-  MPI_Bcast(&min_val, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
-
-  std::vector<uint32_t> unsigned_input;
-  if (rank == 0) {
-    unsigned_input.resize(static_cast<size_t>(n));
+    std::vector<uint32_t> unsigned_input(static_cast<size_t>(n));
     for (int32_t i = 0; i < n; ++i) {
       unsigned_input.at(static_cast<size_t>(i)) = static_cast<uint32_t>(input_.at(static_cast<size_t>(i)) - min_val);
     }
+    MPI_Bcast(&min_val, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(unsigned_input.data(), send_counts.data(), displacements.data(), MPI_UINT32_T, local_data.data(),
+                 local_n, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+  } else {
+    MPI_Bcast(&min_val, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(nullptr, send_counts.data(), displacements.data(), MPI_UINT32_T, local_data.data(), local_n,
+                 MPI_UINT32_T, 0, MPI_COMM_WORLD);
   }
-
-  MPI_Scatterv(unsigned_input.data(), send_counts.data(), displacements.data(), MPI_UINT32_T, local_data.data(),
-               local_n, MPI_UINT32_T, 0, MPI_COMM_WORLD);
 
   OmpLocalSortAndMerge(local_data);
 
@@ -171,15 +168,15 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
   if (rank == 0) {
     for (int32_t i = 1; i < size; ++i) {
       int32_t mid = displacements.at(static_cast<size_t>(i));
-      int32_t right = (i == size - 1) ? n : displacements.at(static_cast<size_t>(i + 1));
-
+      int32_t next_idx = i + 1;
+      int32_t right = (next_idx >= size) ? n : displacements.at(static_cast<size_t>(next_idx));
       std::ranges::inplace_merge(gathered_data.begin(), gathered_data.begin() + mid, gathered_data.begin() + right);
     }
 
     output_.resize(static_cast<size_t>(n));
     for (int32_t i = 0; i < n; ++i) {
-      output_.at(static_cast<size_t>(i)) =
-          static_cast<int32_t>(gathered_data.at(static_cast<size_t>(i)) + static_cast<uint32_t>(min_val));
+      auto idx = static_cast<size_t>(i);
+      output_.at(idx) = static_cast<int32_t>(gathered_data.at(idx) + static_cast<uint32_t>(min_val));
     }
   }
 
