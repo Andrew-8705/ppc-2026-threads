@@ -1,7 +1,7 @@
+// tsibareva_e_integral_calculate_trapezoid_method/stl/src/ops_stl.cpp
 #include "tsibareva_e_integral_calculate_trapezoid_method/stl/include/ops_stl.hpp"
 
-#include <atomic>
-#include <numeric>
+#include <cmath>
 #include <thread>
 #include <vector>
 
@@ -13,46 +13,86 @@ namespace tsibareva_e_integral_calculate_trapezoid_method {
 TsibarevaEIntegralCalculateTrapezoidMethodSTL::TsibarevaEIntegralCalculateTrapezoidMethodSTL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput() = 0;
+  GetOutput() = 0.0;
 }
 
 bool TsibarevaEIntegralCalculateTrapezoidMethodSTL::ValidationImpl() {
-  return (GetInput() > 0) && (GetOutput() == 0);
+  return true;
 }
 
 bool TsibarevaEIntegralCalculateTrapezoidMethodSTL::PreProcessingImpl() {
-  GetOutput() = 2 * GetInput();
-  return GetOutput() > 0;
+  GetOutput() = 0.0;
+  return true;
 }
 
 bool TsibarevaEIntegralCalculateTrapezoidMethodSTL::RunImpl() {
-  for (InType i = 0; i < GetInput(); i++) {
-    for (InType j = 0; j < GetInput(); j++) {
-      for (InType k = 0; k < GetInput(); k++) {
-        std::vector<InType> tmp(i + j + k, 1);
-        GetOutput() += std::accumulate(tmp.begin(), tmp.end(), 0);
-        GetOutput() -= i + j + k;
-      }
-    }
+  int dim = GetInput().dim;
+
+  std::vector<double> h(dim);
+  std::vector<int> sizes(dim);
+  int total_nodes = 1;
+  for (int i = 0; i < dim; ++i) {
+    h[i] = (GetInput().hi[i] - GetInput().lo[i]) / GetInput().steps[i];
+    sizes[i] = GetInput().steps[i] + 1;
+    total_nodes *= sizes[i];
   }
 
   const int num_threads = ppc::util::GetNumThreads();
   std::vector<std::thread> threads(num_threads);
-  GetOutput() *= num_threads;
+  std::vector<double> partial_sums(num_threads, 0.0);
 
-  std::atomic<int> counter(0);
-  for (int i = 0; i < num_threads; i++) {
-    threads[i] = std::thread([&]() { counter++; });
-    threads[i].join();
+  auto worker = [&](int thread_id, int start, int end) {
+    double local_sum = 0.0;
+    for (int node = start; node < end; ++node) {
+      int remainder = node;
+      double node_weight = 1.0;
+      std::vector<double> point(dim);
+
+      for (int i = dim - 1; i >= 0; --i) {
+        int idx = remainder % sizes[i];
+        remainder /= sizes[i];
+
+        if (idx == 0 || idx == GetInput().steps[i]) {
+          node_weight *= 0.5;
+        }
+
+        point[i] = GetInput().lo[i] + idx * h[i];
+      }
+
+      local_sum += node_weight * GetInput().f(point);
+    }
+    partial_sums[thread_id] = local_sum;
+  };
+
+  int nodes_per_thread = total_nodes / num_threads;
+  int remainder_nodes = total_nodes % num_threads;
+  int start = 0;
+  for (int tid = 0; tid < num_threads; ++tid) {
+    int end = start + nodes_per_thread + (tid < remainder_nodes ? 1 : 0);
+    threads[tid] = std::thread(worker, tid, start, end);
+    start = end;
   }
 
-  GetOutput() /= counter;
-  return GetOutput() > 0;
+  for (auto &t : threads) {
+    t.join();
+  }
+
+  double global_sum = 0.0;
+  for (double s : partial_sums) {
+    global_sum += s;
+  }
+
+  double res_h = 1.0;
+  for (int i = 0; i < dim; ++i) {
+    res_h *= h[i];
+  }
+
+  GetOutput() = global_sum * res_h;
+  return true;
 }
 
 bool TsibarevaEIntegralCalculateTrapezoidMethodSTL::PostProcessingImpl() {
-  GetOutput() -= GetInput();
-  return GetOutput() > 0;
+  return true;
 }
 
 }  // namespace tsibareva_e_integral_calculate_trapezoid_method
