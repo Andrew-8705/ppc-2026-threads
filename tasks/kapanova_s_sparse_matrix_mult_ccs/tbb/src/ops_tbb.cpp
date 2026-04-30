@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <ranges>
 #include <vector>
 
 #include "kapanova_s_sparse_matrix_mult_ccs/common/include/common.hpp"
@@ -90,7 +91,7 @@ void ProcessColumnRange(const CCSMatrix &a, const CCSMatrix &b, std::vector<std:
       }
     }
 
-    std::sort(active_rows.begin(), active_rows.end());
+    std::ranges::sort(active_rows);
 
     for (size_t i : active_rows) {
       if (accum[i] != 0.0) {
