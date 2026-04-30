@@ -1,3 +1,5 @@
+#include "kosolapov_v_calc_mult_integrals_m_rectangles/tbb/include/ops_tbb.hpp"
+
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_reduce.h>
 
@@ -5,7 +7,6 @@
 #include <tuple>
 
 #include "kosolapov_v_calc_mult_integrals_m_rectangles/common/include/common.hpp"
-#include "kosolapov_v_calc_mult_integrals_m_rectangles/omp/include/ops_omp.hpp"
 
 namespace kosolapov_v_calc_mult_integrals_m_rectangles {
 
@@ -86,11 +87,10 @@ std::tuple<double, double, double, double> KosolapovVCalcMultIntegralsMRectangle
       return {0.0, 1.0, 0.0, 1.0};
   }
 }
-double KosolapovVCalcMultIntegralsMRectanglesOMP::RectanglesIntegral(int func_id, int steps, double a, double b,
+double KosolapovVCalcMultIntegralsMRectanglesTBB::RectanglesIntegral(int func_id, int steps, double a, double b,
                                                                      double c, double d) {
   double hx = (b - a) / steps;
   double hy = (d - c) / steps;
-  double result = 0.0;
   size_t total = static_cast<size_t>(steps) * steps;
 
   double sum = tbb::parallel_reduce(tbb::blocked_range<size_t>(0, total), 0.0,
@@ -104,8 +104,8 @@ double KosolapovVCalcMultIntegralsMRectanglesOMP::RectanglesIntegral(int func_id
     }
     return local_sum;
   }, std::plus<double>());
-  result *= (hx * hy);
-  return result;
+  sum *= (hx * hy);
+  return sum;
 }
 
 }  // namespace kosolapov_v_calc_mult_integrals_m_rectangles
