@@ -8,6 +8,7 @@
 
 #include "artyushkina_markirovka/common/include/common.hpp"
 #include "artyushkina_markirovka/omp/include/ops_omp.hpp"
+#include "artyushkina_markirovka/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
@@ -133,6 +134,10 @@ class ArtyushkinaMarkirovkaFuncTests : public ppc::util::BaseRunFuncTests<InType
 
 namespace {
 
+TEST_P(ArtyushkinaMarkirovkaFuncTests, MarkingComponentsSEQ) {
+  ExecuteTest(GetParam());
+}
+
 TEST_P(ArtyushkinaMarkirovkaFuncTests, MarkingComponentsOMP) {
   ExecuteTest(GetParam());
 }
@@ -144,6 +149,16 @@ const std::array<TestType, 7> kTestParam = {std::make_tuple(0, "L_shaped_compone
                                             std::make_tuple(4, "two_horizontal_bars"),
                                             std::make_tuple(5, "complex_shape_multiple_components"),
                                             std::make_tuple(6, "diagonal_connectivity_check")};
+
+// SEQ тесты
+const auto kTestTasksListSEQ =
+    ppc::util::AddFuncTask<MarkingComponentsSEQ, InType>(kTestParam, PPC_SETTINGS_artyushkina_markirovka);
+
+const auto kGtestValuesSEQ = ppc::util::ExpandToValues(kTestTasksListSEQ);
+
+const auto kPerfTestNameSEQ = ArtyushkinaMarkirovkaFuncTests::PrintFuncTestName<ArtyushkinaMarkirovkaFuncTests>;
+
+INSTANTIATE_TEST_SUITE_P(ComponentLabelingSEQ, ArtyushkinaMarkirovkaFuncTests, kGtestValuesSEQ, kPerfTestNameSEQ);
 
 // OMP тесты
 const auto kTestTasksListOMP =
