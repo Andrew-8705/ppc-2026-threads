@@ -1,5 +1,6 @@
 #pragma once
 
+#include <utility>
 #include <vector>
 
 #include "chyokotov_a_dense_matrix_mul_foxs_algorithm/common/include/common.hpp"
@@ -7,12 +8,12 @@
 
 namespace chyokotov_a_dense_matrix_mul_foxs_algorithm {
 
-class ChyokotovADenseMatMulFoxAlgorithmSEQ : public BaseTask {
+class ChyokotovADenseMatMulFoxAlgorithmSTL : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
-    return ppc::task::TypeOfTask::kSEQ;
+    return ppc::task::TypeOfTask::kSTL;
   }
-  explicit ChyokotovADenseMatMulFoxAlgorithmSEQ(const InType &in);
+  explicit ChyokotovADenseMatMulFoxAlgorithmSTL(const InType &in);
 
  private:
   bool ValidationImpl() override;
@@ -22,6 +23,7 @@ class ChyokotovADenseMatMulFoxAlgorithmSEQ : public BaseTask {
 
   static int CalculateBlockSize(int n);
   static int CountBlock(int n, int size);
+  std::vector<std::pair<int, int>> Blocks(int count_block);
   void Matmul(std::vector<double> &a, std::vector<double> &b, int n, int istart, int iend, int jstart, int jend,
               int kstart, int kend);
 };
