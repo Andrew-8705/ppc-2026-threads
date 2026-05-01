@@ -31,7 +31,7 @@ class BaldinARadixSortPerfTests : public ppc::util::BaseRunPerfTests<InType, Out
 
   bool CheckTestOutputData(OutType &output_data) final {
     int rank = 0;
-    
+
     if (ppc::util::IsUnderMpirun()) {
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     }

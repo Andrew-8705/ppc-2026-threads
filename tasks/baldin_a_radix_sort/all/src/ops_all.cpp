@@ -24,11 +24,11 @@ bool BaldinARadixSortALL::ValidationImpl() {
 
 bool BaldinARadixSortALL::PreProcessingImpl() {
   int rank = 0;
-  
+
   if (ppc::util::IsUnderMpirun()) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   }
-  
+
   if (rank == 0) {
     GetOutput() = GetInput();
   }
@@ -118,8 +118,8 @@ void BaldinARadixSortALL::DistributeData(int rank, int size, int &n) {
   local_data_.resize(counts_[rank]);
 
   if (is_mpi) {
-    MPI_Scatterv(rank == 0 ? GetOutput().data() : nullptr, counts_.data(), displs_.data(), MPI_INT,
-                 local_data_.data(), counts_[rank], MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(rank == 0 ? GetOutput().data() : nullptr, counts_.data(), displs_.data(), MPI_INT, local_data_.data(),
+                 counts_[rank], MPI_INT, 0, MPI_COMM_WORLD);
   } else {
     local_data_ = GetOutput();
   }
@@ -129,9 +129,8 @@ void BaldinARadixSortALL::GatherData(int rank) {
   bool is_mpi = ppc::util::IsUnderMpirun();
 
   if (is_mpi) {
-    MPI_Gatherv(local_data_.data(), counts_[rank], MPI_INT,
-                rank == 0 ? GetOutput().data() : nullptr, counts_.data(), displs_.data(), MPI_INT, 
-                0, MPI_COMM_WORLD);
+    MPI_Gatherv(local_data_.data(), counts_[rank], MPI_INT, rank == 0 ? GetOutput().data() : nullptr, counts_.data(),
+                displs_.data(), MPI_INT, 0, MPI_COMM_WORLD);
   } else {
     GetOutput() = local_data_;
   }
@@ -173,27 +172,27 @@ bool BaldinARadixSortALL::RunImpl() {
     local_offsets[num_threads] = local_n;
 
 #pragma omp parallel num_threads(num_threads) default(none) shared(num_threads, local_offsets, local_data_)
-      {
-        int tid = omp_get_thread_num();
-        auto begin = local_data_.begin() + local_offsets[tid];
-        auto end = local_data_.begin() + local_offsets[tid + 1];
-        RadixSortLocal(begin, end);
-      }
+    {
+      int tid = omp_get_thread_num();
+      auto begin = local_data_.begin() + local_offsets[tid];
+      auto end = local_data_.begin() + local_offsets[tid + 1];
+      RadixSortLocal(begin, end);
+    }
 
-      for (int step = 1; step < num_threads; step *= 2) {
+    for (int step = 1; step < num_threads; step *= 2) {
 #pragma omp parallel for num_threads(num_threads) default(none) shared(step, num_threads, local_offsets, local_data_)
-        for (int i = 0; i < num_threads; i += 2 * step) {
-          if (i + step < num_threads) {
-            auto begin = local_data_.begin() + local_offsets[i];
-            auto middle = local_data_.begin() + local_offsets[i + step];
-            int end_idx = std::min(i + (2 * step), num_threads);
-            auto end = local_data_.begin() + local_offsets[end_idx];
+      for (int i = 0; i < num_threads; i += 2 * step) {
+        if (i + step < num_threads) {
+          auto begin = local_data_.begin() + local_offsets[i];
+          auto middle = local_data_.begin() + local_offsets[i + step];
+          int end_idx = std::min(i + (2 * step), num_threads);
+          auto end = local_data_.begin() + local_offsets[end_idx];
 
-            std::inplace_merge(begin, middle, end);
-          }
+          std::inplace_merge(begin, middle, end);
         }
       }
     }
+  }
 
   GatherData(rank);
 
