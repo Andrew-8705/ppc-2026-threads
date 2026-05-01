@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <mpi.h>
 
 #include <algorithm>
 #include <climits>
@@ -29,6 +30,16 @@ class BaldinARadixSortPerfTests : public ppc::util::BaseRunPerfTests<InType, Out
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
+    int rank = 0;
+    
+    if (ppc::util::IsUnderMpirun()) {
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    }
+
+    if (rank != 0) {
+      return true;
+    }
+
     return std::ranges::is_sorted(output_data);
   }
 
