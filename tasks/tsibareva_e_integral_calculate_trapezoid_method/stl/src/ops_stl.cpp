@@ -37,7 +37,7 @@ bool TsibarevaEIntegralCalculateTrapezoidMethodSTL::RunImpl() {
     total_nodes *= sizes[i];
   }
 
-  const int num_threads = ppc::util::GetNumThreads();
+  const int num_threads = std::max(1, std::min(ppc::util::GetNumThreads(), total_nodes));
   std::vector<std::thread> threads(num_threads);
   std::vector<double> partial_sums(num_threads, 0.0);
 
