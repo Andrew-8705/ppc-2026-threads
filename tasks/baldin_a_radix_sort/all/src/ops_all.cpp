@@ -171,22 +171,24 @@ bool BaldinARadixSortALL::RunImpl() {
     }
     local_offsets[num_threads] = local_n;
 
-#pragma omp parallel num_threads(num_threads) default(none) shared(num_threads, local_offsets, local_data_)
+    auto &local_data_ref = local_data_;
+
+#pragma omp parallel num_threads(num_threads) default(none) shared(num_threads, local_offsets, local_data_ref)
     {
       int tid = omp_get_thread_num();
-      auto begin = local_data_.begin() + local_offsets[tid];
-      auto end = local_data_.begin() + local_offsets[tid + 1];
+      auto begin = local_data_ref.begin() + local_offsets[tid];
+      auto end = local_data_ref.begin() + local_offsets[tid + 1];
       RadixSortLocal(begin, end);
     }
 
     for (int step = 1; step < num_threads; step *= 2) {
-#pragma omp parallel for num_threads(num_threads) default(none) shared(step, num_threads, local_offsets, local_data_)
+#pragma omp parallel for num_threads(num_threads) default(none) shared(step, num_threads, local_offsets, local_data_ref)
       for (int i = 0; i < num_threads; i += 2 * step) {
         if (i + step < num_threads) {
-          auto begin = local_data_.begin() + local_offsets[i];
-          auto middle = local_data_.begin() + local_offsets[i + step];
+          auto begin = local_data_ref.begin() + local_offsets[i];
+          auto middle = local_data_ref.begin() + local_offsets[i + step];
           int end_idx = std::min(i + (2 * step), num_threads);
-          auto end = local_data_.begin() + local_offsets[end_idx];
+          auto end = local_data_ref.begin() + local_offsets[end_idx];
 
           std::inplace_merge(begin, middle, end);
         }
