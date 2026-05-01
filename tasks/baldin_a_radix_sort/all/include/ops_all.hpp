@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include "baldin_a_radix_sort/common/include/common.hpp"
 #include "task/include/task.hpp"
 
@@ -22,6 +20,9 @@ class BaldinARadixSortALL : public BaseTask {
 
   void DistributeData(int rank, int size, int &n);
   void GatherData(int rank);
+
+  void LocalSort(int num_threads);
+  void GlobalMerge(int num_threads, int size, int n);
 
   std::vector<int> counts_;
   std::vector<int> displs_;
