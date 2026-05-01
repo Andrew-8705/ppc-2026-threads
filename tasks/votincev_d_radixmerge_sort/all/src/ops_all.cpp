@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "votincev_d_radixmerge_sort/common/include/common.hpp"
@@ -106,12 +107,53 @@ void VotincevDRadixMergeSortALL::OmpLocalSortAndMerge(std::vector<uint32_t> &loc
 #pragma omp barrier
       if (tid % (2 * step) == 0 && tid + step < n_threads) {
         int32_t m = get_offset(tid + step);
-        int32_t next_id = (tid + 2 * step < n_threads) ? (tid + 2 * step) : n_threads;
+        int32_t next_id = (tid + (2 * step) < n_threads) ? (tid + (2 * step)) : n_threads;
         int32_t next_r = get_offset(next_id);
 
         Merge(local_data.data(), temp_buffer.data(), l, m, next_r);
         std::ranges::copy(temp_buffer.begin() + l, temp_buffer.begin() + next_r, local_data.begin() + l);
       }
+    }
+  }
+}
+
+int32_t VotincevDRadixMergeSortALL::ScatterData(int32_t rank, int32_t n, int32_t local_n,
+                                                const std::vector<int32_t> &send_counts,
+                                                const std::vector<int32_t> &displacements,
+                                                std::vector<uint32_t> &local_data) {
+  int32_t min_val = 0;
+  if (rank == 0) {
+    min_val = *std::ranges::min_element(input_);
+    std::vector<uint32_t> unsigned_input(static_cast<size_t>(n));
+    for (int32_t i = 0; i < n; ++i) {
+      unsigned_input.at(static_cast<size_t>(i)) = static_cast<uint32_t>(input_.at(static_cast<size_t>(i)) - min_val);
+    }
+    MPI_Bcast(&min_val, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(unsigned_input.data(), send_counts.data(), displacements.data(), MPI_UINT32_T, local_data.data(),
+                 local_n, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+  } else {
+    MPI_Bcast(&min_val, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(nullptr, send_counts.data(), displacements.data(), MPI_UINT32_T, local_data.data(), local_n,
+                 MPI_UINT32_T, 0, MPI_COMM_WORLD);
+  }
+  return min_val;
+}
+
+void VotincevDRadixMergeSortALL::FinalMergeAndFormat(int32_t rank, int32_t size, int32_t n, int32_t min_val,
+                                                     std::vector<uint32_t> &gathered_data,
+                                                     const std::vector<int32_t> &displacements) {
+  if (rank == 0) {
+    for (int32_t i = 1; i < size; ++i) {
+      int32_t mid = displacements.at(static_cast<size_t>(i));
+      int32_t next_idx = i + 1;
+      int32_t right = (next_idx >= size) ? n : displacements.at(static_cast<size_t>(next_idx));
+      std::ranges::inplace_merge(gathered_data.begin(), gathered_data.begin() + mid, gathered_data.begin() + right);
+    }
+
+    output_.resize(static_cast<size_t>(n));
+    for (int32_t i = 0; i < n; ++i) {
+      auto idx = static_cast<size_t>(i);
+      output_.at(idx) = static_cast<int32_t>(gathered_data.at(idx) + static_cast<uint32_t>(min_val));
     }
   }
 }
@@ -122,7 +164,7 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  auto n = (rank == 0) ? static_cast<int32_t>(input_.size()) : 0;
+  int32_t n = (rank == 0) ? static_cast<int32_t>(input_.size()) : 0;
   MPI_Bcast(&n, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
 
   std::vector<int32_t> send_counts(static_cast<size_t>(size));
@@ -139,21 +181,7 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
   auto local_n = send_counts.at(static_cast<size_t>(rank));
   std::vector<uint32_t> local_data(static_cast<size_t>(local_n));
 
-  int32_t min_val = 0;
-  if (rank == 0) {
-    min_val = *std::ranges::min_element(input_);
-    std::vector<uint32_t> unsigned_input(static_cast<size_t>(n));
-    for (int32_t i = 0; i < n; ++i) {
-      unsigned_input.at(static_cast<size_t>(i)) = static_cast<uint32_t>(input_.at(static_cast<size_t>(i)) - min_val);
-    }
-    MPI_Bcast(&min_val, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
-    MPI_Scatterv(unsigned_input.data(), send_counts.data(), displacements.data(), MPI_UINT32_T, local_data.data(),
-                 local_n, MPI_UINT32_T, 0, MPI_COMM_WORLD);
-  } else {
-    MPI_Bcast(&min_val, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
-    MPI_Scatterv(nullptr, send_counts.data(), displacements.data(), MPI_UINT32_T, local_data.data(), local_n,
-                 MPI_UINT32_T, 0, MPI_COMM_WORLD);
-  }
+  int32_t min_val = ScatterData(rank, n, local_n, send_counts, displacements, local_data);
 
   OmpLocalSortAndMerge(local_data);
 
@@ -165,20 +193,7 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
   MPI_Gatherv(local_data.data(), local_n, MPI_UINT32_T, gathered_data.data(), send_counts.data(), displacements.data(),
               MPI_UINT32_T, 0, MPI_COMM_WORLD);
 
-  if (rank == 0) {
-    for (int32_t i = 1; i < size; ++i) {
-      int32_t mid = displacements.at(static_cast<size_t>(i));
-      int32_t next_idx = i + 1;
-      int32_t right = (next_idx >= size) ? n : displacements.at(static_cast<size_t>(next_idx));
-      std::ranges::inplace_merge(gathered_data.begin(), gathered_data.begin() + mid, gathered_data.begin() + right);
-    }
-
-    output_.resize(static_cast<size_t>(n));
-    for (int32_t i = 0; i < n; ++i) {
-      auto idx = static_cast<size_t>(i);
-      output_.at(idx) = static_cast<int32_t>(gathered_data.at(idx) + static_cast<uint32_t>(min_val));
-    }
-  }
+  FinalMergeAndFormat(rank, size, n, min_val, gathered_data, displacements);
 
   return true;
 }
