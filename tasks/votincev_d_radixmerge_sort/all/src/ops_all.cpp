@@ -111,7 +111,7 @@ void VotincevDRadixMergeSortALL::OmpLocalSortAndMerge(std::vector<uint32_t> &loc
         int32_t next_r = get_offset(next_id);
 
         Merge(local_data.data(), temp_buffer.data(), l, m, next_r);
-        std::ranges::copy(temp_buffer.begin() + l, temp_buffer.begin() + next_r, local_data.begin() + l);
+        std::copy(temp_buffer.begin() + l, temp_buffer.begin() + next_r, local_data.begin() + l);
       }
     }
   }
@@ -195,7 +195,10 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
 
   FinalMergeAndFormat(rank, size, n, min_val, gathered_data, displacements);
 
-  GetOutput() = std::move(output_);
+  if (rank == 0) {
+    GetOutput() = std::move(output_);
+  }
+
   return true;
 }
 
