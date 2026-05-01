@@ -195,6 +195,7 @@ bool VotincevDRadixMergeSortALL::RunImpl() {
 
   FinalMergeAndFormat(rank, size, n, min_val, gathered_data, displacements);
 
+  GetOutput() = std::move(output_);
   return true;
 }
 
