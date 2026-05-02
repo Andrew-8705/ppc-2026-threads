@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <tuple>
 #include <vector>
 
 #include "dolov_v_crs_mat_mult/common/include/common.hpp"
