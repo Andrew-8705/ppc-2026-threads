@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "orehov_n_jarvis_pass/common/include/common.hpp"
@@ -118,8 +119,8 @@ bool OrehovNJarvisPassALL::RunImpl() {
 OrehovNJarvisPassALL::BestState OrehovNJarvisPassALL::LocalFindBest(const Point &current, size_t start,
                                                                     size_t end) const {
   BestState local_best;
-  // Сохраняем this в переменную, разрешённую в shared
-  auto *self = this;
+  // Сохраняем this в константную переменную для shared
+  const auto *self = this;
 #pragma omp parallel default(none) shared(local_best, start, end, current, self)
   {
     BestState thread_best;
@@ -151,7 +152,7 @@ OrehovNJarvisPassALL::BestState OrehovNJarvisPassALL::LocalFindBest(const Point 
 OrehovNJarvisPassALL::BestState OrehovNJarvisPassALL::GlobalReduce(const std::vector<double> &all_data, int size,
                                                                    const Point &current) {
   BestState global_best;
-  for (size_t i = 0; i < static_cast<size_t>(size); ++i) {
+  for (size_t i = 0; std::cmp_less(i, static_cast<size_t>(size)); ++i) {
     double x = all_data[3 * i];
     double y = all_data[(3 * i) + 1];
     bool v = (all_data[(3 * i) + 2] != 0.0);
@@ -185,7 +186,7 @@ Point OrehovNJarvisPassALL::FindNext(Point current) const {
   size_t chunk = n / size;
   size_t rest = n % size;
   size_t start = (static_cast<size_t>(rank) * chunk) + std::min(static_cast<size_t>(rank), rest);
-  size_t end = start + chunk + (static_cast<size_t>(rank) < rest ? 1 : 0);
+  size_t end = start + chunk + (std::cmp_less(static_cast<size_t>(rank), rest) ? 1 : 0);
 
   BestState local_best = LocalFindBest(current, start, end);
 
