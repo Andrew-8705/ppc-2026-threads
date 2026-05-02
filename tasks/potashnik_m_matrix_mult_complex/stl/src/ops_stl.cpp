@@ -1,5 +1,6 @@
 #include "potashnik_m_matrix_mult_complex/stl/include/ops_stl.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <thread>
@@ -25,6 +26,29 @@ bool PotashnikMMatrixMultComplexSTL::PreProcessingImpl() {
   return true;
 }
 
+namespace {
+
+using Key = std::pair<size_t, size_t>;
+using LocalMap = std::map<Key, Complex>;
+
+void ProcessChunk(size_t begin, size_t end, const CCSMatrix &matrix_right, const std::vector<Complex> &val_left,
+                  const std::vector<size_t> &row_ind_left, const std::vector<size_t> &col_ptr_left,
+                  LocalMap &local_buffer) {
+  for (size_t i = begin; i < end; ++i) {
+    size_t row_left = row_ind_left[i];
+    size_t col_left = col_ptr_left[i];
+    Complex left_val = val_left[i];
+
+    for (size_t j = 0; j < matrix_right.Count(); ++j) {
+      if (col_left == matrix_right.row_ind[j]) {
+        local_buffer[{row_left, matrix_right.col_ptr[j]}] += left_val * matrix_right.val[j];
+      }
+    }
+  }
+}
+
+}  // namespace
+
 bool PotashnikMMatrixMultComplexSTL::RunImpl() {
   const auto &matrix_left = std::get<0>(GetInput());
   const auto &matrix_right = std::get<1>(GetInput());
@@ -33,10 +57,6 @@ bool PotashnikMMatrixMultComplexSTL::RunImpl() {
   const auto &row_ind_left = matrix_left.row_ind;
   const auto &col_ptr_left = matrix_left.col_ptr;
   size_t height_left = matrix_left.height;
-
-  const auto &val_right = matrix_right.val;
-  const auto &row_ind_right = matrix_right.row_ind;
-  const auto &col_ptr_right = matrix_right.col_ptr;
   size_t width_right = matrix_right.width;
 
   size_t left_count = matrix_left.Count();
@@ -45,32 +65,17 @@ bool PotashnikMMatrixMultComplexSTL::RunImpl() {
     num_threads = 1;
   }
 
-  using Key = std::pair<size_t, size_t>;
-  using LocalMap = std::map<Key, Complex>;
-
   std::vector<LocalMap> local_buffers(num_threads);
   std::vector<std::thread> threads(num_threads);
 
   size_t chunk = (left_count + num_threads - 1) / num_threads;
 
-  for (size_t t = 0; t < num_threads; ++t) {
-    size_t begin = t * chunk;
+  for (size_t thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    size_t begin = thread_idx * chunk;
     size_t end = std::min(begin + chunk, left_count);
 
-    threads[t] = std::thread([&, t, begin, end]() {
-      auto &local_buffer = local_buffers[t];
-
-      for (size_t i = begin; i < end; ++i) {
-        size_t row_left = row_ind_left[i];
-        size_t col_left = col_ptr_left[i];
-        Complex left_val = val_left[i];
-
-        for (size_t j = 0; j < matrix_right.Count(); ++j) {
-          if (col_left == row_ind_right[j]) {
-            local_buffer[{row_left, col_ptr_right[j]}] += left_val * val_right[j];
-          }
-        }
-      }
+    threads[thread_idx] = std::thread([&, thread_idx, begin, end]() {
+      ProcessChunk(begin, end, matrix_right, val_left, row_ind_left, col_ptr_left, local_buffers[thread_idx]);
     });
   }
 
