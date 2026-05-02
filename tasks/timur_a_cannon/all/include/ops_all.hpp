@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "task/include/task.hpp"
 #include "timur_a_cannon/common/include/common.hpp"
 
 namespace timur_a_cannon {
