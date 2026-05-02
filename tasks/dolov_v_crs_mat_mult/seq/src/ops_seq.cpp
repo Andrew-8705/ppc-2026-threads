@@ -1,11 +1,11 @@
-#include "dolov_v_crs_mat_mult_seq/seq/include/ops_seq.hpp"
+#include "dolov_v_crs_mat_mult/seq/include/ops_seq.hpp"
 
 #include <cmath>
 #include <vector>
 
-#include "dolov_v_crs_mat_mult_seq/common/include/common.hpp"
+#include "dolov_v_crs_mat_mult/common/include/common.hpp"
 
-namespace dolov_v_crs_mat_mult_seq {
+namespace dolov_v_crs_mat_mult {
 
 DolovVCrsMatMultSeq::DolovVCrsMatMultSeq(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
@@ -109,4 +109,4 @@ bool DolovVCrsMatMultSeq::PostProcessingImpl() {
   return true;
 }
 
-}  // namespace dolov_v_crs_mat_mult_seq
+}  // namespace dolov_v_crs_mat_mult
