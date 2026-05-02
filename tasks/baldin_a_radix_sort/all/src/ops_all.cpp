@@ -12,7 +12,7 @@
 #include "baldin_a_radix_sort/common/include/common.hpp"
 #include "util/include/util.hpp"
 
-namespace baldin_a_radix_sort { // comment for ci rerun
+namespace baldin_a_radix_sort {  // comment for ci rerun
 
 BaldinARadixSortALL::BaldinARadixSortALL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
