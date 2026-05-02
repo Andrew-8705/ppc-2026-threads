@@ -46,17 +46,15 @@ bool KrykovESobelOpSTL::RunImpl() {
   const int h = height_;
   const int w = width_;
 
-
   unsigned int num_threads = std::thread::hardware_concurrency();
   if (num_threads == 0) {
-    num_threads = 2; 
+    num_threads = 2;
   }
 
-  const int total_rows = h - 2;  
+  const int total_rows = h - 2;
   if (total_rows <= 0) {
-    return true;  
+    return true;
   }
-
 
   const int rows_per_thread = total_rows / static_cast<int>(num_threads);
   const int remainder = total_rows % static_cast<int>(num_threads);
@@ -71,27 +69,25 @@ bool KrykovESobelOpSTL::RunImpl() {
     int end_row = start_row + chunk_rows;
     next_start = end_row;
 
-    threads.emplace_back(
-        [&, start_row, end_row]() {
-          for (int row = start_row; row < end_row; ++row) {
-            for (int col = 1; col < w - 1; ++col) {
-              int gx = 0;
-              int gy = 0;
+    threads.emplace_back([&, start_row, end_row]() {
+      for (int row = start_row; row < end_row; ++row) {
+        for (int col = 1; col < w - 1; ++col) {
+          int gx = 0;
+          int gy = 0;
 
-              for (int ky = -1; ky <= 1; ++ky) {
-                for (int kx = -1; kx <= 1; ++kx) {
-                  int pixel = gray[((row + ky) * w) + (col + kx)];
-                  gx += pixel * gx_kernel[ky + 1][kx + 1];
-                  gy += pixel * gy_kernel[ky + 1][kx + 1];
-                }
-              }
-
-              int magnitude = static_cast<int>(
-                  std::sqrt(static_cast<double>((gx * gx) + (gy * gy))));
-              output[(row * w) + col] = magnitude;
+          for (int ky = -1; ky <= 1; ++ky) {
+            for (int kx = -1; kx <= 1; ++kx) {
+              int pixel = gray[((row + ky) * w) + (col + kx)];
+              gx += pixel * gx_kernel[ky + 1][kx + 1];
+              gy += pixel * gy_kernel[ky + 1][kx + 1];
             }
           }
-        });
+
+          int magnitude = static_cast<int>(std::sqrt(static_cast<double>((gx * gx) + (gy * gy))));
+          output[(row * w) + col] = magnitude;
+        }
+      }
+    });
   }
 
   for (auto &t : threads) {
