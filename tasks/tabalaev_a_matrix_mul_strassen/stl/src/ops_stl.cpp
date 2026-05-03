@@ -12,7 +12,8 @@
 
 namespace tabalaev_a_matrix_mul_strassen {
 
-static constexpr std::size_t kBaseCaseSize = 512;
+static constexpr std::size_t kBaseCaseSize = 256;
+static constexpr std::size_t kParallelThreshold = 16384;
 
 namespace {
 template <typename fnc>
@@ -82,7 +83,7 @@ bool TabalaevAMatrixMulStrassenSTL::PreProcessingImpl() {
   padded_a_.assign(padded_n_ * padded_n_, 0.0);
   padded_b_.assign(padded_n_ * padded_n_, 0.0);
 
-  RunParallel(0, a_rows_, 65536, [&](std::size_t i) {
+  RunParallel(0, a_rows_, kParallelThreshold, [&](std::size_t i) {
     std::size_t i_padded = i * padded_n_;
     std::size_t i_cols = i * a_cols_b_rows_;
     for (std::size_t j = 0; j < a_cols_b_rows_; ++j) {
@@ -90,7 +91,7 @@ bool TabalaevAMatrixMulStrassenSTL::PreProcessingImpl() {
     }
   });
 
-  RunParallel(0, a_cols_b_rows_, 65536, [&](std::size_t i) {
+  RunParallel(0, a_cols_b_rows_, kParallelThreshold, [&](std::size_t i) {
     std::size_t i_padded = i * padded_n_;
     std::size_t i_cols = i * b_cols_;
     for (std::size_t j = 0; j < b_cols_; ++j) {
@@ -107,7 +108,7 @@ bool TabalaevAMatrixMulStrassenSTL::RunImpl() {
   auto &out = GetOutput();
   out.assign(a_rows_ * b_cols_, 0.0);
 
-  RunParallel(0, a_rows_, 65536, [&](std::size_t i) {
+  RunParallel(0, a_rows_, kParallelThreshold, [&](std::size_t i) {
     std::size_t i_cols = i * b_cols_;
     std::size_t i_padded = i * padded_n_;
     for (std::size_t j = 0; j < b_cols_; ++j) {
@@ -133,8 +134,7 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::Add(const std::vector<double>
 
   double *res_ptr = res.data();
 
-  RunParallel(0, n, 65536, [&](std::size_t i) { res_ptr[i] = a_ptr[i] + b_ptr[i]; });
-
+  RunParallel(0, n, kParallelThreshold, [&](std::size_t i) { res_ptr[i] = a_ptr[i] + b_ptr[i]; });
   return res;
 }
 
@@ -149,7 +149,7 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::Subtract(const std::vector<do
 
   double *res_ptr = res.data();
 
-  RunParallel(0, n, 65536, [&](std::size_t i) { res_ptr[i] = a_ptr[i] - b_ptr[i]; });
+  RunParallel(0, n, kParallelThreshold, [&](std::size_t i) { res_ptr[i] = a_ptr[i] - b_ptr[i]; });
 
   return res;
 }
@@ -163,7 +163,7 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::BaseMultiply(const std::vecto
 
   double *res_ptr = res.data();
 
-  RunParallel(0, n, 65536, [&](std::size_t i) {
+  RunParallel(0, n, kParallelThreshold, [&](std::size_t i) {
     std::size_t i_n = i * n;
     for (std::size_t k = 0; k < n; ++k) {
       double temp = a_ptr[i_n + k];
@@ -196,7 +196,7 @@ void TabalaevAMatrixMulStrassenSTL::SplitMatrix(const std::vector<double> &src, 
   double *c21_ptr = c21.data();
   double *c22_ptr = c22.data();
 
-  RunParallel(0, h, 65536, [&](std::size_t i) {
+  RunParallel(0, h, kParallelThreshold, [&](std::size_t i) {
     std::size_t i_n = i * n;
     std::size_t i_h = i * h;
     std::size_t h_n = h * n;
@@ -224,7 +224,7 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::CombineMatrix(const std::vect
   const double *c22_ptr = c22.data();
   double *res_ptr = res.data();
 
-  RunParallel(0, h, 65536, [&](std::size_t i) {
+  RunParallel(0, h, kParallelThreshold, [&](std::size_t i) {
     std::size_t i_h = i * h;
     std::size_t i_n = i * n;
     std::size_t ih_n = (i + h) * n;
@@ -275,7 +275,7 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::StrassenMultiply(const std::v
       double *c21_ptr = c21.data();
       double *c22_ptr = c22.data();
 
-      RunParallel(0, sz, 65536, [&](std::size_t i) {
+      RunParallel(0, sz, kParallelThreshold, [&](std::size_t i) {
         c11_ptr[i] = p[0][i] + p[3][i] - p[4][i] + p[6][i];
         c12_ptr[i] = p[2][i] + p[4][i];
         c21_ptr[i] = p[1][i] + p[3][i];

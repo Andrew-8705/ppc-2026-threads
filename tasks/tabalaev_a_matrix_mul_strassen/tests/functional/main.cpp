@@ -85,10 +85,13 @@ TEST_P(TabalaevAMatrixMulStrassenFuncTests, MatrixMultiply) {
   ExecuteTest(GetParam());
 }
 
-const std::array<TestType, 6> kTestParam = {
-    std::make_tuple(3, 3, 3, 50, "SmallPadded"),        std::make_tuple(4, 4, 4, 50, "SmallPowerOfTwo_4x4"),
-    std::make_tuple(15, 5, 15, 150, "MediumPadded"),    std::make_tuple(16, 16, 16, 150, "MediumPowerOfTwo_16x16"),
-    std::make_tuple(255, 255, 255, 300, "LargePadded"), std::make_tuple(256, 256, 256, 300, "LargePowerOfTwo_256x256")};
+const std::array<TestType, 7> kTestParam = {std::make_tuple(3, 3, 3, 50, "SmallPadded"),
+                                            std::make_tuple(4, 4, 4, 50, "SmallPowerOfTwo_4x4"),
+                                            std::make_tuple(15, 5, 15, 150, "MediumPadded"),
+                                            std::make_tuple(16, 16, 16, 150, "MediumPowerOfTwo_16x16"),
+                                            std::make_tuple(255, 255, 255, 300, "LargePadded"),
+                                            std::make_tuple(256, 256, 256, 300, "LargePowerOfTwo_256x256"),
+                                            std::make_tuple(512, 512, 512, 300, "LargePowerOfTwo_512x512")};
 
 const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<TabalaevAMatrixMulStrassenSEQ, InType>(
                                                kTestParam, PPC_SETTINGS_tabalaev_a_matrix_mul_strassen),
