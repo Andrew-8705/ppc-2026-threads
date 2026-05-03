@@ -26,17 +26,15 @@ void RunParallel(std::size_t begin, std::size_t end, std::size_t threshold, cons
     return;
   }
 
-  std::size_t num_threads = static_cast<std::size_t>(ppc::util::GetNumThreads());
+  auto num_threads = static_cast<std::size_t>(ppc::util::GetNumThreads());
 
-  if (num_threads > total) {
-    num_threads = total;
-  }
+  num_threads = std::min(num_threads, total);
 
   std::vector<std::thread> threads;
   std::size_t chunk_size = total / num_threads;
 
   for (std::size_t i = 0; i < num_threads; ++i) {
-    std::size_t current_start = begin + i * chunk_size;
+    std::size_t current_start = begin + (i * chunk_size);
 
     std::size_t current_end = (i == num_threads - 1) ? end : current_start + chunk_size;
 
