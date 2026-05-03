@@ -103,11 +103,9 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-  // --- broadcast matr_b fully to all ranks ---
   SparseMatrix local_b = (rank == 0) ? std::get<1>(GetInput()) : SparseMatrix{};
   BroadcastMatrix(local_b);
 
-  // --- broadcast total count and dimensions of matr_a ---
   size_t total = 0;
   size_t a_height = 0;
   size_t a_width = 0;
@@ -121,7 +119,6 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   MPI_Bcast(&a_height, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
   MPI_Bcast(&a_width, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
 
-  // --- compute scatter layout ---
   int blocksize = static_cast<int>(total) / world_size;
   int leftover = static_cast<int>(total) % world_size;
   std::vector<int> sendcounts(world_size), displs(world_size);
@@ -133,14 +130,12 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   }
   int local_count = sendcounts[rank];
 
-  // --- send/receive matr_a chunks ---
   std::vector<size_t> local_rows(local_count), local_cols(local_count);
   std::vector<double> local_re(local_count), local_im(local_count);
 
   if (rank == 0) {
     const auto &ma = std::get<0>(GetInput());
 
-    // fill rank 0's own chunk directly
     std::copy(ma.row_ind.begin(), ma.row_ind.begin() + local_count, local_rows.begin());
     std::copy(ma.col_ind.begin(), ma.col_ind.begin() + local_count, local_cols.begin());
     for (int i = 0; i < local_count; ++i) {
@@ -148,7 +143,6 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
       local_im[i] = ma.val[i].im;
     }
 
-    // send each other rank its chunk directly from the original buffer
     for (int p = 1; p < world_size; ++p) {
       int cnt = sendcounts[p];
       int dsp = displs[p];
@@ -171,7 +165,6 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
     MPI_Recv(local_im.data(), local_count, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   }
 
-  // --- reconstruct local chunk of matr_a ---
   SparseMatrix local_a;
   local_a.height = a_height;
   local_a.width = a_width;
@@ -182,10 +175,8 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
     local_a.val[i] = Complex(local_re[i], local_im[i]);
   }
 
-  // --- each rank computes its chunk ---
   auto local_mp = ComputeLocalChunk(local_a, local_b, 0, static_cast<size_t>(local_count));
 
-  // --- serialize local results ---
   std::vector<size_t> rows, cols;
   std::vector<double> re_vals, im_vals;
   for (const auto &[key, val] : local_mp) {
@@ -195,7 +186,6 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
     im_vals.push_back(val.im);
   }
 
-  // --- gather result counts to rank 0 ---
   int res_local_count = static_cast<int>(rows.size());
   std::vector<int> all_counts(world_size);
   MPI_Gather(&res_local_count, 1, MPI_INT, all_counts.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -221,7 +211,6 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   MPI_Gatherv(im_vals.data(), res_local_count, MPI_DOUBLE, all_im.data(), all_counts.data(), res_displs.data(),
               MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  // --- rank 0 assembles final result ---
   if (rank == 0) {
     std::map<std::pair<size_t, size_t>, Complex> final_mp;
     for (int i = 0; i < total_count; ++i) {
