@@ -18,7 +18,6 @@ struct SparseColumn {
   std::vector<std::complex<double>> vals;
 };
 
-// Анонимное пространство имен с функциями-хелперами
 namespace {
 
 void ComputeColumnTask(int col_idx, const MatrixCCS &matrix_a, const MatrixCCS &matrix_b,
@@ -42,7 +41,6 @@ void ComputeColumnTask(int col_idx, const MatrixCCS &matrix_a, const MatrixCCS &
   }
 }
 
-// Хелпер: Разворачивает локальные столбцы в плоские массивы для MPI
 void FlattenLocalColumns(const std::vector<SparseColumn> &local_columns, std::vector<int> &local_rows,
                          std::vector<double> &local_vals_real, std::vector<double> &local_vals_imag) {
   for (const auto &col : local_columns) {
@@ -54,7 +52,6 @@ void FlattenLocalColumns(const std::vector<SparseColumn> &local_columns, std::ve
   }
 }
 
-// Хелпер: Подготовка массивов recv_counts и displs_cols для сбора информации о размерах
 void PrepareGatherCounts(int size, int cols_per_rank, int remainder, int cols, std::vector<int> &recv_counts,
                          std::vector<int> &displs_cols, std::vector<int> &all_nnz_per_col) {
   for (int i = 0; i < size; ++i) {
@@ -64,7 +61,6 @@ void PrepareGatherCounts(int size, int cols_per_rank, int remainder, int cols, s
   all_nnz_per_col.resize(cols);
 }
 
-// Хелпер: Подготовка смещений для сбора основных данных
 void PrepareGatherDisplacements(int size, int cols_per_rank, int remainder, const std::vector<int> &all_nnz_per_col,
                                 std::vector<int> &recv_counts, std::vector<int> &displs_cols,
                                 std::vector<int> &recv_nnz_counts, std::vector<int> &displs_nnz,
@@ -88,7 +84,7 @@ void PrepareGatherDisplacements(int size, int cols_per_rank, int remainder, cons
   }
 }
 
-// Хелпер: Сборка финальной CCS матрицы на 0-м ранге
+// сборка финальной CCS матрицы на 0-м ранге
 void AssembleFinalMatrix(const std::vector<int> &all_nnz_per_col, const std::vector<int> &all_rows,
                          const std::vector<double> &all_vals_real, const std::vector<double> &all_vals_imag, int cols,
                          MatrixCCS &matrix_c) {
@@ -175,7 +171,6 @@ bool ShvetsovaKMultMatrixComplexALL::RunImpl() {
   std::vector<double> local_vals_imag;
   local_vals_imag.reserve(total_local_nnz);
 
-  // Используем хелпер вместо двойного вложенного цикла
   FlattenLocalColumns(local_columns, local_rows, local_vals_real, local_vals_imag);
 
   std::vector<int> recv_counts(size, 0);
@@ -183,7 +178,6 @@ bool ShvetsovaKMultMatrixComplexALL::RunImpl() {
   std::vector<int> all_nnz_per_col;
 
   if (rank == 0) {
-    // Используем хелпер вместо цикла с тернарными операторами
     PrepareGatherCounts(size, cols_per_rank, remainder, matrix_b.cols, recv_counts, displs_cols, all_nnz_per_col);
   }
 
