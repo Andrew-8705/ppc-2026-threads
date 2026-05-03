@@ -50,7 +50,9 @@ void CountingSortStep(std::vector<int>::iterator in_begin, std::vector<int>::ite
 
 void RadixSortLocal(std::vector<int>::iterator begin, std::vector<int>::iterator end) {
   size_t n = std::distance(begin, end);
-  if (n < 2) return;
+  if (n < 2) {
+    return;
+  }
 
   std::vector<int> temp(n);
 
@@ -82,10 +84,14 @@ bool AkimovIRadixSortIntMergeSTL::PreProcessingImpl() {
 bool AkimovIRadixSortIntMergeSTL::RunImpl() {
   auto &arr = GetOutput();
   int n = static_cast<int>(arr.size());
-  if (n == 0) return true;
+  if (n == 0) {
+    return true;
+  }
 
   int num_threads = ppc::util::GetNumThreads();
-  if (n < num_threads * 100) num_threads = 1;
+  if (n < num_threads * 100) {
+    num_threads = 1;
+  }
 
   if (num_threads == 1) {
     RadixSortLocal(arr.begin(), arr.end());
@@ -112,7 +118,9 @@ bool AkimovIRadixSortIntMergeSTL::RunImpl() {
         RadixSortLocal(begin, end);
       });
     }
-    for (auto &t : threads) t.join();
+    for (auto &t : threads) {
+      t.join();
+    }
   }
 
   for (int step = 1; step < num_threads; step *= 2) {
@@ -129,7 +137,9 @@ bool AkimovIRadixSortIntMergeSTL::RunImpl() {
         });
       }
     }
-    for (auto &t : threads) t.join();
+    for (auto &t : threads) {
+      t.join();
+    }
   }
 
   return true;
