@@ -10,6 +10,23 @@
 
 namespace krykov_e_sobel_op {
 
+namespace {
+int ComputeMagnitude(const std::vector<int> &gray, int w, int row, int col,
+                     const std::array<std::array<int, 3>, 3> &gx_kernel,
+                     const std::array<std::array<int, 3>, 3> &gy_kernel) {
+  int gx = 0;
+  int gy = 0;
+  for (int ky = -1; ky <= 1; ++ky) {
+    for (int kx = -1; kx <= 1; ++kx) {
+      int pixel = gray[((row + ky) * w) + (col + kx)];
+      gx += pixel * gx_kernel.at(ky + 1).at(kx + 1);
+      gy += pixel * gy_kernel.at(ky + 1).at(kx + 1);
+    }
+  }
+  return static_cast<int>(std::sqrt(static_cast<double>((gx * gx) + (gy * gy))));
+}
+}  // namespace
+
 KrykovESobelOpSTL::KrykovESobelOpSTL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
@@ -35,21 +52,6 @@ bool KrykovESobelOpSTL::PreProcessingImpl() {
   }
   GetOutput().assign(static_cast<size_t>(width_) * static_cast<size_t>(height_), 0);
   return true;
-}
-
-int ComputeMagnitude(const std::vector<int> &gray, int w, int row, int col,
-                     const std::array<std::array<int, 3>, 3> &gx_kernel,
-                     const std::array<std::array<int, 3>, 3> &gy_kernel) {
-  int gx = 0;
-  int gy = 0;
-  for (int ky = -1; ky <= 1; ++ky) {
-    for (int kx = -1; kx <= 1; ++kx) {
-      int pixel = gray[((row + ky) * w) + (col + kx)];
-      gx += pixel * gx_kernel.at(ky + 1).at(kx + 1);
-      gy += pixel * gy_kernel.at(ky + 1).at(kx + 1);
-    }
-  }
-  return static_cast<int>(std::sqrt(static_cast<double>((gx * gx) + (gy * gy))));
 }
 
 bool KrykovESobelOpSTL::RunImpl() {
