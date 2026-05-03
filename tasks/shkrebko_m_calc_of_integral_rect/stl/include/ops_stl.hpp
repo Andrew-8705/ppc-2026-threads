@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstddef>
-#include <vector>
-
 #include "shkrebko_m_calc_of_integral_rect/common/include/common.hpp"
 #include "task/include/task.hpp"
 

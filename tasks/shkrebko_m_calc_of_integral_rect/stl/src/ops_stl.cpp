@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <functional>
 #include <thread>
 #include <vector>
 
@@ -41,13 +42,45 @@ bool ShkrebkoMCalcOfIntegralRectSTL::PreProcessingImpl() {
   return true;
 }
 
+struct ChunkData {
+  std::size_t start;
+  std::size_t end;
+  const std::vector<double> *h;
+  const InType *input;
+  double *output;
+};
+
+static void ComputeChunkSum(ChunkData data) {
+  const std::size_t dim = data.input->limits.size();
+  const auto &limits = data.input->limits;
+  const auto &n_steps = data.input->n_steps;
+  const auto &func = data.input->func;
+  const std::vector<double> &h = *data.h;
+
+  thread_local std::vector<double> point;
+  if (point.size() != dim) {
+    point.resize(dim);
+  }
+
+  double local_sum = 0.0;
+  for (std::size_t idx = data.start; idx < data.end; ++idx) {
+    std::size_t tmp = idx;
+    for (int i = static_cast<int>(dim) - 1; i >= 0; --i) {
+      std::size_t coord_index = tmp % static_cast<std::size_t>(n_steps[i]);
+      tmp /= static_cast<std::size_t>(n_steps[i]);
+      point[i] = limits[i].first + (static_cast<double>(coord_index) + 0.5) * h[i];
+    }
+    local_sum += func(point);
+  }
+  *data.output = local_sum;
+}
+
 bool ShkrebkoMCalcOfIntegralRectSTL::RunImpl() {
   const std::size_t dim = local_input_.limits.size();
   const auto &limits = local_input_.limits;
   const auto &n_steps = local_input_.n_steps;
   const auto &func = local_input_.func;
 
-  // Вычисляем шаги h и объём одной ячейки
   std::vector<double> h(dim);
   double cell_volume = 1.0;
   std::size_t total_points = 1;
@@ -60,52 +93,24 @@ bool ShkrebkoMCalcOfIntegralRectSTL::RunImpl() {
     total_points *= static_cast<std::size_t>(steps);
   }
 
-  // Количество потоков
-  int num_threads = ppc::util::GetNumThreads();
-  if (num_threads <= 0) {
-    num_threads = static_cast<int>(std::thread::hardware_concurrency());
-  }
-  if (num_threads <= 0) {
-    num_threads = 2;
-  }
+  int thread_count = ppc::util::GetNumThreads();
+  thread_count = std::max(1, std::min(thread_count, static_cast<int>(total_points)));
 
-  // Разбиваем диапазон [0, total_points) на блоки
-  std::size_t chunk = total_points / num_threads;
-  std::size_t remainder = total_points % num_threads;
-
+  std::size_t chunk = total_points / thread_count;
+  std::size_t remainder = total_points % thread_count;
   std::vector<std::thread> threads;
-  std::vector<double> partial_sums(num_threads, 0.0);
-
-  // Лямбда, вычисляющая сумму на отрезке [start, end)
-  auto compute_chunk = [&](std::size_t start, std::size_t end, double &output) {
-    thread_local std::vector<double> point;
-    if (point.size() != dim) {
-      point.resize(dim);
-    }
-
-    double local_sum = 0.0;
-    for (std::size_t idx = start; idx < end; ++idx) {
-      std::size_t tmp = idx;
-      // Преобразование линейного индекса в многомерные координаты
-      for (int i = static_cast<int>(dim) - 1; i >= 0; --i) {
-        std::size_t coord_index = tmp % static_cast<std::size_t>(n_steps[i]);
-        tmp /= static_cast<std::size_t>(n_steps[i]);
-        point[i] = limits[i].first + (static_cast<double>(coord_index) + 0.5) * h[i];
-      }
-      local_sum += func(point);
-    }
-    output = local_sum;
-  };
+  std::vector<double> partial_sums(thread_count, 0.0);
 
   std::size_t start = 0;
-  for (int i = 0; i < num_threads; ++i) {
-    std::size_t end = start + chunk + (static_cast<std::size_t>(i) < remainder ? 1 : 0);
+  for (int i = 0; i < thread_count; ++i) {
+    std::size_t extra = (static_cast<std::size_t>(i) < remainder) ? 1 : 0;
+    std::size_t end = start + chunk + extra;
     if (start >= end) {
       partial_sums[i] = 0.0;
       continue;
     }
-
-    threads.emplace_back(compute_chunk, start, end, std::ref(partial_sums[i]));
+    ChunkData data{start, end, &h, &local_input_, &partial_sums[i]};
+    threads.emplace_back(ComputeChunkSum, data);
     start = end;
   }
 
