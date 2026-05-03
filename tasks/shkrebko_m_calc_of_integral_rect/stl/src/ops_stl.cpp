@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <execution>
+#include <future>
 #include <numeric>
+#include <thread>
 #include <vector>
 
 #include "shkrebko_m_calc_of_integral_rect/common/include/common.hpp"
+#include "util/include/util.hpp"
 
 namespace shkrebko_m_calc_of_integral_rect {
 
@@ -59,28 +61,51 @@ bool ShkrebkoMCalcOfIntegralRectSTL::RunImpl() {
     total_points *= static_cast<std::size_t>(steps);
   }
 
-  std::vector<std::size_t> indices(total_points);
-  std::iota(indices.begin(), indices.end(), 0);
+  int num_threads = ppc::util::GetNumThreads();
+  if (num_threads <= 0) {
+    num_threads = static_cast<int>(std::thread::hardware_concurrency());
+  }
+  if (num_threads <= 0) {
+    num_threads = 2;
+  }
 
-  double total_sum = std::transform_reduce(std::execution::par, indices.begin(), indices.end(), 0.0, std::plus<>(),
-                                           [&](std::size_t idx) -> double {
-    thread_local std::vector<double> point;
-    thread_local std::size_t prev_dim = 0;
+  std::vector<std::future<double>> futures;
+  std::size_t chunk_size = total_points / num_threads;
+  std::size_t remainder = total_points % num_threads;
 
-    if (point.size() != dim) {
-      point.resize(dim);
-      prev_dim = dim;
+  std::size_t start = 0;
+  for (int t = 0; t < num_threads; ++t) {
+    std::size_t end = start + chunk_size + (static_cast<std::size_t>(t) < remainder ? 1 : 0);
+    if (start >= end) {
+      break;
     }
 
-    std::size_t tmp = idx;
-    for (int i = static_cast<int>(dim) - 1; i >= 0; --i) {
-      std::size_t coord_index = tmp % static_cast<std::size_t>(n_steps[i]);
-      tmp /= static_cast<std::size_t>(n_steps[i]);
-      point[i] = limits[i].first + (static_cast<double>(coord_index) + 0.5) * h[i];
-    }
+    futures.push_back(std::async(std::launch::async, [&, start, end]() -> double {
+      thread_local std::vector<double> point;
+      if (point.size() != dim) {
+        point.resize(dim);
+      }
 
-    return func(point);
-  });
+      double local_sum = 0.0;
+      for (std::size_t idx = start; idx < end; ++idx) {
+        std::size_t tmp = idx;
+        for (int i = static_cast<int>(dim) - 1; i >= 0; --i) {
+          std::size_t coord_index = tmp % static_cast<std::size_t>(n_steps[i]);
+          tmp /= static_cast<std::size_t>(n_steps[i]);
+          point[i] = limits[i].first + (static_cast<double>(coord_index) + 0.5) * h[i];
+        }
+        local_sum += func(point);
+      }
+      return local_sum;
+    }));
+
+    start = end;
+  }
+
+  double total_sum = 0.0;
+  for (auto &f : futures) {
+    total_sum += f.get();
+  }
 
   res_ = total_sum * cell_volume;
   return true;
