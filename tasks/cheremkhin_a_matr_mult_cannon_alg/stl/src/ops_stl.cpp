@@ -157,4 +157,4 @@ bool CheremkhinAMatrMultCannonAlgSTL::PostProcessingImpl() {
   return true;
 }
 
-}  // namespace cheremkhin_a_matr_mult_cannon_alg
+}  // namespace  cheremkhin_a_matr_mult_cannon_alg
