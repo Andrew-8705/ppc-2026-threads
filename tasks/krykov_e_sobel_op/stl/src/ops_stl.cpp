@@ -68,7 +68,7 @@ bool KrykovESobelOpSTL::RunImpl() {
     num_threads = 2;
   }
 
-  const unsigned int total_rows = static_cast<unsigned int>(h - 2);
+  const auto total_rows = static_cast<unsigned int>(h - 2);
   if (total_rows == 0) {
     return true;
   }
