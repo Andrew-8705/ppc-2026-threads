@@ -43,7 +43,7 @@ static void BroadcastMatrix(SparseMatrix &m) {
   MPI_Bcast(meta, 3, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
 
   m.height = meta[0];
-  m.width  = meta[1];
+  m.width = meta[1];
   size_t count = meta[2];
 
   m.row_ind.resize(count);
@@ -113,17 +113,17 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   size_t a_width = 0;
   if (rank == 0) {
     const auto &ma = std::get<0>(GetInput());
-    total    = ma.Count();
+    total = ma.Count();
     a_height = ma.height;
-    a_width  = ma.width;
+    a_width = ma.width;
   }
-  MPI_Bcast(&total,    1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&total, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
   MPI_Bcast(&a_height, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&a_width,  1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&a_width, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
 
   // --- compute scatter layout ---
   int blocksize = static_cast<int>(total) / world_size;
-  int leftover  = static_cast<int>(total) % world_size;
+  int leftover = static_cast<int>(total) % world_size;
   std::vector<int> sendcounts(world_size), displs(world_size);
   int offset = 0;
   for (int p = 0; p < world_size; ++p) {
@@ -134,47 +134,47 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   int local_count = sendcounts[rank];
 
   // --- send/receive matr_a chunks ---
-std::vector<size_t> local_rows(local_count), local_cols(local_count);
-std::vector<double> local_re(local_count), local_im(local_count);
+  std::vector<size_t> local_rows(local_count), local_cols(local_count);
+  std::vector<double> local_re(local_count), local_im(local_count);
 
-if (rank == 0) {
-  const auto &ma = std::get<0>(GetInput());
+  if (rank == 0) {
+    const auto &ma = std::get<0>(GetInput());
 
-  // fill rank 0's own chunk directly
-  std::copy(ma.row_ind.begin(), ma.row_ind.begin() + local_count, local_rows.begin());
-  std::copy(ma.col_ind.begin(), ma.col_ind.begin() + local_count, local_cols.begin());
-  for (int i = 0; i < local_count; ++i) {
-    local_re[i] = ma.val[i].re;
-    local_im[i] = ma.val[i].im;
-  }
-
-  // send each other rank its chunk directly from the original buffer
-  for (int p = 1; p < world_size; ++p) {
-    int cnt = sendcounts[p];
-    int dsp = displs[p];
-
-    std::vector<double> re_buf(cnt), im_buf(cnt);
-    for (int i = 0; i < cnt; ++i) {
-      re_buf[i] = ma.val[dsp + i].re;
-      im_buf[i] = ma.val[dsp + i].im;
+    // fill rank 0's own chunk directly
+    std::copy(ma.row_ind.begin(), ma.row_ind.begin() + local_count, local_rows.begin());
+    std::copy(ma.col_ind.begin(), ma.col_ind.begin() + local_count, local_cols.begin());
+    for (int i = 0; i < local_count; ++i) {
+      local_re[i] = ma.val[i].re;
+      local_im[i] = ma.val[i].im;
     }
 
-    MPI_Send(ma.row_ind.data() + dsp, cnt, MPI_UNSIGNED_LONG, p, 0, MPI_COMM_WORLD);
-    MPI_Send(ma.col_ind.data() + dsp, cnt, MPI_UNSIGNED_LONG, p, 1, MPI_COMM_WORLD);
-    MPI_Send(re_buf.data(),            cnt, MPI_DOUBLE,        p, 2, MPI_COMM_WORLD);
-    MPI_Send(im_buf.data(),            cnt, MPI_DOUBLE,        p, 3, MPI_COMM_WORLD);
+    // send each other rank its chunk directly from the original buffer
+    for (int p = 1; p < world_size; ++p) {
+      int cnt = sendcounts[p];
+      int dsp = displs[p];
+
+      std::vector<double> re_buf(cnt), im_buf(cnt);
+      for (int i = 0; i < cnt; ++i) {
+        re_buf[i] = ma.val[dsp + i].re;
+        im_buf[i] = ma.val[dsp + i].im;
+      }
+
+      MPI_Send(ma.row_ind.data() + dsp, cnt, MPI_UNSIGNED_LONG, p, 0, MPI_COMM_WORLD);
+      MPI_Send(ma.col_ind.data() + dsp, cnt, MPI_UNSIGNED_LONG, p, 1, MPI_COMM_WORLD);
+      MPI_Send(re_buf.data(), cnt, MPI_DOUBLE, p, 2, MPI_COMM_WORLD);
+      MPI_Send(im_buf.data(), cnt, MPI_DOUBLE, p, 3, MPI_COMM_WORLD);
+    }
+  } else {
+    MPI_Recv(local_rows.data(), local_count, MPI_UNSIGNED_LONG, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(local_cols.data(), local_count, MPI_UNSIGNED_LONG, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(local_re.data(), local_count, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(local_im.data(), local_count, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   }
-} else {
-  MPI_Recv(local_rows.data(), local_count, MPI_UNSIGNED_LONG, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(local_cols.data(), local_count, MPI_UNSIGNED_LONG, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(local_re.data(),   local_count, MPI_DOUBLE,        0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(local_im.data(),   local_count, MPI_DOUBLE,        0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-}
 
   // --- reconstruct local chunk of matr_a ---
   SparseMatrix local_a;
-  local_a.height  = a_height;
-  local_a.width   = a_width;
+  local_a.height = a_height;
+  local_a.width = a_width;
   local_a.row_ind = local_rows;
   local_a.col_ind = local_cols;
   local_a.val.resize(local_count);
@@ -212,10 +212,14 @@ if (rank == 0) {
   std::vector<size_t> all_rows(total_count), all_cols(total_count);
   std::vector<double> all_re(total_count), all_im(total_count);
 
-  MPI_Gatherv(rows.data(),    res_local_count, MPI_UNSIGNED_LONG, all_rows.data(), all_counts.data(), res_displs.data(), MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
-  MPI_Gatherv(cols.data(),    res_local_count, MPI_UNSIGNED_LONG, all_cols.data(), all_counts.data(), res_displs.data(), MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
-  MPI_Gatherv(re_vals.data(), res_local_count, MPI_DOUBLE,        all_re.data(),   all_counts.data(), res_displs.data(), MPI_DOUBLE,        0, MPI_COMM_WORLD);
-  MPI_Gatherv(im_vals.data(), res_local_count, MPI_DOUBLE,        all_im.data(),   all_counts.data(), res_displs.data(), MPI_DOUBLE,        0, MPI_COMM_WORLD);
+  MPI_Gatherv(rows.data(), res_local_count, MPI_UNSIGNED_LONG, all_rows.data(), all_counts.data(), res_displs.data(),
+              MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(cols.data(), res_local_count, MPI_UNSIGNED_LONG, all_cols.data(), all_counts.data(), res_displs.data(),
+              MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(re_vals.data(), res_local_count, MPI_DOUBLE, all_re.data(), all_counts.data(), res_displs.data(),
+              MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(im_vals.data(), res_local_count, MPI_DOUBLE, all_im.data(), all_counts.data(), res_displs.data(),
+              MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // --- rank 0 assembles final result ---
   if (rank == 0) {
@@ -225,7 +229,7 @@ if (rank == 0) {
     }
 
     SparseMatrix res;
-    res.width  = local_b.width;
+    res.width = local_b.width;
     res.height = a_height;
     for (const auto &[key, val] : final_mp) {
       res.val.push_back(val);
