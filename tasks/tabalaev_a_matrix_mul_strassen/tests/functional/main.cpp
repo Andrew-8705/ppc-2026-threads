@@ -61,7 +61,7 @@ class TabalaevAMatrixMulStrassenFuncTests : public ppc::util::BaseRunFuncTests<I
     if (output_data.size() != expected_output_.size()) {
       return false;
     }
-    constexpr double kEpsilon = 1e-9;
+    constexpr double kEpsilon = 1e-10;
     for (size_t i = 0; i < output_data.size(); ++i) {
       if (std::fabs(output_data[i] - expected_output_[i]) > kEpsilon) {
         return false;
