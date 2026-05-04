@@ -7,6 +7,7 @@ namespace lukin_i_ench_contr_lin_hist {
 
 class LukinITestTaskALL : public BaseTask {
   int vec_size_ = 0;
+
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return ppc::task::TypeOfTask::kALL;
