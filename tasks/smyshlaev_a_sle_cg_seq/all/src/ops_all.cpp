@@ -5,12 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
-#include <numeric>
 #include <vector>
-
-#include "smyshlaev_a_sle_cg_seq/common/include/common.hpp"
-#include "util/include/util.hpp"
 
 namespace smyshlaev_a_sle_cg_seq {
 
@@ -64,6 +59,78 @@ bool SmyshlaevASleCgTaskALL::PreProcessingImpl() {
   return true;
 }
 
+void SmyshlaevASleCgTaskALL::DistributeInitialData(int rank, bool is_mpi, std::vector<double> &b) {
+  if (is_mpi) {
+    MPI_Bcast(&n_, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (rank != 0) {
+      flat_A_.resize(static_cast<size_t>(n_) * n_);
+    }
+    MPI_Bcast(flat_A_.data(), static_cast<int>(flat_A_.size()), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(b.data(), n_, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  }
+}
+
+double SmyshlaevASleCgTaskALL::ComputeDotProductAll(const std::vector<double> &v1, const std::vector<double> &v2,
+                                                    int start, int end, bool is_mpi) {
+  double local_sum = 0.0;
+#pragma omp parallel for default(none) shared(start, end, v1, v2) reduction(+ : local_sum)
+  for (int i = start; i < end; ++i) {
+    local_sum += v1[i] * v2[i];
+  }
+  double global_sum = local_sum;
+  if (is_mpi) {
+    MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  }
+  return global_sum;
+}
+
+void SmyshlaevASleCgTaskALL::ComputeApAll(const std::vector<double> &p, std::vector<double> &ap, int start, int end) {
+#pragma omp parallel for default(none) shared(start, end, p, ap, n_, flat_A_)
+  for (int i = start; i < end; ++i) {
+    double sum = 0.0;
+    for (int j = 0; j < n_; ++j) {
+      sum += flat_A_[(static_cast<size_t>(i) * n_) + j] * p[j];
+    }
+    ap[i] = sum;
+  }
+}
+
+void SmyshlaevASleCgTaskALL::SyncVectorP(std::vector<double> &p, int size, bool is_mpi) {
+  if (!is_mpi) {
+    return;
+  }
+  std::vector<int> counts(size);
+  std::vector<int> displs(size);
+  for (int i = 0; i < size; ++i) {
+    counts[i] = (n_ / size) + (i < (n_ % size) ? 1 : 0);
+    displs[i] = (i == 0) ? 0 : displs[i - 1] + counts[i - 1];
+  }
+  MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, p.data(), counts.data(), displs.data(), MPI_DOUBLE,
+                 MPI_COMM_WORLD);
+}
+
+void SmyshlaevASleCgTaskALL::FinalGather(std::vector<double> &x, int start, int count, int size, bool is_mpi) {
+  if (is_mpi) {
+    std::vector<int> counts(size);
+    std::vector<int> displs(size);
+    for (int i = 0; i < size; ++i) {
+      counts[i] = (n_ / size) + (i < (n_ % size) ? 1 : 0);
+      displs[i] = (i == 0) ? 0 : displs[i - 1] + counts[i - 1];
+    }
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+      MPI_Gatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, x.data(), counts.data(), displs.data(), MPI_DOUBLE, 0,
+                  MPI_COMM_WORLD);
+      res_ = x;
+    } else {
+      MPI_Gatherv(x.data() + start, count, MPI_DOUBLE, nullptr, nullptr, nullptr, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+  } else {
+    res_ = x;
+  }
+}
+
 bool SmyshlaevASleCgTaskALL::RunImpl() {
   int rank = 0;
   int size = 1;
@@ -73,150 +140,77 @@ bool SmyshlaevASleCgTaskALL::RunImpl() {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
   }
 
-  if (is_mpi) {
-    MPI_Bcast(&n_, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  }
-
-  if (is_mpi && rank != 0) {
-    flat_A_.resize(static_cast<size_t>(n_) * n_);
-  }
-  std::vector<double> b_vector(n_);
+  std::vector<double> b_vec(n_);
   if (rank == 0) {
-    b_vector = GetInput().b;
+    b_vec = GetInput().b;
+  }
+  DistributeInitialData(rank, is_mpi, b_vec);
+  if (n_ == 0) {
+    return true;
   }
 
-  if (is_mpi) {
-    MPI_Bcast(flat_A_.data(), static_cast<int>(flat_A_.size()), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(b_vector.data(), n_, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  }
+  int my_start = (rank * (n_ / size)) + std::min(rank, n_ % size);
+  int my_count = (n_ / size) + (rank < (n_ % size) ? 1 : 0);
+  int my_end = my_start + my_count;
 
-  int proc_chunk = n_ / size;
-  int proc_remainder = n_ % size;
-  int my_start = (rank * proc_chunk) + std::min(rank, proc_remainder);
-  int my_end = my_start + proc_chunk + (rank < proc_remainder ? 1 : 0);
-  int my_count = my_end - my_start;
-
-  std::vector<double> r = b_vector;
+  std::vector<double> r = b_vec;
   std::vector<double> p = r;
   std::vector<double> x(n_, 0.0);
   std::vector<double> ap(n_, 0.0);
+  omp_set_num_threads(ppc::util::GetNumThreads());
 
-  int num_threads = ppc::util::GetNumThreads();
-  omp_set_num_threads(num_threads);
+  double rs_old = ComputeDotProductAll(r, r, my_start, my_end, is_mpi);
+  const double eps_sq = 1e-18;
 
-  double local_rs_old = 0.0;
-#pragma omp parallel for reduction(+ : local_rs_old)
-  for (int i = my_start; i < my_end; ++i) {
-    local_rs_old += r[i] * r[i];
-  }
-
-  double rs_old = 0.0;
-  if (is_mpi) {
-    MPI_Allreduce(&local_rs_old, &rs_old, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  } else {
-    rs_old = local_rs_old;
-  }
-
-  const double epsilon = 1e-9;
   for (int iter = 0; iter < n_ * 2; ++iter) {
-    if (std::sqrt(rs_old) < epsilon) {
+    if (rs_old < eps_sq) {
       break;
     }
 
-#pragma omp parallel for
-    for (int i = my_start; i < my_end; ++i) {
-      double sum = 0.0;
-      for (int j = 0; j < n_; ++j) {
-        sum += flat_A_[(static_cast<size_t>(i) * n_) + j] * p[j];
-      }
-      ap[i] = sum;
-    }
-
-    double local_p_ap = 0.0;
-#pragma omp parallel for reduction(+ : local_p_ap)
-    for (int i = my_start; i < my_end; ++i) {
-      local_p_ap += p[i] * ap[i];
-    }
-    double p_ap = 0.0;
-    if (is_mpi) {
-      MPI_Allreduce(&local_p_ap, &p_ap, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    } else {
-      p_ap = local_p_ap;
-    }
-
+    ComputeApAll(p, ap, my_start, my_end);
+    double p_ap = ComputeDotProductAll(p, ap, my_start, my_end, is_mpi);
     if (std::abs(p_ap) < 1e-15) {
       break;
     }
 
     double alpha = rs_old / p_ap;
-
-    double local_rs_new = 0.0;
-#pragma omp parallel for reduction(+ : local_rs_new)
+    double rs_new_local = 0.0;
+#pragma omp parallel for default(none) shared(my_start, my_end, x, p, r, ap, alpha) reduction(+ : rs_new_local)
     for (int i = my_start; i < my_end; ++i) {
       x[i] += alpha * p[i];
       r[i] -= alpha * ap[i];
-      local_rs_new += r[i] * r[i];
+      rs_new_local += r[i] * r[i];
     }
+
     double rs_new = 0.0;
     if (is_mpi) {
-      MPI_Allreduce(&local_rs_new, &rs_new, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&rs_new_local, &rs_new, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     } else {
-      rs_new = local_rs_new;
+      rs_new = rs_new_local;
     }
 
-    if (std::sqrt(rs_new) < epsilon) {
+    if (rs_new < eps_sq) {
       break;
     }
-
     double beta = rs_new / rs_old;
-
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(my_start, my_end, p, r, beta)
     for (int i = my_start; i < my_end; ++i) {
       p[i] = r[i] + (beta * p[i]);
     }
 
-    if (is_mpi) {
-      std::vector<int> counts(size);
-      std::vector<int> displs(size);
-      for (int i = 0; i < size; ++i) {
-        counts[i] = (n_ / size) + (i < (n_ % size) ? 1 : 0);
-        displs[i] = (i == 0) ? 0 : displs[i - 1] + counts[i - 1];
-      }
-      MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, p.data(), counts.data(), displs.data(), MPI_DOUBLE,
-                     MPI_COMM_WORLD);
-    }
+    SyncVectorP(p, size, is_mpi);
     rs_old = rs_new;
   }
 
-  if (is_mpi) {
-    std::vector<int> counts(size);
-    std::vector<int> displs(size);
-    for (int i = 0; i < size; ++i) {
-      counts[i] = (n_ / size) + (i < (n_ % size) ? 1 : 0);
-      displs[i] = (i == 0) ? 0 : displs[i - 1] + counts[i - 1];
-    }
-    if (rank == 0) {
-      MPI_Gatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, x.data(), counts.data(), displs.data(), MPI_DOUBLE, 0,
-                  MPI_COMM_WORLD);
-      res_ = x;
-    } else {
-      MPI_Gatherv(x.data() + my_start, my_count, MPI_DOUBLE, nullptr, nullptr, nullptr, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    }
-  } else {
-    res_ = x;
-  }
-
+  FinalGather(x, my_start, my_count, size, is_mpi);
   return true;
 }
 
 bool SmyshlaevASleCgTaskALL::PostProcessingImpl() {
   int rank = 0;
-  int is_mpi = ppc::util::IsUnderMpirun();
+  bool is_mpi = ppc::util::IsUnderMpirun();
   if (is_mpi) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  }
-
-  if (is_mpi) {
     MPI_Bcast(&n_, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if (rank != 0) {
       res_.resize(n_);
