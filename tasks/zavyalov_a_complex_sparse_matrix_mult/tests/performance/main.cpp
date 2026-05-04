@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "util/include/perf_test_util.hpp"
+#include "util/include/util.hpp"
 #include "zavyalov_a_complex_sparse_matrix_mult/all/include/ops_all.hpp"
 #include "zavyalov_a_complex_sparse_matrix_mult/common/include/common.hpp"
 #include "zavyalov_a_complex_sparse_matrix_mult/omp/include/ops_omp.hpp"
