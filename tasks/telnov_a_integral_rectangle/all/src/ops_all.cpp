@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
-#include <numeric>
 #include <thread>
 #include <vector>
 
@@ -116,7 +115,8 @@ bool TelnovAIntegralRectangleALL::RunImpl() {
 
   double local_sum = 0.0;
 
-#pragma omp parallel for reduction(+ : local_sum) num_threads(thread_count)
+#pragma omp parallel for default(none) shared(thread_sums, thread_count) reduction(+ : local_sum) \
+    num_threads(thread_count)
   for (int i = 0; i < thread_count; ++i) {
     local_sum += thread_sums[i];
   }
