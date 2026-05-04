@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstddef>
-#include <utility>
-
 #include "task/include/task.hpp"
 #include "zavyalov_a_complex_sparse_matrix_mult/common/include/common.hpp"
 
@@ -20,9 +17,8 @@ class ZavyalovAComplSparseMatrMultALL : public BaseTask {
   bool PreProcessingImpl() override;
   bool RunImpl() override;
   bool PostProcessingImpl() override;
-  static std::map<std::pair<size_t, size_t>, Complex> ComputeLocalChunk(const SparseMatrix &matr_a,
-                                                                        const SparseMatrix &matr_b, size_t start,
-                                                                        size_t end);
+  std::map<std::pair<size_t, size_t>, Complex> ComputeLocalChunk(const SparseMatrix &matr_a, const SparseMatrix &matr_b,
+                                                                 size_t start, size_t end);
   SparseMatrix MultiplicateWithMPI(const SparseMatrix &matr_a, const SparseMatrix &matr_b);
 };
 
