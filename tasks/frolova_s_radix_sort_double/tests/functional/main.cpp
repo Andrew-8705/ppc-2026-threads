@@ -11,7 +11,7 @@
 #include "frolova_s_radix_sort_double/common/include/common.hpp"
 #include "frolova_s_radix_sort_double/omp/include/ops_omp.hpp"
 #include "frolova_s_radix_sort_double/seq/include/ops_seq.hpp"
-#include "frolova_s_radix_sort_double/seq/include/ops_tbb.hpp"
+#include "frolova_s_radix_sort_double/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
