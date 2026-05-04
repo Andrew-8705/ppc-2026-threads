@@ -14,7 +14,7 @@
 namespace urin_o_graham_passage {
 namespace {
 
-bool IsConvexHull(const std::vector<Point>& hull) {
+bool IsConvexHull(const std::vector<Point> &hull) {
   if (hull.size() < 3) {
     return true;
   }
@@ -48,46 +48,46 @@ class UrinOGrahamPassagePerfTest : public ::testing::Test {
   }
 };
 
-bool ValidateTask(UrinOGrahamPassageSTL& task) {
+bool ValidateTask(UrinOGrahamPassageSTL &task) {
   return task.Validation();
 }
 
-bool PreProcessTask(UrinOGrahamPassageSTL& task) {
+bool PreProcessTask(UrinOGrahamPassageSTL &task) {
   return task.PreProcessing();
 }
 
-bool RunTask(UrinOGrahamPassageSTL& task) {
+bool RunTask(UrinOGrahamPassageSTL &task) {
   return task.Run();
 }
 
-bool PostProcessTask(UrinOGrahamPassageSTL& task) {
+bool PostProcessTask(UrinOGrahamPassageSTL &task) {
   return task.PostProcessing();
 }
 
-void ExpectValidation(UrinOGrahamPassageSTL& task) {
+void ExpectValidation(UrinOGrahamPassageSTL &task) {
   EXPECT_TRUE(ValidateTask(task));
 }
 
-void ExpectPreProcessing(UrinOGrahamPassageSTL& task) {
+void ExpectPreProcessing(UrinOGrahamPassageSTL &task) {
   EXPECT_TRUE(PreProcessTask(task));
 }
 
-void ExpectRun(UrinOGrahamPassageSTL& task) {
+void ExpectRun(UrinOGrahamPassageSTL &task) {
   EXPECT_TRUE(RunTask(task));
 }
 
-void ExpectPostProcessing(UrinOGrahamPassageSTL& task) {
+void ExpectPostProcessing(UrinOGrahamPassageSTL &task) {
   EXPECT_TRUE(PostProcessTask(task));
 }
 
-void RunTaskPipeline(UrinOGrahamPassageSTL& task) {
+void RunTaskPipeline(UrinOGrahamPassageSTL &task) {
   ExpectValidation(task);
   ExpectPreProcessing(task);
   ExpectRun(task);
   ExpectPostProcessing(task);
 }
 
-void CheckHullValidity(const std::vector<Point>& hull) {
+void CheckHullValidity(const std::vector<Point> &hull) {
   EXPECT_GE(hull.size(), static_cast<size_t>(3));
   EXPECT_TRUE(IsConvexHull(hull));
 }
@@ -108,7 +108,7 @@ TEST_F(UrinOGrahamPassagePerfTest, StlPerformance) {
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-  const auto& hull = task.GetOutput();
+  const auto &hull = task.GetOutput();
   CheckHullValidity(hull);
   PrintPerformanceResult(num_points, static_cast<int64_t>(duration.count()), hull.size());
 }
@@ -127,7 +127,7 @@ TEST_F(UrinOGrahamPassagePerfTest, DifferentSizes) {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    const auto& hull = task.GetOutput();
+    const auto &hull = task.GetOutput();
 
     if (hull.size() >= static_cast<size_t>(3)) {
       std::cout << "Size " << size << ": " << duration.count() << " ms, "

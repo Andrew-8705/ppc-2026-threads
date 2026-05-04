@@ -12,7 +12,7 @@
 namespace urin_o_graham_passage {
 namespace {
 
-bool IsConvexHull(const std::vector<Point>& hull) {
+bool IsConvexHull(const std::vector<Point> &hull) {
   if (hull.size() < 3) {
     return true;
   }
@@ -28,65 +28,65 @@ bool IsConvexHull(const std::vector<Point>& hull) {
   return true;
 }
 
-bool ValidateTask(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+bool ValidateTask(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   return task->Validation();
 }
 
-bool PreProcessTask(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+bool PreProcessTask(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   return task->PreProcessing();
 }
 
-bool RunTask(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+bool RunTask(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   return task->Run();
 }
 
-bool PostProcessTask(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+bool PostProcessTask(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   return task->PostProcessing();
 }
 
-void ExpectValidation(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+void ExpectValidation(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   EXPECT_TRUE(ValidateTask(task));
 }
 
-void ExpectPreProcessing(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+void ExpectPreProcessing(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   EXPECT_TRUE(PreProcessTask(task));
 }
 
-void ExpectRun(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+void ExpectRun(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   EXPECT_TRUE(RunTask(task));
 }
 
-void ExpectPostProcessing(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+void ExpectPostProcessing(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   EXPECT_TRUE(PostProcessTask(task));
 }
 
-void ExecuteTaskPipeline(const std::shared_ptr<UrinOGrahamPassageSTL>& task) {
+void ExecuteTaskPipeline(const std::shared_ptr<UrinOGrahamPassageSTL> &task) {
   ExpectValidation(task);
   ExpectPreProcessing(task);
   ExpectRun(task);
   ExpectPostProcessing(task);
 }
 
-void CheckHullSize(const std::vector<Point>& hull, size_t expected_size) {
+void CheckHullSize(const std::vector<Point> &hull, size_t expected_size) {
   EXPECT_EQ(hull.size(), expected_size);
 }
 
-void CheckHullConvexity(const std::vector<Point>& hull) {
+void CheckHullConvexity(const std::vector<Point> &hull) {
   EXPECT_TRUE(IsConvexHull(hull));
 }
 
-void VerifyHull(const std::vector<Point>& hull, size_t expected_size) {
+void VerifyHull(const std::vector<Point> &hull, size_t expected_size) {
   CheckHullSize(hull, expected_size);
   CheckHullConvexity(hull);
 }
 
-void RunAndCheckHull(const InType& points, size_t expected_size) {
+void RunAndCheckHull(const InType &points, size_t expected_size) {
   auto task = std::make_shared<UrinOGrahamPassageSTL>(points);
   ExecuteTaskPipeline(task);
   VerifyHull(task->GetOutput(), expected_size);
 }
 
-void RunAndExpectFailure(const InType& points) {
+void RunAndExpectFailure(const InType &points) {
   auto task = std::make_shared<UrinOGrahamPassageSTL>(points);
   EXPECT_FALSE(task->Validation());
   EXPECT_TRUE(task->GetOutput().empty());
