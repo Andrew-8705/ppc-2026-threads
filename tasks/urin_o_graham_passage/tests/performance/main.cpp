@@ -9,12 +9,12 @@
 #include <vector>
 
 #include "urin_o_graham_passage/common/include/common.hpp"
-#include "urin_o_graham_passage/tbb/include/ops_tbb.hpp"
+#include "urin_o_graham_passage/stl/include/ops_stl.hpp"
 
 namespace urin_o_graham_passage {
 namespace {
 
-bool IsConvexHull(const std::vector<Point> &hull) {
+bool IsConvexHull(const std::vector<Point>& hull) {
   if (hull.size() < 3) {
     return true;
   }
@@ -23,7 +23,7 @@ bool IsConvexHull(const std::vector<Point> &hull) {
     size_t prev = (i == 0) ? hull.size() - 1 : i - 1;
     size_t next = (i + 1) % hull.size();
 
-    if (UrinOGrahamPassageTBB::Orientation(hull[prev], hull[i], hull[next]) < 0) {
+    if (UrinOGrahamPassageSTL::Orientation(hull[prev], hull[i], hull[next]) < 0) {
       return false;
     }
   }
@@ -48,67 +48,67 @@ class UrinOGrahamPassagePerfTest : public ::testing::Test {
   }
 };
 
-bool ValidateTask(UrinOGrahamPassageTBB &task) {
+bool ValidateTask(UrinOGrahamPassageSTL& task) {
   return task.Validation();
 }
 
-bool PreProcessTask(UrinOGrahamPassageTBB &task) {
+bool PreProcessTask(UrinOGrahamPassageSTL& task) {
   return task.PreProcessing();
 }
 
-bool RunTask(UrinOGrahamPassageTBB &task) {
+bool RunTask(UrinOGrahamPassageSTL& task) {
   return task.Run();
 }
 
-bool PostProcessTask(UrinOGrahamPassageTBB &task) {
+bool PostProcessTask(UrinOGrahamPassageSTL& task) {
   return task.PostProcessing();
 }
 
-void ExpectValidation(UrinOGrahamPassageTBB &task) {
+void ExpectValidation(UrinOGrahamPassageSTL& task) {
   EXPECT_TRUE(ValidateTask(task));
 }
 
-void ExpectPreProcessing(UrinOGrahamPassageTBB &task) {
+void ExpectPreProcessing(UrinOGrahamPassageSTL& task) {
   EXPECT_TRUE(PreProcessTask(task));
 }
 
-void ExpectRun(UrinOGrahamPassageTBB &task) {
+void ExpectRun(UrinOGrahamPassageSTL& task) {
   EXPECT_TRUE(RunTask(task));
 }
 
-void ExpectPostProcessing(UrinOGrahamPassageTBB &task) {
+void ExpectPostProcessing(UrinOGrahamPassageSTL& task) {
   EXPECT_TRUE(PostProcessTask(task));
 }
 
-void RunTaskPipeline(UrinOGrahamPassageTBB &task) {
+void RunTaskPipeline(UrinOGrahamPassageSTL& task) {
   ExpectValidation(task);
   ExpectPreProcessing(task);
   ExpectRun(task);
   ExpectPostProcessing(task);
 }
 
-void CheckHullValidity(const std::vector<Point> &hull) {
+void CheckHullValidity(const std::vector<Point>& hull) {
   EXPECT_GE(hull.size(), static_cast<size_t>(3));
   EXPECT_TRUE(IsConvexHull(hull));
 }
 
 void PrintPerformanceResult(size_t num_points, int64_t ms, size_t hull_size) {
-  std::cout << "TBB version with " << num_points << " points took " << ms << " ms\n";
+  std::cout << "STL version with " << num_points << " points took " << ms << " ms\n";
   std::cout << "Convex hull size: " << hull_size << "\n";
 }
 
-TEST_F(UrinOGrahamPassagePerfTest, TbbPerformance) {
+TEST_F(UrinOGrahamPassagePerfTest, StlPerformance) {
   const size_t num_points = 10000;
   InType input_points = GenerateRandomPoints(num_points);
 
-  UrinOGrahamPassageTBB task(input_points);
+  UrinOGrahamPassageSTL task(input_points);
 
   auto start = std::chrono::high_resolution_clock::now();
   RunTaskPipeline(task);
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-  const auto &hull = task.GetOutput();
+  const auto& hull = task.GetOutput();
   CheckHullValidity(hull);
   PrintPerformanceResult(num_points, static_cast<int64_t>(duration.count()), hull.size());
 }
@@ -120,14 +120,14 @@ TEST_F(UrinOGrahamPassagePerfTest, DifferentSizes) {
 
   for (size_t size : sizes) {
     InType test_points = GenerateRandomPoints(size);
-    UrinOGrahamPassageTBB task(test_points);
+    UrinOGrahamPassageSTL task(test_points);
 
     auto start = std::chrono::high_resolution_clock::now();
     RunTaskPipeline(task);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    const auto &hull = task.GetOutput();
+    const auto& hull = task.GetOutput();
 
     if (hull.size() >= static_cast<size_t>(3)) {
       std::cout << "Size " << size << ": " << duration.count() << " ms, "
