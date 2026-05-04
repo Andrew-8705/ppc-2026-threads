@@ -129,7 +129,7 @@ std::vector<Point> UrinOGrahamPassageSTL::PrepareOtherPointsParallel(const InTyp
 
   std::vector<std::thread> threads;
   std::vector<std::vector<Point>> local_points(num_threads);
-  std::mutex mtx;
+  // мьютекс не нужен, так как каждый поток пишет в свою локальную область
 
   size_t block_size = points.size() / num_threads;
 
