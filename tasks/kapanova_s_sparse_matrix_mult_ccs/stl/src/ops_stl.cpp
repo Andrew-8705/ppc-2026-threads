@@ -140,16 +140,17 @@ bool KapanovaSSparseMatrixMultCCSSTL::RunImpl() {
   std::vector<std::vector<double>> temp_vals(c.cols);
   std::vector<std::thread> threads;
 
-  int chunk = static_cast<int>((c.cols + num_threads - 1) / num_threads);
+  size_t chunk = (c.cols + num_threads - 1) / num_threads;
 
   for (unsigned int thread_id = 0; thread_id < num_threads; ++thread_id) {
-    size_t start = static_cast<int>(thread_id * chunk);
-    size_t end = std::min(start + chunk, static_cast<int>(c.cols));
-    if (start >= static_cast<int>(c.cols)) {
+    size_t start = thread_id * chunk;
+    size_t end = std::min(start + chunk, c.cols);
+    if (start >= c.cols) {
       break;
     }
 
-    threads.emplace_back(WorkerTask, std::cref(a), std::cref(b), start, end, std::ref(temp_rows), std::ref(temp_vals));
+    threads.emplace_back(WorkerTask, std::cref(a), std::cref(b), static_cast<int>(start), static_cast<int>(end),
+                         std::ref(temp_rows), std::ref(temp_vals));
   }
 
   for (auto &th : threads) {
