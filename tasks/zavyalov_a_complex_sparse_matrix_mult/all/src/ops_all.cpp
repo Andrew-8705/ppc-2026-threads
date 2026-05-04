@@ -262,7 +262,6 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   BroadcastMatrix(local_b);
 
   uint64_t total_mpi = 0, a_height_mpi = 0, a_width_mpi = 0;
-  // Локальные переменные для внутреннего использования
   size_t total = 0, a_height = 0, a_width = 0;
 
   if (rank == 0) {
@@ -276,12 +275,10 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
     a_width_mpi = static_cast<uint64_t>(a_width);
   }
 
-  // MPI обмен с использованием uint64_t
   MPI_Bcast(&total_mpi, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
   MPI_Bcast(&a_height_mpi, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
   MPI_Bcast(&a_width_mpi, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
 
-  // Конвертируем обратно в size_t для использования в коде
   if (rank != 0) {
     total = static_cast<size_t>(total_mpi);
     a_height = static_cast<size_t>(a_height_mpi);
