@@ -254,15 +254,20 @@ std::map<std::pair<size_t, size_t>, Complex> ZavyalovAComplSparseMatrMultALL::Co
   return result;
 }
 bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
-  int rank = 0, world_size = 1;
+  int rank = 0;
+  int world_size = 1;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
   SparseMatrix local_b = (rank == 0) ? std::get<1>(GetInput()) : SparseMatrix{};
   BroadcastMatrix(local_b);
 
-  uint64_t total_mpi = 0, a_height_mpi = 0, a_width_mpi = 0;
-  size_t total = 0, a_height = 0, a_width = 0;
+  uint64_t total_mpi = 0;
+  uint64_t a_height_mpi = 0;
+  uint64_t a_width_mpi = 0;
+  size_t total = 0;
+  size_t a_height = 0;
+  size_t a_width = 0;
 
   if (rank == 0) {
     const auto& ma = std::get<0>(GetInput());
