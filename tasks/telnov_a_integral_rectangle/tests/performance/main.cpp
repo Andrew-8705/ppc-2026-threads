@@ -53,9 +53,9 @@ const auto kStlPerfTasks =
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, TelnovAIntegralRectangleALL>(PPC_SETTINGS_telnov_a_integral_rectangle);
 
-const auto kAllTasks = std::tuple_cat(kSeqPerfTasks, kOmpPerfTasks, kTbbPerfTasks, kStlPerfTasks, kAllPerfTasks);
+const auto kPerfTasks = std::tuple_cat(kSeqPerfTasks, kOmpPerfTasks, kTbbPerfTasks, kStlPerfTasks, kAllPerfTasks);
 
-const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
+const auto kGtestValues = ppc::util::TupleToGTestValues(kPerfTasks);
 
 const auto kPerfTestName = TelnovAIntegralRectanglePerfTests::CustomPerfTestName;
 
