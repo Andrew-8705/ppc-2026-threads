@@ -149,8 +149,9 @@ BestPointState FindBestStateOMP(const std::vector<Point> &unique_points, std::si
 
   std::vector<BestPointState> local_best_states(actual_thread_count);
 
-#pragma omp parallel for default(none) schedule(static) num_threads(actual_thread_count_int) \
-    shared(unique_points, current_point_index, range_begin, range_end, chunk_size, local_best_states)
+#pragma omp parallel for default(none) schedule(static) num_threads(actual_thread_count_int)          \
+    shared(unique_points, current_point_index, range_begin, range_end, chunk_size, local_best_states, \
+               actual_thread_count_int)
   for (int thread_index = 0; thread_index < actual_thread_count_int; ++thread_index) {
     const auto current_thread_index = static_cast<std::size_t>(thread_index);
     const std::size_t thread_range_begin = range_begin + (current_thread_index * chunk_size);
