@@ -14,7 +14,7 @@
 namespace tabalaev_a_matrix_mul_strassen {
 
 static constexpr std::size_t kBaseCaseSize = 128;
-static constexpr std::size_t kParallelThreshold = 65536; 
+static constexpr std::size_t kParallelThreshold = 65536;
 
 namespace {
 template <typename fnc>
@@ -193,10 +193,12 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::CombineMatrix(const std::vect
     auto src_row = static_cast<ptrdiff_t>(i * h);
 
     std::copy(c11.begin() + src_row, c11.begin() + src_row + static_cast<ptrdiff_t>(h), res_row1);
-    std::copy(c12.begin() + src_row, c12.begin() + src_row + static_cast<ptrdiff_t>(h), res_row1 + static_cast<ptrdiff_t>(h));
+    std::copy(c12.begin() + src_row, c12.begin() + src_row + static_cast<ptrdiff_t>(h),
+              res_row1 + static_cast<ptrdiff_t>(h));
 
     std::copy(c21.begin() + src_row, c21.begin() + src_row + static_cast<ptrdiff_t>(h), res_row2);
-    std::copy(c22.begin() + src_row, c22.begin() + src_row + static_cast<ptrdiff_t>(h), res_row2 + static_cast<ptrdiff_t>(h));
+    std::copy(c22.begin() + src_row, c22.begin() + src_row + static_cast<ptrdiff_t>(h),
+              res_row2 + static_cast<ptrdiff_t>(h));
   });
   return res;
 }
