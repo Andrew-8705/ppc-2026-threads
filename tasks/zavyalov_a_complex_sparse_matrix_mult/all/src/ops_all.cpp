@@ -34,12 +34,12 @@ std::vector<T> FromMPI(const std::vector<uint64_t>& v) {
   }
   return res;
 }
-}  // namespace
-static void BroadcastMatrix(SparseMatrix& m) {
+
+void BroadcastMatrix(SparseMatrix& m) {
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  std::array<uint64_t, 3> meta;
+  std::array<uint64_t, 3> meta{};
   if (rank == 0) {
     meta[0] = static_cast<uint64_t>(m.height);
     meta[1] = static_cast<uint64_t>(m.width);
@@ -95,9 +95,9 @@ static void BroadcastMatrix(SparseMatrix& m) {
   }
 }
 
-static void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix& ma, std::vector<int>& sendcounts,
-                           std::vector<int>& displs, std::vector<size_t>& local_rows, std::vector<size_t>& local_cols,
-                           std::vector<double>& local_re, std::vector<double>& local_im) {
+void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix& ma, std::vector<int>& sendcounts,
+                    std::vector<int>& displs, std::vector<size_t>& local_rows, std::vector<size_t>& local_cols,
+                    std::vector<double>& local_re, std::vector<double>& local_im) {
   int blocksize = static_cast<int>(total) / world_size;
   int leftover = static_cast<int>(total) % world_size;
 
@@ -124,9 +124,9 @@ static void ScatterMatrixA(int rank, int world_size, size_t total, const SparseM
       local_im[i] = ma.val[i].im;
     }
 
-    for (int p = 1; p < world_size; ++p) {
-      int cnt = sendcounts[p];
-      int dsp = displs[p];
+    for (int proc = 1; proc < world_size; ++proc) {
+      int cnt = sendcounts[proc];
+      int dsp = displs[proc];
 
       std::vector<double> re_buf(cnt);
       std::vector<double> im_buf(cnt);
@@ -135,22 +135,35 @@ static void ScatterMatrixA(int rank, int world_size, size_t total, const SparseM
         im_buf[i] = ma.val[dsp + i].im;
       }
 
-      MPI_Send(ma.row_ind.data() + dsp, cnt, MPI_UINT64_T, p, 0, MPI_COMM_WORLD);
-      MPI_Send(ma.col_ind.data() + dsp, cnt, MPI_UINT64_T, p, 1, MPI_COMM_WORLD);
-      MPI_Send(re_buf.data(), cnt, MPI_DOUBLE, p, 2, MPI_COMM_WORLD);
-      MPI_Send(im_buf.data(), cnt, MPI_DOUBLE, p, 3, MPI_COMM_WORLD);
+      std::vector<uint64_t> rows_send(cnt);
+      std::vector<uint64_t> cols_send(cnt);
+      for (int i = 0; i < cnt; ++i) {
+        rows_send[i] = static_cast<uint64_t>(ma.row_ind[dsp + i]);
+        cols_send[i] = static_cast<uint64_t>(ma.col_ind[dsp + i]);
+      }
+
+      MPI_Send(rows_send.data(), cnt, MPI_UINT64_T, proc, 0, MPI_COMM_WORLD);
+      MPI_Send(cols_send.data(), cnt, MPI_UINT64_T, proc, 1, MPI_COMM_WORLD);
+      MPI_Send(re_buf.data(), cnt, MPI_DOUBLE, proc, 2, MPI_COMM_WORLD);
+      MPI_Send(im_buf.data(), cnt, MPI_DOUBLE, proc, 3, MPI_COMM_WORLD);
     }
   } else {
-    MPI_Recv(local_rows.data(), local_count, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    MPI_Recv(local_cols.data(), local_count, MPI_UINT64_T, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    std::vector<uint64_t> rows_recv(local_count);
+    std::vector<uint64_t> cols_recv(local_count);
+
+    MPI_Recv(rows_recv.data(), local_count, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(cols_recv.data(), local_count, MPI_UINT64_T, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Recv(local_re.data(), local_count, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Recv(local_im.data(), local_count, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    local_rows.assign(rows_recv.begin(), rows_recv.end());
+    local_cols.assign(cols_recv.begin(), cols_recv.end());
   }
 }
 
-static void GatherResult(int rank, int world_size, const std::vector<size_t>& rows, const std::vector<size_t>& cols,
-                         const std::vector<double>& re_vals, const std::vector<double>& im_vals, size_t a_height,
-                         size_t b_width, SparseMatrix& output) {
+void GatherResult(int rank, int world_size, const std::vector<size_t>& rows, const std::vector<size_t>& cols,
+                  const std::vector<double>& re_vals, const std::vector<double>& im_vals, size_t a_height,
+                  size_t b_width, SparseMatrix& output) {
   int res_local_count = static_cast<int>(rows.size());
 
   std::vector<int> all_counts(world_size);
@@ -160,9 +173,9 @@ static void GatherResult(int rank, int world_size, const std::vector<size_t>& ro
   int total_count = 0;
 
   if (rank == 0) {
-    for (int p = 0; p < world_size; ++p) {
-      displs[p] = total_count;
-      total_count += all_counts[p];
+    for (int proc = 0; proc < world_size; ++proc) {
+      displs[proc] = total_count;
+      total_count += all_counts[proc];
     }
   }
 
@@ -200,6 +213,8 @@ static void GatherResult(int rank, int world_size, const std::vector<size_t>& ro
     }
   }
 }
+
+}  // namespace
 
 ZavyalovAComplSparseMatrMultALL::ZavyalovAComplSparseMatrMultALL(const InType& in) {
   SetTypeOfTask(GetStaticTypeOfTask());
