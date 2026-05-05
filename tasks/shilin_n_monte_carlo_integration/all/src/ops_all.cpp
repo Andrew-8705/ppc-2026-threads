@@ -73,13 +73,15 @@ bool ShilinNMonteCarloIntegrationALL::RunImpl() {
 
   int local_count = 0;
   if (rank < num_points_) {
-    local_count = (num_points_ - rank - 1) / num_ranks + 1;
+    local_count = (((num_points_ - rank - 1) / num_ranks) + 1);
   }
 
   double local_sum = 0.0;
 
-#pragma omp parallel default(none) shared(dimensions, alpha, lower_bounds_, upper_bounds_, func_type_, rank, \
-                                              num_ranks, local_count) reduction(+ : local_sum)
+  // MSVC OpenMP does not allow non-static data members in data-sharing clauses; use `this`.
+  auto *self = this;
+#pragma omp parallel default(none) \
+    shared(dimensions, alpha, self, rank, num_ranks, local_count) reduction(+ : local_sum)
   {
     std::vector<double> point(dimensions);
 #pragma omp for schedule(static)
@@ -88,9 +90,10 @@ bool ShilinNMonteCarloIntegrationALL::RunImpl() {
       for (int di = 0; di < dimensions; ++di) {
         double val = 0.5 + (static_cast<double>(i + 1) * alpha[di]);
         double current = val - std::floor(val);
-        point[di] = lower_bounds_[di] + ((upper_bounds_[di] - lower_bounds_[di]) * current);
+        point[di] =
+            self->lower_bounds_[di] + ((self->upper_bounds_[di] - self->lower_bounds_[di]) * current);
       }
-      local_sum += IntegrandFunction::Evaluate(func_type_, point);
+      local_sum += IntegrandFunction::Evaluate(self->func_type_, point);
     }
   }
 
