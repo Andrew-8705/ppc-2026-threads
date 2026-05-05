@@ -3,7 +3,6 @@
 #include <mpi.h>
 #include <omp.h>
 
-#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -50,7 +49,7 @@ void BroadcastMatrix(SparseMatrix &m) {
 
   m.height = static_cast<size_t>(meta[0]);
   m.width = static_cast<size_t>(meta[1]);
-  size_t count = static_cast<size_t>(meta[2]);
+  auto count = static_cast<size_t>(meta[2]);
 
   m.row_ind.resize(count);
   m.col_ind.resize(count);
@@ -76,7 +75,8 @@ void BroadcastMatrix(SparseMatrix &m) {
     }
   }
 
-  std::vector<double> re(count), im(count);
+  std::vector<double> re(count);
+  std::vector<double> im(count);
 
   if (rank == 0) {
     for (size_t i = 0; i < count; ++i) {
@@ -129,7 +129,8 @@ void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix &
 
       std::vector<int> rows_send(cnt);
       std::vector<int> cols_send(cnt);
-      std::vector<double> re_buf(cnt), im_buf(cnt);
+      std::vector<double> re_buf(cnt);
+      std::vector<double> im_buf(cnt);
 
       for (int i = 0; i < cnt; ++i) {
         rows_send[i] = static_cast<int>(ma.row_ind[dsp + i]);
