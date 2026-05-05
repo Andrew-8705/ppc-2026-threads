@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <cstddef>
+#include <vector>
 
 #include "task/include/task.hpp"
 #include "urin_o_graham_passage/common/include/common.hpp"
