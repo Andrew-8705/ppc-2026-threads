@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <thread>
 #include <vector>
 
@@ -17,27 +18,27 @@ MaslovaUMultMatrSTL::MaslovaUMultMatrSTL(const InType &in) {
 
 bool MaslovaUMultMatrSTL::ValidationImpl() {
   const auto &input = GetInput();
-  const auto &a = std::get<0>(input);
-  const auto &b = std::get<1>(input);
-  if (a.cols != b.rows || a.rows <= 0 || b.cols <= 0) {
-    return false;
-  }
-  if (a.row_ptr.size() != static_cast<size_t>(a.rows) + 1) {
-    return false;
-  }
-  if (b.row_ptr.size() != static_cast<size_t>(b.rows) + 1) {
-    return false;
-  }
+  const auto &matrix_a = std::get<0>(input);
+  const auto &matrix_b = std::get<1>(input);
 
+  if (matrix_a.cols != matrix_b.rows || matrix_a.rows <= 0 || matrix_b.cols <= 0) {
+    return false;
+  }
+  if (matrix_a.row_ptr.size() != static_cast<size_t>(matrix_a.rows) + 1) {
+    return false;
+  }
+  if (matrix_b.row_ptr.size() != static_cast<size_t>(matrix_b.rows) + 1) {
+    return false;
+  }
   return true;
 }
 
 bool MaslovaUMultMatrSTL::PreProcessingImpl() {
-  const auto &a = std::get<0>(GetInput());
-  const auto &b = std::get<1>(GetInput());
-  auto &c = GetOutput();
-  c.rows = a.rows;
-  c.cols = b.cols;
+  const auto &matrix_a = std::get<0>(GetInput());
+  const auto &matrix_b = std::get<1>(GetInput());
+  auto &matrix_c = GetOutput();
+  matrix_c.rows = matrix_a.rows;
+  matrix_c.cols = matrix_b.cols;
   return true;
 }
 
@@ -86,73 +87,81 @@ void MaslovaUMultMatrSTL::FillRowValues(int i, const CRSMatrix &a, const CRSMatr
   }
 }
 
-bool MaslovaUMultMatrSTL::RunImpl() {
-  const auto &a = std::get<0>(GetInput());
-  const auto &b = std::get<1>(GetInput());
-  auto &c = GetOutput();
-
-  const int rows_a = a.rows;
-  const int cols_b = b.cols;
-  c.row_ptr.assign(static_cast<size_t>(rows_a) + 1, 0);
-
-  int num_threads = ppc::util::GetNumThreads();
-  if (num_threads <= 0) {
-    num_threads = 1;
-  }
-  if (num_threads > rows_a) {
-    num_threads = rows_a;
-  }
+void MaslovaUMultMatrSTL::ComputeRowPtrSTL(int rows_a, int cols_b, int num_threads) {
+  const auto &matrix_a = std::get<0>(GetInput());
+  const auto &matrix_b = std::get<1>(GetInput());
+  auto &matrix_c = GetOutput();
 
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
-
-  auto worker_nnz = [&](int start_row, int end_row) {
-    std::vector<int> marker(cols_b, -1);
-    for (int i = start_row; i < end_row; ++i) {
-      c.row_ptr[i + 1] = GetRowNNZ(i, a, b, marker);
-    }
-  };
-
   int chunk = rows_a / num_threads;
-  for (int t = 0; t < num_threads; ++t) {
-    int start = t * chunk;
-    int end = (t == num_threads - 1) ? rows_a : (t + 1) * chunk;
+
+  for (int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    int start = thread_idx * chunk;
+    int end = (thread_idx == num_threads - 1) ? rows_a : (thread_idx + 1) * chunk;
     if (start < end) {
-      threads.emplace_back(worker_nnz, start, end);
+      threads.emplace_back([&, start, end, cols_b]() {
+        std::vector<int> marker(cols_b, -1);
+        for (int i = start; i < end; ++i) {
+          matrix_c.row_ptr[i + 1] = GetRowNNZ(i, matrix_a, matrix_b, marker);
+        }
+      });
     }
   }
-  for (auto &t : threads) {
-    t.join();
+  for (auto &thread_item : threads) {
+    thread_item.join();
   }
-  threads.clear();
+}
+
+void MaslovaUMultMatrSTL::ComputeValuesSTL(int rows_a, int cols_b, int num_threads) {
+  const auto &matrix_a = std::get<0>(GetInput());
+  const auto &matrix_b = std::get<1>(GetInput());
+  auto &matrix_c = GetOutput();
+
+  std::vector<std::thread> threads;
+  int chunk = rows_a / num_threads;
+
+  for (int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    int start = thread_idx * chunk;
+    int end = (thread_idx == num_threads - 1) ? rows_a : (thread_idx + 1) * chunk;
+    if (start < end) {
+      threads.emplace_back([&, start, end, cols_b]() {
+        std::vector<double> acc(cols_b, 0.0);
+        std::vector<int> marker(cols_b, -1);
+        std::vector<int> used;
+        used.reserve(cols_b);
+        for (int i = start; i < end; ++i) {
+          FillRowValues(i, matrix_a, matrix_b, matrix_c, acc, marker, used);
+        }
+      });
+    }
+  }
+  for (auto &thread_item : threads) {
+    thread_item.join();
+  }
+}
+
+bool MaslovaUMultMatrSTL::RunImpl() {
+  const auto &matrix_a = std::get<0>(GetInput());
+  const auto &matrix_b = std::get<1>(GetInput());
+  auto &matrix_c = GetOutput();
+
+  int rows_a = matrix_a.rows;
+  int cols_b = matrix_b.cols;
+  matrix_c.row_ptr.assign(static_cast<size_t>(rows_a) + 1, 0);
+
+  int num_threads = std::max(1, ppc::util::GetNumThreads());
+  num_threads = std::min(num_threads, rows_a);
+
+  ComputeRowPtrSTL(rows_a, cols_b, num_threads);
 
   for (int i = 0; i < rows_a; ++i) {
-    c.row_ptr[i + 1] += c.row_ptr[i];
+    matrix_c.row_ptr[static_cast<size_t>(i) + 1] += matrix_c.row_ptr[i];
   }
 
-  c.values.resize(c.row_ptr[rows_a]);
-  c.col_ind.resize(c.row_ptr[rows_a]);
+  matrix_c.values.resize(matrix_c.row_ptr[rows_a]);
+  matrix_c.col_ind.resize(matrix_c.row_ptr[rows_a]);
 
-  auto worker_values = [&](int start_row, int end_row) {
-    std::vector<double> acc(cols_b, 0.0);
-    std::vector<int> marker(cols_b, -1);
-    std::vector<int> used;
-    used.reserve(cols_b);
-    for (int i = start_row; i < end_row; ++i) {
-      FillRowValues(i, a, b, c, acc, marker, used);
-    }
-  };
-
-  for (int t = 0; t < num_threads; ++t) {
-    int start = t * chunk;
-    int end = (t == num_threads - 1) ? rows_a : (t + 1) * chunk;
-    if (start < end) {
-      threads.emplace_back(worker_values, start, end);
-    }
-  }
-  for (auto &t : threads) {
-    t.join();
-  }
+  ComputeValuesSTL(rows_a, cols_b, num_threads);
 
   return true;
 }
