@@ -18,7 +18,7 @@
 namespace zavyalov_a_compl_sparse_matr_mult {
 namespace {
 template <typename T>
-std::vector<uint64_t> ToMPI(const std::vector<T>& v) {
+std::vector<uint64_t> ToMPI(const std::vector<T> &v) {
   std::vector<uint64_t> res(v.size());
   for (size_t i = 0; i < v.size(); ++i) {
     res[i] = static_cast<uint64_t>(v[i]);
@@ -27,7 +27,7 @@ std::vector<uint64_t> ToMPI(const std::vector<T>& v) {
 }
 
 template <typename T>
-std::vector<T> FromMPI(const std::vector<uint64_t>& v) {
+std::vector<T> FromMPI(const std::vector<uint64_t> &v) {
   std::vector<T> res(v.size());
   for (size_t i = 0; i < v.size(); ++i) {
     res[i] = static_cast<T>(v[i]);
@@ -35,7 +35,7 @@ std::vector<T> FromMPI(const std::vector<uint64_t>& v) {
   return res;
 }
 
-void BroadcastMatrix(SparseMatrix& m) {
+void BroadcastMatrix(SparseMatrix &m) {
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -95,9 +95,9 @@ void BroadcastMatrix(SparseMatrix& m) {
   }
 }
 
-void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix& ma, std::vector<int>& sendcounts,
-                    std::vector<int>& displs, std::vector<size_t>& local_rows, std::vector<size_t>& local_cols,
-                    std::vector<double>& local_re, std::vector<double>& local_im) {
+void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix &ma, std::vector<int> &sendcounts,
+                    std::vector<int> &displs, std::vector<size_t> &local_rows, std::vector<size_t> &local_cols,
+                    std::vector<double> &local_re, std::vector<double> &local_im) {
   int blocksize = static_cast<int>(total) / world_size;
   int leftover = static_cast<int>(total) % world_size;
 
@@ -159,9 +159,9 @@ void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix& 
     }
   }
 }
-void GatherResult(int rank, int world_size, const std::vector<size_t>& rows, const std::vector<size_t>& cols,
-                  const std::vector<double>& re_vals, const std::vector<double>& im_vals, size_t a_height,
-                  size_t b_width, SparseMatrix& output) {
+void GatherResult(int rank, int world_size, const std::vector<size_t> &rows, const std::vector<size_t> &cols,
+                  const std::vector<double> &re_vals, const std::vector<double> &im_vals, size_t a_height,
+                  size_t b_width, SparseMatrix &output) {
   int local_count = static_cast<int>(rows.size());
 
   std::vector<int> all_counts(world_size);
@@ -212,7 +212,7 @@ void GatherResult(int rank, int world_size, const std::vector<size_t>& rows, con
     output.height = a_height;
     output.width = b_width;
 
-    for (auto& [k, v] : mp) {
+    for (auto &[k, v] : mp) {
       output.row_ind.push_back(k.first);
       output.col_ind.push_back(k.second);
       output.val.push_back(v);
@@ -221,7 +221,7 @@ void GatherResult(int rank, int world_size, const std::vector<size_t>& rows, con
 }
 }  // namespace
 
-ZavyalovAComplSparseMatrMultALL::ZavyalovAComplSparseMatrMultALL(const InType& in) {
+ZavyalovAComplSparseMatrMultALL::ZavyalovAComplSparseMatrMultALL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -236,8 +236,8 @@ bool ZavyalovAComplSparseMatrMultALL::ValidationImpl() {
   if (rank != 0) {
     return true;
   }
-  const auto& matr_a = std::get<0>(GetInput());
-  const auto& matr_b = std::get<1>(GetInput());
+  const auto &matr_a = std::get<0>(GetInput());
+  const auto &matr_b = std::get<1>(GetInput());
   return matr_a.width == matr_b.height;
 }
 
@@ -246,7 +246,7 @@ bool ZavyalovAComplSparseMatrMultALL::PreProcessingImpl() {
 }
 
 std::map<std::pair<size_t, size_t>, Complex> ZavyalovAComplSparseMatrMultALL::ComputeLocalChunk(
-    const SparseMatrix& matr_a, const SparseMatrix& matr_b, size_t start, size_t end) {
+    const SparseMatrix &matr_a, const SparseMatrix &matr_b, size_t start, size_t end) {
   int num_threads = ppc::util::GetNumThreads();
   std::vector<std::map<std::pair<size_t, size_t>, Complex>> local_maps(num_threads);
 
@@ -266,8 +266,8 @@ std::map<std::pair<size_t, size_t>, Complex> ZavyalovAComplSparseMatrMultALL::Co
   }
 
   std::map<std::pair<size_t, size_t>, Complex> result;
-  for (auto& lm : local_maps) {
-    for (auto& [key, value] : lm) {
+  for (auto &lm : local_maps) {
+    for (auto &[key, value] : lm) {
       result[key] += value;
     }
   }
@@ -290,7 +290,7 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   size_t a_width = 0;
 
   if (rank == 0) {
-    const auto& ma = std::get<0>(GetInput());
+    const auto &ma = std::get<0>(GetInput());
     total = ma.Count();
     a_height = ma.height;
     a_width = ma.width;
@@ -344,7 +344,7 @@ bool ZavyalovAComplSparseMatrMultALL::RunImpl() {
   std::vector<double> re_vals;
   std::vector<double> im_vals;
 
-  for (const auto& [key, val] : local_mp) {
+  for (const auto &[key, val] : local_mp) {
     rows.push_back(key.first);
     cols.push_back(key.second);
     re_vals.push_back(val.re);
