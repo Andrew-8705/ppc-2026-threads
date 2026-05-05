@@ -158,7 +158,7 @@ std::vector<Point> UrinOGrahamPassageSTL::PrepareOtherPointsParallel(const InTyp
     other_points.insert(other_points.end(), vec.begin(), vec.end());
   }
 
-  std::sort(other_points.begin(), other_points.end(), [&p0](const Point &a, const Point &b) {
+  std::ranges::sort(other_points.begin(), other_points.end(), [&p0](const Point &a, const Point &b) {
     double angle_a = PolarAngle(p0, a);
     double angle_b = PolarAngle(p0, b);
     if (std::abs(angle_a - angle_b) < 1e-10) {
