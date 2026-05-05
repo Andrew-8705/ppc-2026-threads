@@ -18,8 +18,8 @@ class MaslovaUMultMatrSTL : public BaseTask {
   bool RunImpl() override;
   bool PostProcessingImpl() override;
   static int GetRowNNZ(int i, const CRSMatrix &a, const CRSMatrix &b, std::vector<int> &marker);
-  static void FillRowValues(int i, const CRSMatrix &a, const CRSMatrix &b, CRSMatrix &c, 
-                            std::vector<double> &acc, std::vector<int> &marker, std::vector<int> &used);
+  static void FillRowValues(int i, const CRSMatrix &a, const CRSMatrix &b, CRSMatrix &c, std::vector<double> &acc,
+                            std::vector<int> &marker, std::vector<int> &used);
 };
 
 }  // namespace maslova_u_mult_matr_crs

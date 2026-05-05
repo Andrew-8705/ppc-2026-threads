@@ -11,8 +11,8 @@
 #include "maslova_u_mult_matr_crs/common/include/common.hpp"
 #include "maslova_u_mult_matr_crs/omp/include/ops_omp.hpp"
 #include "maslova_u_mult_matr_crs/seq/include/ops_seq.hpp"
-#include "maslova_u_mult_matr_crs/tbb/include/ops_tbb.hpp"
 #include "maslova_u_mult_matr_crs/stl/include/ops_stl.hpp"
+#include "maslova_u_mult_matr_crs/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 

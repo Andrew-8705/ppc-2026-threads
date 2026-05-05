@@ -19,10 +19,16 @@ bool MaslovaUMultMatrSTL::ValidationImpl() {
   const auto &input = GetInput();
   const auto &a = std::get<0>(input);
   const auto &b = std::get<1>(input);
-  if (a.cols != b.rows || a.rows <= 0 || b.cols <= 0) return false;
-  if (a.row_ptr.size() != static_cast<size_t>(a.rows) + 1) return false;
-  if (b.row_ptr.size() != static_cast<size_t>(b.rows) + 1) return false;
-  
+  if (a.cols != b.rows || a.rows <= 0 || b.cols <= 0) {
+    return false;
+  }
+  if (a.row_ptr.size() != static_cast<size_t>(a.rows) + 1) {
+    return false;
+  }
+  if (b.row_ptr.size() != static_cast<size_t>(b.rows) + 1) {
+    return false;
+  }
+
   return true;
 }
 
@@ -90,9 +96,13 @@ bool MaslovaUMultMatrSTL::RunImpl() {
   c.row_ptr.assign(static_cast<size_t>(rows_a) + 1, 0);
 
   int num_threads = ppc::util::GetNumThreads();
-  if (num_threads <= 0) num_threads = 1; 
-  if (num_threads > rows_a) num_threads = rows_a;
-  
+  if (num_threads <= 0) {
+    num_threads = 1;
+  }
+  if (num_threads > rows_a) {
+    num_threads = rows_a;
+  }
+
   std::vector<std::thread> threads;
   threads.reserve(num_threads);
 
@@ -107,9 +117,13 @@ bool MaslovaUMultMatrSTL::RunImpl() {
   for (int t = 0; t < num_threads; ++t) {
     int start = t * chunk;
     int end = (t == num_threads - 1) ? rows_a : (t + 1) * chunk;
-    if (start < end) threads.emplace_back(worker_nnz, start, end);
+    if (start < end) {
+      threads.emplace_back(worker_nnz, start, end);
+    }
   }
-  for (auto &t : threads) t.join();
+  for (auto &t : threads) {
+    t.join();
+  }
   threads.clear();
 
   for (int i = 0; i < rows_a; ++i) {
@@ -132,9 +146,13 @@ bool MaslovaUMultMatrSTL::RunImpl() {
   for (int t = 0; t < num_threads; ++t) {
     int start = t * chunk;
     int end = (t == num_threads - 1) ? rows_a : (t + 1) * chunk;
-    if (start < end) threads.emplace_back(worker_values, start, end);
+    if (start < end) {
+      threads.emplace_back(worker_values, start, end);
+    }
   }
-  for (auto &t : threads) t.join();
+  for (auto &t : threads) {
+    t.join();
+  }
 
   return true;
 }
