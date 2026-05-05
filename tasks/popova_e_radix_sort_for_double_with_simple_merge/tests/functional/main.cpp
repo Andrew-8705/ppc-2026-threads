@@ -9,7 +9,7 @@
 #include "popova_e_radix_sort_for_double_with_simple_merge/omp/include/ops_omp.hpp"
 #include "popova_e_radix_sort_for_double_with_simple_merge/seq/include/ops_seq.hpp"
 #include "popova_e_radix_sort_for_double_with_simple_merge/tbb/include/ops_tbb.hpp"
-#include "popova_e_radix_sort_for_double_with_simple_merge/tbb/include/ops_stl.hpp"
+#include "popova_e_radix_sort_for_double_with_simple_merge/stl/include/ops_stl.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
