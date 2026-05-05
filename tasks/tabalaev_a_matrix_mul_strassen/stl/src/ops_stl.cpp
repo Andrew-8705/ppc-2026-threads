@@ -12,7 +12,7 @@
 
 namespace tabalaev_a_matrix_mul_strassen {
 
-static constexpr std::size_t kBaseCaseSize = 256;
+static constexpr std::size_t kBaseCaseSize = 128;
 static constexpr std::size_t kParallelThreshold = 16384;
 
 namespace {
