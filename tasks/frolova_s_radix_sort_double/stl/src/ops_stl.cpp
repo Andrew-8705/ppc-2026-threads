@@ -1,12 +1,13 @@
-// file name: ops_stl.cpp
 #include "frolova_s_radix_sort_double/stl/include/ops_stl.hpp"
 
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "frolova_s_radix_sort_double/common/include/common.hpp"
@@ -25,8 +26,8 @@ std::array<int, kRadix> ComputeHistogram(const std::vector<double> &data, int pa
   std::vector<std::thread> threads;
   std::size_t chunk_size = (n + num_threads - 1) / num_threads;
 
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    std::size_t start = t * chunk_size;
+  for (unsigned int tid = 0; tid < num_threads; ++tid) {
+    std::size_t start = tid * chunk_size;
     if (start >= n) {
       break;
     }
@@ -35,7 +36,7 @@ std::array<int, kRadix> ComputeHistogram(const std::vector<double> &data, int pa
       for (std::size_t i = start; i < end; ++i) {
         auto bits = std::bit_cast<std::uint64_t>(data[i]);
         int byte = static_cast<int>((bits >> (pass * kNumBits)) & 0xFF);
-        count[byte].fetch_add(1, std::memory_order_relaxed);
+        count.at(byte).fetch_add(1, std::memory_order_relaxed);
       }
     });
   }
@@ -45,7 +46,7 @@ std::array<int, kRadix> ComputeHistogram(const std::vector<double> &data, int pa
 
   std::array<int, kRadix> result{};
   for (int i = 0; i < kRadix; ++i) {
-    result[i] = count[i].load();
+    result.at(i) = count.at(i).load();
   }
   return result;
 }
@@ -54,8 +55,8 @@ std::array<int, kRadix> BuildOffsets(const std::array<int, kRadix> &histogram) {
   std::array<int, kRadix> offsets{};
   int total = 0;
   for (int i = 0; i < kRadix; ++i) {
-    offsets[i] = total;
-    total += histogram[i];
+    offsets.at(i) = total;
+    total += histogram.at(i);
   }
   return offsets;
 }
@@ -64,7 +65,7 @@ void Distribute(const std::vector<double> &src, std::vector<double> &dst, std::a
   for (double val : src) {
     auto bits = std::bit_cast<std::uint64_t>(val);
     int byte = static_cast<int>((bits >> (pass * kNumBits)) & 0xFF);
-    dst[offsets[byte]++] = val;
+    dst.at(offsets.at(byte)++) = val;
   }
 }
 
@@ -81,7 +82,7 @@ void FixNegativeOrder(std::vector<double> &data) {
       positive.push_back(val);
     }
   }
-  std::reverse(negative.begin(), negative.end());
+  std::ranges::reverse(negative);
 
   data.clear();
   data.insert(data.end(), negative.begin(), negative.end());
