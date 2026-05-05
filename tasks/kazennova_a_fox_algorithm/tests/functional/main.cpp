@@ -71,8 +71,7 @@ const std::array<TestType, 4> kTestParam = {std::make_tuple(2, "2x2"), std::make
 const auto kTestTasksList = std::tuple_cat(
     ppc::util::AddFuncTask<KazennovaATestTaskSEQ, InType>(kTestParam, PPC_SETTINGS_kazennova_a_fox_algorithm),
     ppc::util::AddFuncTask<KazennovaATestTaskOMP, InType>(kTestParam, PPC_SETTINGS_kazennova_a_fox_algorithm),
-    ppc::util::AddFuncTask<KazennovaATestTaskTBB, InType>(kTestParam, PPC_SETTINGS_kazennova_a_fox_algorithm)
-);
+    ppc::util::AddFuncTask<KazennovaATestTaskTBB, InType>(kTestParam, PPC_SETTINGS_kazennova_a_fox_algorithm));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 const auto kPerfTestName = KazennovaAFuncTestSeq::PrintFuncTestName<KazennovaAFuncTestSeq>;

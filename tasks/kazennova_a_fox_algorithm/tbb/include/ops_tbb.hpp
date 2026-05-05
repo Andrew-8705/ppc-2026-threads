@@ -11,7 +11,7 @@ class KazennovaATestTaskTBB : public BaseTask {
     return ppc::task::TypeOfTask::kTBB;
   }
 
-  explicit KazennovaATestTaskTBB(const InType& in);
+  explicit KazennovaATestTaskTBB(const InType &in);
 
  private:
   bool ValidationImpl() override;
