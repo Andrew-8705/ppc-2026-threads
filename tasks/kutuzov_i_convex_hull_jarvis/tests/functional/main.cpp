@@ -7,9 +7,9 @@
 #include <tuple>
 
 #include "kutuzov_i_convex_hull_jarvis/common/include/common.hpp"
-#include "kutuzov_i_convex_hull_jarvis/tbb/include/ops_tbb.hpp"
 #include "kutuzov_i_convex_hull_jarvis/omp/include/ops_omp.hpp"
 #include "kutuzov_i_convex_hull_jarvis/seq/include/ops_seq.hpp"
+#include "kutuzov_i_convex_hull_jarvis/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
