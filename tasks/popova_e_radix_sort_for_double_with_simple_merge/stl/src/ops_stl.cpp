@@ -38,7 +38,7 @@ double SortableToDouble(uint64_t bits) {
     bits = ~bits;
   }
   double value = 0;
-  std::memcpy(&value, &bits, sizeof(double));
+  memcpy(&value, &bits, sizeof(double));
   return value;
 }
 
@@ -55,18 +55,18 @@ void RadixSortUInt(std::vector<uint64_t> &arr) {
     int sdvig = byte_index * 8;
     std::array<size_t, base> count = {0};
 
-    for (const uint64_t &val : arr) {
+    for (const auto &val : arr) {
       count.at((val >> sdvig) & 0xFF)++;
     }
 
     size_t offset = 0;
-    for (size_t &c : count) {
+    for (auto &c : count) {
       size_t tmp = c;
       c = offset;
       offset += tmp;
     }
 
-    for (const uint64_t &val : arr) {
+    for (const auto &val : arr) {
       size_t pos = (val >> sdvig) & 0xFF;
       buffer.at(count.at(pos)) = val;
       count.at(pos)++;
@@ -99,7 +99,7 @@ std::vector<double> MergeSorted(const std::vector<double> &left, const std::vect
 double RandomDouble(double min_val, double max_val) {
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> dis(min_val, max_val);
+  std::uniform_real_distribution<> dis(min_val, max_val);
   return dis(gen);
 }
 
