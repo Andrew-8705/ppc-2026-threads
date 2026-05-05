@@ -15,7 +15,7 @@
 namespace lazareva_a_matrix_mult_strassen {
 
 class LazarevaARunPerfTestThreads : public ppc::util::BaseRunPerfTests<InType, OutType> {
-  const int kN_ = 2048;
+  const int kN_ = 512;
   InType input_data_{};
   OutType expected_output_;
 

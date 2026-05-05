@@ -61,11 +61,7 @@ bool LazarevaATestTaskALL::PreProcessingImpl() {
 }
 
 bool LazarevaATestTaskALL::RunImpl() {
-  int rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
   result_ = StrassenALL(a_, b_, padded_n_);
-
   return true;
 }
 
@@ -190,6 +186,19 @@ std::vector<double> LazarevaATestTaskALL::NaiveMult(const std::vector<double> &a
   const auto size = static_cast<size_t>(n) * static_cast<size_t>(n);
   std::vector<double> c(size, 0.0);
 
+  if (n <= 32) {
+    for (int i = 0; i < n; ++i) {
+      for (int k = 0; k < n; ++k) {
+        const double aik = a[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + k)];
+        for (int j = 0; j < n; ++j) {
+          c[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + j)] +=
+              aik * b[static_cast<size_t>((static_cast<ptrdiff_t>(k) * n) + j)];
+        }
+      }
+    }
+    return c;
+  }
+
   oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<int>(0, n), [&](const oneapi::tbb::blocked_range<int> &range) {
     for (int i = range.begin(); i < range.end(); ++i) {
       for (int k = 0; k < n; ++k) {
@@ -207,7 +216,7 @@ std::vector<double> LazarevaATestTaskALL::NaiveMult(const std::vector<double> &a
 
 std::vector<double> LazarevaATestTaskALL::StrassenTBB(const std::vector<double> &root_a,
                                                       const std::vector<double> &root_b, int root_n) {
-  if (root_n <= 64) {
+  if (root_n <= 128) {
     return NaiveMult(root_a, root_b, root_n);
   }
 
@@ -265,7 +274,7 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-  if (root_n <= 128 || world_size == 1) {
+  if (root_n <= 256 || world_size == 1) {
     if (rank == 0) {
       return StrassenTBB(root_a, root_b, root_n);
     }
@@ -306,21 +315,42 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
   std::array<std::vector<double>, 7> m;
   const auto matrix_size = static_cast<size_t>(half) * static_cast<size_t>(half);
 
-  for (int k = 0; k < 7; ++k) {
-    const int target_rank = k % world_size;
+  std::vector<MPI_Request> send_requests;
 
+  if (rank == 0) {
+    for (int k = 0; k < 7; ++k) {
+      const int target_rank = k % world_size;
+      if (target_rank != 0) {
+        MPI_Request req1;
+        MPI_Request req2;
+        MPI_Isend(lhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k * 2, MPI_COMM_WORLD,
+                  &req1);
+        MPI_Isend(rhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k * 2 + 1, MPI_COMM_WORLD,
+                  &req2);
+        send_requests.push_back(req1);
+        send_requests.push_back(req2);
+      }
+    }
+  }
+
+  std::vector<int> my_tasks;
+  for (int k = 0; k < 7; ++k) {
+    if (k % world_size == rank) {
+      my_tasks.push_back(k);
+    }
+  }
+
+  std::vector<std::vector<double>> my_results(my_tasks.size());
+
+  for (size_t idx = 0; idx < my_tasks.size(); ++idx) {
+    int k = my_tasks[idx];
     std::vector<double> local_lhs;
     std::vector<double> local_rhs;
 
     if (rank == 0) {
-      if (target_rank == 0) {
-        local_lhs = lhs.at(k);
-        local_rhs = rhs.at(k);
-      } else {
-        MPI_Send(lhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k * 2, MPI_COMM_WORLD);
-        MPI_Send(rhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k * 2 + 1, MPI_COMM_WORLD);
-      }
-    } else if (rank == target_rank) {
+      local_lhs = lhs.at(k);
+      local_rhs = rhs.at(k);
+    } else {
       local_lhs.resize(matrix_size);
       local_rhs.resize(matrix_size);
       MPI_Recv(local_lhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, k * 2, MPI_COMM_WORLD,
@@ -329,24 +359,33 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
                MPI_STATUS_IGNORE);
     }
 
-    if (rank == target_rank) {
-      std::vector<double> result = NaiveMult(local_lhs, local_rhs, half);
+    my_results[idx] = NaiveMult(local_lhs, local_rhs, half);
+  }
 
-      if (rank == 0) {
-        m.at(k) = std::move(result);
-      } else {
-        MPI_Send(result.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, k + 100, MPI_COMM_WORLD);
-      }
-    }
+  for (size_t idx = 0; idx < my_tasks.size(); ++idx) {
+    int k = my_tasks[idx];
 
-    if (rank == 0 && target_rank != 0) {
-      m.at(k).resize(matrix_size);
-      MPI_Recv(m.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k + 100, MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
+    if (rank == 0) {
+      m.at(k) = std::move(my_results[idx]);
+    } else {
+      MPI_Send(my_results[idx].data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, k + 100, MPI_COMM_WORLD);
     }
   }
 
   if (rank == 0) {
+    if (!send_requests.empty()) {
+      MPI_Waitall(static_cast<int>(send_requests.size()), send_requests.data(), MPI_STATUSES_IGNORE);
+    }
+
+    for (int k = 0; k < 7; ++k) {
+      const int target_rank = k % world_size;
+      if (target_rank != 0) {
+        m.at(k).resize(matrix_size);
+        MPI_Recv(m.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k + 100, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+      }
+    }
+
     auto c11 = Add(Sub(Add(m.at(0), m.at(3), half), m.at(4), half), m.at(6), half);
     auto c12 = Add(m.at(2), m.at(4), half);
     auto c21 = Add(m.at(1), m.at(3), half);
