@@ -4,7 +4,6 @@
 #include <atomic>
 #include <cmath>
 #include <cstddef>
-#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -40,6 +39,28 @@ bool UrinOGrahamPassageSTL::PreProcessingImpl() {
   return true;
 }
 
+Point UrinOGrahamPassageSTL::FindLocalMinimum(const InType &points, size_t start, size_t end) {
+  Point local_min = points[start];
+  for (size_t i = start + 1; i < end; ++i) {
+    if (points[i].y < local_min.y - 1e-10 ||
+        (std::abs(points[i].y - local_min.y) < 1e-10 && points[i].x < local_min.x - 1e-10)) {
+      local_min = points[i];
+    }
+  }
+  return local_min;
+}
+
+Point UrinOGrahamPassageSTL::CombineMinimums(const std::vector<Point> &mins) {
+  Point global_min = mins[0];
+  for (size_t i = 1; i < mins.size(); ++i) {
+    if (mins[i].y < global_min.y - 1e-10 ||
+        (std::abs(mins[i].y - global_min.y) < 1e-10 && mins[i].x < global_min.x - 1e-10)) {
+      global_min = mins[i];
+    }
+  }
+  return global_min;
+}
+
 Point UrinOGrahamPassageSTL::FindLowestPoint(const InType &points) {
   Point lowest = points[0];
 
@@ -61,22 +82,14 @@ Point UrinOGrahamPassageSTL::FindLowestPointParallel(const InType &points) {
 
   std::vector<std::thread> threads;
   std::vector<Point> local_mins(num_threads, points[0]);
-
   size_t block_size = points.size() / num_threads;
 
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    size_t start = t * block_size;
-    size_t end = (t == num_threads - 1) ? points.size() : start + block_size;
+  for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    size_t start = thread_idx * block_size;
+    size_t end = (thread_idx == num_threads - 1) ? points.size() : start + block_size;
 
-    threads.emplace_back([&points, start, end, &local_mins, t]() {
-      Point local_min = points[start];
-      for (size_t i = start + 1; i < end; ++i) {
-        if (points[i].y < local_min.y - 1e-10 ||
-            (std::abs(points[i].y - local_min.y) < 1e-10 && points[i].x < local_min.x - 1e-10)) {
-          local_min = points[i];
-        }
-      }
-      local_mins[t] = local_min;
+    threads.emplace_back([&points, start, end, &local_mins, thread_idx]() {
+      local_mins[thread_idx] = FindLocalMinimum(points, start, end);
     });
   }
 
@@ -84,15 +97,7 @@ Point UrinOGrahamPassageSTL::FindLowestPointParallel(const InType &points) {
     th.join();
   }
 
-  Point global_min = local_mins[0];
-  for (size_t i = 1; i < local_mins.size(); ++i) {
-    if (local_mins[i].y < global_min.y - 1e-10 ||
-        (std::abs(local_mins[i].y - global_min.y) < 1e-10 && local_mins[i].x < global_min.x - 1e-10)) {
-      global_min = local_mins[i];
-    }
-  }
-
-  return global_min;
+  return CombineMinimums(local_mins);
 }
 
 double UrinOGrahamPassageSTL::PolarAngle(const Point &base, const Point &p) {
@@ -129,18 +134,16 @@ std::vector<Point> UrinOGrahamPassageSTL::PrepareOtherPointsParallel(const InTyp
 
   std::vector<std::thread> threads;
   std::vector<std::vector<Point>> local_points(num_threads);
-  // мьютекс не нужен, так как каждый поток пишет в свою локальную область
-
   size_t block_size = points.size() / num_threads;
 
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    size_t start = t * block_size;
-    size_t end = (t == num_threads - 1) ? points.size() : start + block_size;
+  for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    size_t start = thread_idx * block_size;
+    size_t end = (thread_idx == num_threads - 1) ? points.size() : start + block_size;
 
-    threads.emplace_back([&points, &p0, start, end, &local_points, t]() {
+    threads.emplace_back([&points, &p0, start, end, &local_points, thread_idx]() {
       for (size_t i = start; i < end; ++i) {
         if (points[i] != p0) {
-          local_points[t].push_back(points[i]);
+          local_points[thread_idx].push_back(points[i]);
         }
       }
     });
@@ -158,7 +161,6 @@ std::vector<Point> UrinOGrahamPassageSTL::PrepareOtherPointsParallel(const InTyp
   std::sort(other_points.begin(), other_points.end(), [&p0](const Point &a, const Point &b) {
     double angle_a = PolarAngle(p0, a);
     double angle_b = PolarAngle(p0, b);
-
     if (std::abs(angle_a - angle_b) < 1e-10) {
       return DistanceSquared(p0, a) < DistanceSquared(p0, b);
     }
@@ -178,9 +180,9 @@ bool UrinOGrahamPassageSTL::AreAllCollinear(const Point &p0, const std::vector<P
   std::vector<std::thread> threads;
   size_t block_size = points.size() / num_threads;
 
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    size_t start = (t == 0) ? 1 : t * block_size;
-    size_t end = (t == num_threads - 1) ? points.size() : (t + 1) * block_size;
+  for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    size_t start = (thread_idx == 0) ? 1 : thread_idx * block_size;
+    size_t end = (thread_idx == num_threads - 1) ? points.size() : (thread_idx + 1) * block_size;
 
     threads.emplace_back([&points, &p0, start, end, &all_collinear]() {
       for (size_t i = start; i < end && all_collinear.load(); ++i) {

@@ -28,6 +28,8 @@ class UrinOGrahamPassageSTL : public BaseTask {
 
  private:
   // STL-специфичные функции
+  static Point FindLocalMinimum(const std::vector<Point> &points, size_t start, size_t end);
+  static Point CombineMinimums(const std::vector<Point> &mins);
   [[nodiscard]] static Point FindLowestPointParallel(const InType &points);
   [[nodiscard]] static std::vector<Point> PrepareOtherPointsParallel(const InType &points, const Point &p0);
   [[nodiscard]] static bool AreAllCollinear(const Point &p0, const std::vector<Point> &points);
