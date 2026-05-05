@@ -25,7 +25,16 @@ class ThreadPool {
   }
 
   void ParallelFor(int n, const std::function<void(int, int)> &func) {
+    if (n <= 0) {
+      return;
+    }
+
     int num_threads = static_cast<int>(threads_.size());
+    if (num_threads == 0) {
+      func(0, n);
+      return;
+    }
+
     std::vector<std::future<void>> futures;
     futures.reserve(num_threads);
 
@@ -39,7 +48,11 @@ class ThreadPool {
         end += remainder;
       }
 
-      futures.push_back(Enqueue([func, start, end]() { func(start, end); }));
+      futures.push_back(Enqueue([func, start, end]() {
+        if (start < end) {
+          func(start, end);
+        }
+      }));
     }
 
     for (auto &future : futures) {
@@ -48,7 +61,15 @@ class ThreadPool {
   }
 
   double ParallelReduce(int n, const std::function<double(int, int)> &func) {
+    if (n <= 0) {
+      return 0.0;
+    }
+
     int num_threads = static_cast<int>(threads_.size());
+    if (num_threads == 0) {
+      return func(0, n);
+    }
+
     std::vector<std::future<double>> futures;
     futures.reserve(num_threads);
 
@@ -62,7 +83,12 @@ class ThreadPool {
         end += remainder;
       }
 
-      futures.push_back(Enqueue([func, start, end]() { return func(start, end); }));
+      futures.push_back(Enqueue([func, start, end]() {
+        if (start >= end) {
+          return 0.0;
+        }
+        return func(start, end);
+      }));
     }
 
     double result = 0.0;
@@ -74,6 +100,9 @@ class ThreadPool {
 
  private:
   explicit ThreadPool(size_t num_threads) {
+    if (num_threads == 0) {
+      num_threads = 1;
+    }
     for (size_t i = 0; i < num_threads; ++i) {
       threads_.emplace_back([this]() { Worker(); });
     }
@@ -86,7 +115,9 @@ class ThreadPool {
     }
     condition_.notify_all();
     for (auto &thread : threads_) {
-      thread.join();
+      if (thread.joinable()) {
+        thread.join();
+      }
     }
   }
 
@@ -96,6 +127,9 @@ class ThreadPool {
     std::future<decltype(f())> result = task->get_future();
     {
       std::unique_lock<std::mutex> lock(mutex_);
+      if (stop_) {
+        throw std::runtime_error("Enqueue on stopped ThreadPool");
+      }
       tasks_.emplace([task]() { (*task)(); });
     }
     condition_.notify_one();
@@ -111,10 +145,15 @@ class ThreadPool {
         if (stop_ && tasks_.empty()) {
           return;
         }
+        if (tasks_.empty()) {
+          continue;
+        }
         task = std::move(tasks_.front());
         tasks_.pop();
       }
-      task();
+      if (task) {
+        task();
+      }
     }
   }
 
@@ -126,6 +165,9 @@ class ThreadPool {
 };
 
 double ComputeDotProduct(const std::vector<double> &a, const std::vector<double> &b, int n) {
+  if (n <= 0) {
+    return 0.0;
+  }
   return ThreadPool::Instance().ParallelReduce(n, [&](int start, int end) {
     double sum = 0.0;
     for (int i = start; i < end; ++i) {
@@ -137,6 +179,9 @@ double ComputeDotProduct(const std::vector<double> &a, const std::vector<double>
 
 void ComputeMatrixVectorProduct(const std::vector<double> &a, const std::vector<double> &v, std::vector<double> &result,
                                 int n) {
+  if (n <= 0) {
+    return;
+  }
   const auto stride = static_cast<size_t>(n);
   ThreadPool::Instance().ParallelFor(n, [&](int start, int end) {
     for (int i = start; i < end; ++i) {
@@ -151,6 +196,9 @@ void ComputeMatrixVectorProduct(const std::vector<double> &a, const std::vector<
 }
 
 void UpdateSolution(std::vector<double> &x, const std::vector<double> &p, double alpha, int n) {
+  if (n <= 0) {
+    return;
+  }
   ThreadPool::Instance().ParallelFor(n, [&](int start, int end) {
     for (int i = start; i < end; ++i) {
       x[i] += alpha * p[i];
@@ -159,6 +207,9 @@ void UpdateSolution(std::vector<double> &x, const std::vector<double> &p, double
 }
 
 void UpdateResidual(std::vector<double> &r, const std::vector<double> &ap, double alpha, int n) {
+  if (n <= 0) {
+    return;
+  }
   ThreadPool::Instance().ParallelFor(n, [&](int start, int end) {
     for (int i = start; i < end; ++i) {
       r[i] -= alpha * ap[i];
@@ -167,6 +218,9 @@ void UpdateResidual(std::vector<double> &r, const std::vector<double> &ap, doubl
 }
 
 void UpdateSearchDirection(std::vector<double> &p, const std::vector<double> &r, double beta, int n) {
+  if (n <= 0) {
+    return;
+  }
   ThreadPool::Instance().ParallelFor(n, [&](int start, int end) {
     for (int i = start; i < end; ++i) {
       p[i] = r[i] + (beta * p[i]);
@@ -206,7 +260,7 @@ bool KichanovaKLinSystemByConjugGradSTL::RunImpl() {
   OutType &x = GetOutput();
 
   int n = input_data.n;
-  if (n == 0) {
+  if (n <= 0) {
     return false;
   }
 
