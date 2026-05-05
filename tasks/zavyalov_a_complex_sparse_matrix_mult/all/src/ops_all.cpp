@@ -39,44 +39,44 @@ void BroadcastMatrix(SparseMatrix& m) {
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  std::array<uint64_t, 3> meta{};
+  std::array<int, 3> meta{};
   if (rank == 0) {
-    meta[0] = static_cast<uint64_t>(m.height);
-    meta[1] = static_cast<uint64_t>(m.width);
-    meta[2] = static_cast<uint64_t>(m.val.size());
+    meta[0] = static_cast<int>(m.height);
+    meta[1] = static_cast<int>(m.width);
+    meta[2] = static_cast<int>(m.val.size());
   }
 
-  MPI_Bcast(meta.data(), static_cast<int>(meta.size()), MPI_UINT64_T, 0, MPI_COMM_WORLD);
+  MPI_Bcast(meta.data(), 3, MPI_INT, 0, MPI_COMM_WORLD);
 
   m.height = static_cast<size_t>(meta[0]);
   m.width = static_cast<size_t>(meta[1]);
-  auto count = static_cast<size_t>(meta[2]);
+  size_t count = static_cast<size_t>(meta[2]);
 
   m.row_ind.resize(count);
   m.col_ind.resize(count);
   m.val.resize(count);
 
-  std::vector<uint64_t> tmp_rows;
-  std::vector<uint64_t> tmp_cols;
+  std::vector<int> tmp_rows(count);
+  std::vector<int> tmp_cols(count);
 
   if (rank == 0) {
-    tmp_rows = ToMPI(m.row_ind);
-    tmp_cols = ToMPI(m.col_ind);
-  } else {
-    tmp_rows.resize(count);
-    tmp_cols.resize(count);
+    for (size_t i = 0; i < count; ++i) {
+      tmp_rows[i] = static_cast<int>(m.row_ind[i]);
+      tmp_cols[i] = static_cast<int>(m.col_ind[i]);
+    }
   }
 
-  MPI_Bcast(tmp_rows.data(), static_cast<int>(count), MPI_UINT64_T, 0, MPI_COMM_WORLD);
-  MPI_Bcast(tmp_cols.data(), static_cast<int>(count), MPI_UINT64_T, 0, MPI_COMM_WORLD);
+  MPI_Bcast(tmp_rows.data(), static_cast<int>(count), MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(tmp_cols.data(), static_cast<int>(count), MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank != 0) {
-    m.row_ind = FromMPI<size_t>(tmp_rows);
-    m.col_ind = FromMPI<size_t>(tmp_cols);
+    for (size_t i = 0; i < count; ++i) {
+      m.row_ind[i] = static_cast<size_t>(tmp_rows[i]);
+      m.col_ind[i] = static_cast<size_t>(tmp_cols[i]);
+    }
   }
 
-  std::vector<double> re(count);
-  std::vector<double> im(count);
+  std::vector<double> re(count), im(count);
 
   if (rank == 0) {
     for (size_t i = 0; i < count; ++i) {
@@ -116,10 +116,9 @@ void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix& 
   local_im.resize(local_count);
 
   if (rank == 0) {
-    std::copy(ma.row_ind.begin(), ma.row_ind.begin() + local_count, local_rows.begin());
-    std::copy(ma.col_ind.begin(), ma.col_ind.begin() + local_count, local_cols.begin());
-
     for (int i = 0; i < local_count; ++i) {
+      local_rows[i] = ma.row_ind[i];
+      local_cols[i] = ma.col_ind[i];
       local_re[i] = ma.val[i].re;
       local_im[i] = ma.val[i].im;
     }
@@ -128,92 +127,98 @@ void ScatterMatrixA(int rank, int world_size, size_t total, const SparseMatrix& 
       int cnt = sendcounts[proc];
       int dsp = displs[proc];
 
-      std::vector<double> re_buf(cnt);
-      std::vector<double> im_buf(cnt);
+      std::vector<int> rows_send(cnt);
+      std::vector<int> cols_send(cnt);
+      std::vector<double> re_buf(cnt), im_buf(cnt);
+
       for (int i = 0; i < cnt; ++i) {
+        rows_send[i] = static_cast<int>(ma.row_ind[dsp + i]);
+        cols_send[i] = static_cast<int>(ma.col_ind[dsp + i]);
         re_buf[i] = ma.val[dsp + i].re;
         im_buf[i] = ma.val[dsp + i].im;
       }
 
-      std::vector<uint64_t> rows_send(cnt);
-      std::vector<uint64_t> cols_send(cnt);
-      for (int i = 0; i < cnt; ++i) {
-        rows_send[i] = static_cast<uint64_t>(ma.row_ind[dsp + i]);
-        cols_send[i] = static_cast<uint64_t>(ma.col_ind[dsp + i]);
-      }
-
-      MPI_Send(rows_send.data(), cnt, MPI_UINT64_T, proc, 0, MPI_COMM_WORLD);
-      MPI_Send(cols_send.data(), cnt, MPI_UINT64_T, proc, 1, MPI_COMM_WORLD);
+      MPI_Send(rows_send.data(), cnt, MPI_INT, proc, 0, MPI_COMM_WORLD);
+      MPI_Send(cols_send.data(), cnt, MPI_INT, proc, 1, MPI_COMM_WORLD);
       MPI_Send(re_buf.data(), cnt, MPI_DOUBLE, proc, 2, MPI_COMM_WORLD);
       MPI_Send(im_buf.data(), cnt, MPI_DOUBLE, proc, 3, MPI_COMM_WORLD);
     }
-  } else {
-    std::vector<uint64_t> rows_recv(local_count);
-    std::vector<uint64_t> cols_recv(local_count);
 
-    MPI_Recv(rows_recv.data(), local_count, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    MPI_Recv(cols_recv.data(), local_count, MPI_UINT64_T, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  } else {
+    std::vector<int> rows_recv(local_count);
+    std::vector<int> cols_recv(local_count);
+
+    MPI_Recv(rows_recv.data(), local_count, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(cols_recv.data(), local_count, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Recv(local_re.data(), local_count, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Recv(local_im.data(), local_count, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    local_rows.assign(rows_recv.begin(), rows_recv.end());
-    local_cols.assign(cols_recv.begin(), cols_recv.end());
+    for (int i = 0; i < local_count; ++i) {
+      local_rows[i] = static_cast<size_t>(rows_recv[i]);
+      local_cols[i] = static_cast<size_t>(cols_recv[i]);
+    }
   }
 }
-
 void GatherResult(int rank, int world_size, const std::vector<size_t>& rows, const std::vector<size_t>& cols,
                   const std::vector<double>& re_vals, const std::vector<double>& im_vals, size_t a_height,
                   size_t b_width, SparseMatrix& output) {
-  int res_local_count = static_cast<int>(rows.size());
+  int local_count = static_cast<int>(rows.size());
 
   std::vector<int> all_counts(world_size);
-  MPI_Gather(&res_local_count, 1, MPI_INT, all_counts.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Gather(&local_count, 1, MPI_INT, all_counts.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   std::vector<int> displs(world_size, 0);
   int total_count = 0;
 
   if (rank == 0) {
-    for (int proc = 0; proc < world_size; ++proc) {
-      displs[proc] = total_count;
-      total_count += all_counts[proc];
+    for (int i = 0; i < world_size; ++i) {
+      displs[i] = total_count;
+      total_count += all_counts[i];
     }
   }
 
-  std::vector<uint64_t> all_rows(total_count);
-  std::vector<uint64_t> all_cols(total_count);
+  std::vector<int> all_rows(total_count);
+  std::vector<int> all_cols(total_count);
   std::vector<double> all_re(total_count);
   std::vector<double> all_im(total_count);
 
-  MPI_Gatherv(rows.data(), res_local_count, MPI_UINT64_T, all_rows.data(), all_counts.data(), displs.data(),
-              MPI_UINT64_T, 0, MPI_COMM_WORLD);
+  std::vector<int> rows_int(local_count);
+  std::vector<int> cols_int(local_count);
 
-  MPI_Gatherv(cols.data(), res_local_count, MPI_UINT64_T, all_cols.data(), all_counts.data(), displs.data(),
-              MPI_UINT64_T, 0, MPI_COMM_WORLD);
+  for (int i = 0; i < local_count; ++i) {
+    rows_int[i] = static_cast<int>(rows[i]);
+    cols_int[i] = static_cast<int>(cols[i]);
+  }
 
-  MPI_Gatherv(re_vals.data(), res_local_count, MPI_DOUBLE, all_re.data(), all_counts.data(), displs.data(), MPI_DOUBLE,
-              0, MPI_COMM_WORLD);
+  MPI_Gatherv(rows_int.data(), local_count, MPI_INT, all_rows.data(), all_counts.data(), displs.data(), MPI_INT, 0,
+              MPI_COMM_WORLD);
 
-  MPI_Gatherv(im_vals.data(), res_local_count, MPI_DOUBLE, all_im.data(), all_counts.data(), displs.data(), MPI_DOUBLE,
-              0, MPI_COMM_WORLD);
+  MPI_Gatherv(cols_int.data(), local_count, MPI_INT, all_cols.data(), all_counts.data(), displs.data(), MPI_INT, 0,
+              MPI_COMM_WORLD);
+
+  MPI_Gatherv(re_vals.data(), local_count, MPI_DOUBLE, all_re.data(), all_counts.data(), displs.data(), MPI_DOUBLE, 0,
+              MPI_COMM_WORLD);
+
+  MPI_Gatherv(im_vals.data(), local_count, MPI_DOUBLE, all_im.data(), all_counts.data(), displs.data(), MPI_DOUBLE, 0,
+              MPI_COMM_WORLD);
 
   if (rank == 0) {
-    std::map<std::pair<size_t, size_t>, Complex> final_mp;
+    std::map<std::pair<size_t, size_t>, Complex> mp;
 
     for (int i = 0; i < total_count; ++i) {
-      final_mp[{all_rows[i], all_cols[i]}] += Complex(all_re[i], all_im[i]);
+      mp[{static_cast<size_t>(all_rows[i]), static_cast<size_t>(all_cols[i])}] += Complex(all_re[i], all_im[i]);
     }
 
     output.height = a_height;
     output.width = b_width;
 
-    for (const auto& [key, val] : final_mp) {
-      output.row_ind.push_back(key.first);
-      output.col_ind.push_back(key.second);
-      output.val.push_back(val);
+    for (auto& [k, v] : mp) {
+      output.row_ind.push_back(k.first);
+      output.col_ind.push_back(k.second);
+      output.val.push_back(v);
     }
   }
 }
-
 }  // namespace
 
 ZavyalovAComplSparseMatrMultALL::ZavyalovAComplSparseMatrMultALL(const InType& in) {
