@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <stack>
 #include <thread>
 #include <utility>
@@ -13,7 +14,7 @@
 namespace tabalaev_a_matrix_mul_strassen {
 
 static constexpr std::size_t kBaseCaseSize = 128;
-static constexpr std::size_t kParallelThreshold = 16384;
+static constexpr std::size_t kParallelThreshold = 65536; 
 
 namespace {
 template <typename fnc>
@@ -84,19 +85,15 @@ bool TabalaevAMatrixMulStrassenSTL::PreProcessingImpl() {
   padded_b_.assign(padded_n_ * padded_n_, 0.0);
 
   RunParallel(0, a_rows_, kParallelThreshold, [&](std::size_t i) {
-    std::size_t i_padded = i * padded_n_;
-    std::size_t i_cols = i * a_cols_b_rows_;
-    for (std::size_t j = 0; j < a_cols_b_rows_; ++j) {
-      padded_a_[i_padded + j] = in.a[i_cols + j];
-    }
+    auto src_start = in.a.begin() + static_cast<ptrdiff_t>(i * a_cols_b_rows_);
+    auto dst_start = padded_a_.begin() + static_cast<ptrdiff_t>(i * padded_n_);
+    std::copy(src_start, src_start + static_cast<ptrdiff_t>(a_cols_b_rows_), dst_start);
   });
 
   RunParallel(0, a_cols_b_rows_, kParallelThreshold, [&](std::size_t i) {
-    std::size_t i_padded = i * padded_n_;
-    std::size_t i_cols = i * b_cols_;
-    for (std::size_t j = 0; j < b_cols_; ++j) {
-      padded_b_[i_padded + j] = in.b[i_cols + j];
-    }
+    auto src_start = in.b.begin() + static_cast<ptrdiff_t>(i * b_cols_);
+    auto dst_start = padded_b_.begin() + static_cast<ptrdiff_t>(i * padded_n_);
+    std::copy(src_start, src_start + static_cast<ptrdiff_t>(b_cols_), dst_start);
   });
 
   return true;
@@ -109,11 +106,9 @@ bool TabalaevAMatrixMulStrassenSTL::RunImpl() {
   out.assign(a_rows_ * b_cols_, 0.0);
 
   RunParallel(0, a_rows_, kParallelThreshold, [&](std::size_t i) {
-    std::size_t i_cols = i * b_cols_;
-    std::size_t i_padded = i * padded_n_;
-    for (std::size_t j = 0; j < b_cols_; ++j) {
-      out[i_cols + j] = result_c_[i_padded + j];
-    }
+    auto src_start = result_c_.begin() + static_cast<ptrdiff_t>(i * padded_n_);
+    auto dst_start = out.begin() + static_cast<ptrdiff_t>(i * b_cols_);
+    std::copy(src_start, src_start + static_cast<ptrdiff_t>(b_cols_), dst_start);
   });
 
   return true;
@@ -125,32 +120,15 @@ bool TabalaevAMatrixMulStrassenSTL::PostProcessingImpl() {
 
 std::vector<double> TabalaevAMatrixMulStrassenSTL::Add(const std::vector<double> &mat_a,
                                                        const std::vector<double> &mat_b) {
-  const std::size_t n = mat_a.size();
-
-  std::vector<double> res(n);
-
-  const double *a_ptr = mat_a.data();
-  const double *b_ptr = mat_b.data();
-
-  double *res_ptr = res.data();
-
-  RunParallel(0, n, kParallelThreshold, [&](std::size_t i) { res_ptr[i] = a_ptr[i] + b_ptr[i]; });
+  std::vector<double> res(mat_a.size());
+  std::transform(mat_a.begin(), mat_a.end(), mat_b.begin(), res.begin(), std::plus<>());
   return res;
 }
 
 std::vector<double> TabalaevAMatrixMulStrassenSTL::Subtract(const std::vector<double> &mat_a,
                                                             const std::vector<double> &mat_b) {
-  const std::size_t n = mat_a.size();
-
-  std::vector<double> res(n);
-
-  const double *a_ptr = mat_a.data();
-  const double *b_ptr = mat_b.data();
-
-  double *res_ptr = res.data();
-
-  RunParallel(0, n, kParallelThreshold, [&](std::size_t i) { res_ptr[i] = a_ptr[i] - b_ptr[i]; });
-
+  std::vector<double> res(mat_a.size());
+  std::transform(mat_a.begin(), mat_a.end(), mat_b.begin(), res.begin(), std::minus<>());
   return res;
 }
 
@@ -160,7 +138,6 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::BaseMultiply(const std::vecto
 
   const double *a_ptr = mat_a.data();
   const double *b_ptr = mat_b.data();
-
   double *res_ptr = res.data();
 
   RunParallel(0, n, kParallelThreshold, [&](std::size_t i) {
@@ -190,24 +167,16 @@ void TabalaevAMatrixMulStrassenSTL::SplitMatrix(const std::vector<double> &src, 
   c21.resize(sz);
   c22.resize(sz);
 
-  const double *src_ptr = src.data();
-  double *c11_ptr = c11.data();
-  double *c12_ptr = c12.data();
-  double *c21_ptr = c21.data();
-  double *c22_ptr = c22.data();
-
   RunParallel(0, h, kParallelThreshold, [&](std::size_t i) {
-    std::size_t i_n = i * n;
-    std::size_t i_h = i * h;
-    std::size_t h_n = h * n;
-    for (std::size_t j = 0; j < h; ++j) {
-      std::size_t src_idx = i_n + j;
-      std::size_t dst_idx = i_h + j;
-      c11_ptr[dst_idx] = src_ptr[src_idx];
-      c12_ptr[dst_idx] = src_ptr[src_idx + h];
-      c21_ptr[dst_idx] = src_ptr[src_idx + h_n];
-      c22_ptr[dst_idx] = src_ptr[src_idx + h_n + h];
-    }
+    auto src_row1 = src.begin() + static_cast<ptrdiff_t>(i * n);
+    auto src_row2 = src.begin() + static_cast<ptrdiff_t>((i + h) * n);
+    auto dst_row = static_cast<ptrdiff_t>(i * h);
+
+    std::copy(src_row1, src_row1 + static_cast<ptrdiff_t>(h), c11.begin() + dst_row);
+    std::copy(src_row1 + static_cast<ptrdiff_t>(h), src_row1 + static_cast<ptrdiff_t>(n), c12.begin() + dst_row);
+
+    std::copy(src_row2, src_row2 + static_cast<ptrdiff_t>(h), c21.begin() + dst_row);
+    std::copy(src_row2 + static_cast<ptrdiff_t>(h), src_row2 + static_cast<ptrdiff_t>(n), c22.begin() + dst_row);
   });
 }
 
@@ -218,23 +187,16 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::CombineMatrix(const std::vect
   std::size_t h = n / 2;
   std::vector<double> res(n * n);
 
-  const double *c11_ptr = c11.data();
-  const double *c12_ptr = c12.data();
-  const double *c21_ptr = c21.data();
-  const double *c22_ptr = c22.data();
-  double *res_ptr = res.data();
-
   RunParallel(0, h, kParallelThreshold, [&](std::size_t i) {
-    std::size_t i_h = i * h;
-    std::size_t i_n = i * n;
-    std::size_t ih_n = (i + h) * n;
-    for (std::size_t j = 0; j < h; ++j) {
-      std::size_t src_idx = i_h + j;
-      res_ptr[i_n + j] = c11_ptr[src_idx];
-      res_ptr[i_n + j + h] = c12_ptr[src_idx];
-      res_ptr[ih_n + j] = c21_ptr[src_idx];
-      res_ptr[ih_n + j + h] = c22_ptr[src_idx];
-    }
+    auto res_row1 = res.begin() + static_cast<ptrdiff_t>(i * n);
+    auto res_row2 = res.begin() + static_cast<ptrdiff_t>((i + h) * n);
+    auto src_row = static_cast<ptrdiff_t>(i * h);
+
+    std::copy(c11.begin() + src_row, c11.begin() + src_row + static_cast<ptrdiff_t>(h), res_row1);
+    std::copy(c12.begin() + src_row, c12.begin() + src_row + static_cast<ptrdiff_t>(h), res_row1 + static_cast<ptrdiff_t>(h));
+
+    std::copy(c21.begin() + src_row, c21.begin() + src_row + static_cast<ptrdiff_t>(h), res_row2);
+    std::copy(c22.begin() + src_row, c22.begin() + src_row + static_cast<ptrdiff_t>(h), res_row2 + static_cast<ptrdiff_t>(h));
   });
   return res;
 }
