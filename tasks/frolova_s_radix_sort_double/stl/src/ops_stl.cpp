@@ -42,7 +42,7 @@ bool FrolovaSRadixSortDoubleSTL::RunImpl() {
 
   unsigned int num_threads = std::thread::hardware_concurrency();
   if (num_threads == 0) {
-    num_threads = 2;  
+    num_threads = 2;
   }
   if (num_threads > n) {
     num_threads = static_cast<unsigned int>(n);
@@ -55,7 +55,9 @@ bool FrolovaSRadixSortDoubleSTL::RunImpl() {
       std::size_t chunk_size = (n + num_threads - 1) / num_threads;
       for (unsigned int t = 0; t < num_threads; ++t) {
         std::size_t start = t * chunk_size;
-        if (start >= n) break;
+        if (start >= n) {
+          break;
+        }
         std::size_t end = std::min(start + chunk_size, n);
         threads.emplace_back([&, start, end]() {
           for (std::size_t i = start; i < end; ++i) {
