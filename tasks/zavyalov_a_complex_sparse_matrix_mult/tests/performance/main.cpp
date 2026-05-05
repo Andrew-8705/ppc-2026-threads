@@ -19,7 +19,7 @@
 namespace zavyalov_a_compl_sparse_matr_mult {
 
 class ZavyalovAComplexSparseMatrMultPerfTest : public ppc::util::BaseRunPerfTests<InType, OutType> {
-  static constexpr size_t kCount = 7000;
+  static constexpr size_t kCount = 11000;
   InType input_data_;
 
   void SetUp() override {
