@@ -21,7 +21,7 @@ constexpr std::uint32_t kPerfSeed = 0x5A17C3D2U;
 class TochilinEHoarSortSimMerRunPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
   const int k_count = 2000000;
-  InType input_data{};
+  InType input_data;
 
   void SetUp() override {
     input_data.resize(static_cast<std::size_t>(k_count));
