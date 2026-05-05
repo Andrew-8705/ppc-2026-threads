@@ -121,14 +121,14 @@ bool TabalaevAMatrixMulStrassenSTL::PostProcessingImpl() {
 std::vector<double> TabalaevAMatrixMulStrassenSTL::Add(const std::vector<double> &mat_a,
                                                        const std::vector<double> &mat_b) {
   std::vector<double> res(mat_a.size());
-  std::transform(mat_a.begin(), mat_a.end(), mat_b.begin(), res.begin(), std::plus<>());
+  std::ranges::transform(mat_a, mat_b, res.begin(), std::plus<>());
   return res;
 }
 
 std::vector<double> TabalaevAMatrixMulStrassenSTL::Subtract(const std::vector<double> &mat_a,
                                                             const std::vector<double> &mat_b) {
   std::vector<double> res(mat_a.size());
-  std::transform(mat_a.begin(), mat_a.end(), mat_b.begin(), res.begin(), std::minus<>());
+  std::ranges::transform(mat_a, mat_b, res.begin(), std::minus<>());
   return res;
 }
 
