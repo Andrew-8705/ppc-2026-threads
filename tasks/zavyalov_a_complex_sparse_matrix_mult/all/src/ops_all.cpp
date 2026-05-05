@@ -179,8 +179,8 @@ void GatherResult(int rank, int world_size, const std::vector<size_t>& rows, con
     }
   }
 
-  std::vector<size_t> all_rows(total_count);
-  std::vector<size_t> all_cols(total_count);
+  std::vector<uint64_t> all_rows(total_count);
+  std::vector<uint64_t> all_cols(total_count);
   std::vector<double> all_re(total_count);
   std::vector<double> all_im(total_count);
 
