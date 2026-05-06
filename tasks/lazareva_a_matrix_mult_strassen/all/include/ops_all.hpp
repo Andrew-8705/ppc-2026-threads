@@ -40,10 +40,6 @@ class LazarevaATestTaskALL : public BaseTask {
   static std::vector<double> NaiveMultParallel(const std::vector<double> &a, const std::vector<double> &b, int n);
   static std::vector<double> StrassenTBB(const std::vector<double> &a, const std::vector<double> &b, int n);
   static std::vector<double> StrassenALL(const std::vector<double> &a, const std::vector<double> &b, int n);
-  static void SendTasksToWorkers(const std::array<std::vector<double>, 7> &lhs,
-                                 const std::array<std::vector<double>, 7> &rhs, size_t matrix_size, int world_size,
-                                 std::vector<MPI_Request> &send_requests);
-  static void ReceiveResultsFromWorkers(std::array<std::vector<double>, 7> &m, size_t matrix_size, int world_size);
 };
 
 }  // namespace lazareva_a_matrix_mult_strassen
