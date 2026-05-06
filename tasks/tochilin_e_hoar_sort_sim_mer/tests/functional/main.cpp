@@ -80,7 +80,7 @@ class TochilinEHoarSortSimMerRunFuncTests : public ppc::util::BaseRunFuncTests<I
   }
 
  private:
-  InType input_data_;
+  InType input_data_;  // reopen
 };
 
 namespace {
