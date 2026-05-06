@@ -14,7 +14,7 @@ namespace tochilin_e_hoar_sort_sim_mer {
 
 TochilinEHoarSortSimMerOMP::TochilinEHoarSortSimMerOMP(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
-  GetInput() = in;
+  GetInput() = in;  // reopen
 }
 
 bool TochilinEHoarSortSimMerOMP::ValidationImpl() {
