@@ -136,7 +136,7 @@ void VotincevDRadixMergeSortSTL::ParallelRadixMergeSort(uint32_t *data, int32_t 
 bool VotincevDRadixMergeSortSTL::RunImpl() {
   const auto &input = GetInput();
   auto n = static_cast<int32_t>(input.size());
-  
+
   if (n == 0) {
     return true;
   }
