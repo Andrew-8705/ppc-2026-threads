@@ -6,93 +6,13 @@
 
 #include <array>
 #include <cstddef>
-#include <utility>
 #include <vector>
 
 #include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
 
 namespace lazareva_a_matrix_mult_strassen {
 
-LazarevaATestTaskALL::LazarevaATestTaskALL(const InType &in) {
-  SetTypeOfTask(GetStaticTypeOfTask());
-  GetInput() = in;
-  GetOutput() = {};
-}
-
-bool LazarevaATestTaskALL::ValidationImpl() {
-  int rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  if (rank == 0) {
-    const int n = GetInput().n;
-    if (n <= 0) {
-      return false;
-    }
-    const auto expected = static_cast<size_t>(n) * static_cast<size_t>(n);
-    return std::cmp_equal(GetInput().a.size(), expected) && std::cmp_equal(GetInput().b.size(), expected);
-  }
-  return true;
-}
-
-bool LazarevaATestTaskALL::PreProcessingImpl() {
-  int rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  if (rank == 0) {
-    n_ = GetInput().n;
-    padded_n_ = NextPowerOfTwo(n_);
-    a_ = PadMatrix(GetInput().a, n_, padded_n_);
-    b_ = PadMatrix(GetInput().b, n_, padded_n_);
-    const auto padded_size = static_cast<size_t>(padded_n_) * static_cast<size_t>(padded_n_);
-    result_.assign(padded_size, 0.0);
-  }
-
-  MPI_Bcast(&n_, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&padded_n_, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  if (rank != 0) {
-    const auto padded_size = static_cast<size_t>(padded_n_) * static_cast<size_t>(padded_n_);
-    a_.assign(padded_size, 0.0);
-    b_.assign(padded_size, 0.0);
-    result_.assign(padded_size, 0.0);
-  }
-
-  return true;
-}
-
-bool LazarevaATestTaskALL::RunImpl() {
-  result_ = StrassenALL(a_, b_, padded_n_);
-  return true;
-}
-
-bool LazarevaATestTaskALL::PostProcessingImpl() {
-  int rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  if (rank == 0) {
-    auto output = UnpadMatrix(result_, padded_n_, n_);
-    GetOutput() = output;
-
-    int output_size = static_cast<int>(output.size());
-    MPI_Bcast(&output_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(output.data(), output_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  } else {
-    int output_size = 0;
-    MPI_Bcast(&output_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    std::vector<double> output(static_cast<size_t>(output_size));
-    MPI_Bcast(output.data(), output_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-    GetOutput() = output;
-  }
-
-  return true;
-}
-
 int LazarevaATestTaskALL::NextPowerOfTwo(int n) {
-  if (n <= 0) {
-    return 1;
-  }
   int p = 1;
   while (p < n) {
     p <<= 1;
@@ -101,307 +21,273 @@ int LazarevaATestTaskALL::NextPowerOfTwo(int n) {
 }
 
 std::vector<double> LazarevaATestTaskALL::PadMatrix(const std::vector<double> &m, int old_n, int new_n) {
-  const auto new_size = static_cast<size_t>(new_n) * static_cast<size_t>(new_n);
-  std::vector<double> result(new_size, 0.0);
+  std::vector<double> r(static_cast<size_t>(new_n) * new_n, 0.0);
   for (int i = 0; i < old_n; ++i) {
     for (int j = 0; j < old_n; ++j) {
-      const auto dst = (static_cast<ptrdiff_t>(i) * new_n) + j;
-      const auto src = (static_cast<ptrdiff_t>(i) * old_n) + j;
-      result[static_cast<size_t>(dst)] = m[static_cast<size_t>(src)];
+      r[i * new_n + j] = m[i * old_n + j];
     }
   }
-  return result;
+  return r;
 }
 
 std::vector<double> LazarevaATestTaskALL::UnpadMatrix(const std::vector<double> &m, int old_n, int new_n) {
-  const auto new_size = static_cast<size_t>(new_n) * static_cast<size_t>(new_n);
-  std::vector<double> result(new_size);
+  std::vector<double> r(static_cast<size_t>(new_n) * new_n);
   for (int i = 0; i < new_n; ++i) {
     for (int j = 0; j < new_n; ++j) {
-      const auto dst = (static_cast<ptrdiff_t>(i) * new_n) + j;
-      const auto src = (static_cast<ptrdiff_t>(i) * old_n) + j;
-      result[static_cast<size_t>(dst)] = m[static_cast<size_t>(src)];
+      r[i * new_n + j] = m[i * old_n + j];
     }
   }
-  return result;
+  return r;
 }
 
 std::vector<double> LazarevaATestTaskALL::Add(const std::vector<double> &a, const std::vector<double> &b, int n) {
-  const auto size = static_cast<size_t>(n) * static_cast<size_t>(n);
-  std::vector<double> result(size);
-  for (size_t i = 0; i < size; ++i) {
-    result[i] = a[i] + b[i];
+  std::vector<double> r(static_cast<size_t>(n) * n);
+  for (size_t i = 0; i < r.size(); ++i) {
+    r[i] = a[i] + b[i];
   }
-  return result;
+  return r;
 }
 
 std::vector<double> LazarevaATestTaskALL::Sub(const std::vector<double> &a, const std::vector<double> &b, int n) {
-  const auto size = static_cast<size_t>(n) * static_cast<size_t>(n);
-  std::vector<double> result(size);
-  for (size_t i = 0; i < size; ++i) {
-    result[i] = a[i] - b[i];
+  std::vector<double> r(static_cast<size_t>(n) * n);
+  for (size_t i = 0; i < r.size(); ++i) {
+    r[i] = a[i] - b[i];
   }
-  return result;
+  return r;
 }
 
-void LazarevaATestTaskALL::Split(const std::vector<double> &parent, int n, std::vector<double> &a11,
+void LazarevaATestTaskALL::Split(const std::vector<double> &p, int n, std::vector<double> &a11,
                                  std::vector<double> &a12, std::vector<double> &a21, std::vector<double> &a22) {
-  const int half = n / 2;
-  const auto half_size = static_cast<size_t>(half) * static_cast<size_t>(half);
-  a11.resize(half_size);
-  a12.resize(half_size);
-  a21.resize(half_size);
-  a22.resize(half_size);
+  int h = n / 2;
+  a11.resize(h * h);
+  a12.resize(h * h);
+  a21.resize(h * h);
+  a22.resize(h * h);
 
-  for (int i = 0; i < half; ++i) {
-    for (int j = 0; j < half; ++j) {
-      const auto idx = static_cast<size_t>((static_cast<ptrdiff_t>(i) * half) + j);
-      a11[idx] = parent[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + j)];
-      a12[idx] = parent[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + j + half)];
-      a21[idx] = parent[static_cast<size_t>((static_cast<ptrdiff_t>(i + half) * n) + j)];
-      a22[idx] = parent[static_cast<size_t>((static_cast<ptrdiff_t>(i + half) * n) + j + half)];
+  for (int i = 0; i < h; ++i) {
+    for (int j = 0; j < h; ++j) {
+      int idx = i * h + j;
+      a11[idx] = p[i * n + j];
+      a12[idx] = p[i * n + j + h];
+      a21[idx] = p[(i + h) * n + j];
+      a22[idx] = p[(i + h) * n + j + h];
     }
   }
 }
 
 std::vector<double> LazarevaATestTaskALL::Merge(const std::vector<double> &c11, const std::vector<double> &c12,
                                                 const std::vector<double> &c21, const std::vector<double> &c22, int n) {
-  const int full = n * 2;
-  const auto full_size = static_cast<size_t>(full) * static_cast<size_t>(full);
-  std::vector<double> result(full_size);
+  int full = n * 2;
+  std::vector<double> r(static_cast<size_t>(full) * full);
 
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
-      const auto src = static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + j);
-      result[static_cast<size_t>((static_cast<ptrdiff_t>(i) * full) + j)] = c11[src];
-      result[static_cast<size_t>((static_cast<ptrdiff_t>(i) * full) + j + n)] = c12[src];
-      result[static_cast<size_t>((static_cast<ptrdiff_t>(i + n) * full) + j)] = c21[src];
-      result[static_cast<size_t>((static_cast<ptrdiff_t>(i + n) * full) + j + n)] = c22[src];
+      int idx = i * n + j;
+      r[i * full + j] = c11[idx];
+      r[i * full + j + n] = c12[idx];
+      r[(i + n) * full + j] = c21[idx];
+      r[(i + n) * full + j + n] = c22[idx];
     }
   }
-  return result;
+  return r;
 }
 
-std::vector<double> LazarevaATestTaskALL::NaiveMult(const std::vector<double> &a, const std::vector<double> &b, int n) {
-  const auto size = static_cast<size_t>(n) * static_cast<size_t>(n);
-  std::vector<double> c(size, 0.0);
-
-  if (n <= 32) {
-    for (int i = 0; i < n; ++i) {
-      for (int k = 0; k < n; ++k) {
-        const double aik = a[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + k)];
-        for (int j = 0; j < n; ++j) {
-          c[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + j)] +=
-              aik * b[static_cast<size_t>((static_cast<ptrdiff_t>(k) * n) + j)];
-        }
+static void NaiveSeq(const std::vector<double> &a, const std::vector<double> &b, std::vector<double> &c, int n) {
+  for (int i = 0; i < n; ++i) {
+    for (int k = 0; k < n; ++k) {
+      double aik = a[i * n + k];
+      for (int j = 0; j < n; ++j) {
+        c[i * n + j] += aik * b[k * n + j];
       }
     }
-    return c;
   }
+}
 
-  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<int>(0, n), [&](const oneapi::tbb::blocked_range<int> &range) {
-    for (int i = range.begin(); i < range.end(); ++i) {
+static void NaiveTBB(const std::vector<double> &a, const std::vector<double> &b, std::vector<double> &c, int n) {
+  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<int>(0, n), [&](const oneapi::tbb::blocked_range<int> &r) {
+    for (int i = r.begin(); i < r.end(); ++i) {
       for (int k = 0; k < n; ++k) {
-        const double aik = a[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + k)];
+        double aik = a[i * n + k];
         for (int j = 0; j < n; ++j) {
-          c[static_cast<size_t>((static_cast<ptrdiff_t>(i) * n) + j)] +=
-              aik * b[static_cast<size_t>((static_cast<ptrdiff_t>(k) * n) + j)];
+          c[i * n + j] += aik * b[k * n + j];
         }
       }
     }
   });
+}
+
+std::vector<double> LazarevaATestTaskALL::NaiveMult(const std::vector<double> &a, const std::vector<double> &b, int n) {
+  std::vector<double> c(static_cast<size_t>(n) * n, 0.0);
+
+  if (n <= 32) {
+    NaiveSeq(a, b, c, n);
+  } else {
+    NaiveTBB(a, b, c, n);
+  }
 
   return c;
 }
 
-std::vector<double> LazarevaATestTaskALL::StrassenTBB(const std::vector<double> &root_a,
-                                                      const std::vector<double> &root_b, int root_n) {
-  if (root_n <= 128) {
-    return NaiveMult(root_a, root_b, root_n);
+std::vector<double> LazarevaATestTaskALL::StrassenTBB(const std::vector<double> &a, const std::vector<double> &b,
+                                                      int n) {
+  if (n <= 128) {
+    return NaiveMult(a, b, n);
   }
 
-  const int half = root_n / 2;
+  int h = n / 2;
 
-  std::vector<double> a11;
-  std::vector<double> a12;
-  std::vector<double> a21;
-  std::vector<double> a22;
-  std::vector<double> b11;
-  std::vector<double> b12;
-  std::vector<double> b21;
-  std::vector<double> b22;
-  Split(root_a, root_n, a11, a12, a21, a22);
-  Split(root_b, root_n, b11, b12, b21, b22);
+  std::vector<double> a11, a12, a21, a22;
+  std::vector<double> b11, b12, b21, b22;
 
-  std::array<std::vector<double>, 7> lhs;
-  std::array<std::vector<double>, 7> rhs;
-  lhs.at(0) = Add(a11, a22, half);
-  rhs.at(0) = Add(b11, b22, half);
-  lhs.at(1) = Add(a21, a22, half);
-  rhs.at(1) = b11;
-  lhs.at(2) = a11;
-  rhs.at(2) = Sub(b12, b22, half);
-  lhs.at(3) = a22;
-  rhs.at(3) = Sub(b21, b11, half);
-  lhs.at(4) = Add(a11, a12, half);
-  rhs.at(4) = b22;
-  lhs.at(5) = Sub(a21, a11, half);
-  rhs.at(5) = Add(b11, b12, half);
-  lhs.at(6) = Sub(a12, a22, half);
-  rhs.at(6) = Add(b21, b22, half);
+  Split(a, n, a11, a12, a21, a22);
+  Split(b, n, b11, b12, b21, b22);
+
+  std::array<std::vector<double>, 7> lhs, rhs;
+
+  lhs[0] = Add(a11, a22, h);
+  rhs[0] = Add(b11, b22, h);
+  lhs[1] = Add(a21, a22, h);
+  rhs[1] = b11;
+  lhs[2] = a11;
+  rhs[2] = Sub(b12, b22, h);
+  lhs[3] = a22;
+  rhs[3] = Sub(b21, b11, h);
+  lhs[4] = Add(a11, a12, h);
+  rhs[4] = b22;
+  lhs[5] = Sub(a21, a11, h);
+  rhs[5] = Add(b11, b12, h);
+  lhs[6] = Sub(a12, a22, h);
+  rhs[6] = Add(b21, b22, h);
 
   std::array<std::vector<double>, 7> m;
 
-  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<int>(0, 7), [&](const oneapi::tbb::blocked_range<int> &range) {
-    for (int k = range.begin(); k < range.end(); ++k) {
-      const auto uk = static_cast<size_t>(k);
-      m.at(uk) = NaiveMult(lhs.at(uk), rhs.at(uk), half);
-    }
-  });
+  oneapi::tbb::parallel_for(0, 7, [&](int k) { m[k] = NaiveMult(lhs[k], rhs[k], h); });
 
-  auto c11 = Add(Sub(Add(m.at(0), m.at(3), half), m.at(4), half), m.at(6), half);
-  auto c12 = Add(m.at(2), m.at(4), half);
-  auto c21 = Add(m.at(1), m.at(3), half);
-  auto c22 = Add(Sub(Add(m.at(0), m.at(2), half), m.at(1), half), m.at(5), half);
+  auto c11 = Add(Sub(Add(m[0], m[3], h), m[4], h), m[6], h);
+  auto c12 = Add(m[2], m[4], h);
+  auto c21 = Add(m[1], m[3], h);
+  auto c22 = Add(Sub(Add(m[0], m[2], h), m[1], h), m[5], h);
 
-  return Merge(c11, c12, c21, c22, half);
+  return Merge(c11, c12, c21, c22, h);
 }
 
-std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> &root_a,
-                                                      const std::vector<double> &root_b, int root_n) {
-  int rank = 0;
-  int world_size = 1;
+std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> &a, const std::vector<double> &b,
+                                                      int n) {
+  int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  if (root_n <= 256 || world_size == 1) {
-    if (rank == 0) {
-      return StrassenTBB(root_a, root_b, root_n);
-    }
-    const auto size = static_cast<size_t>(root_n) * static_cast<size_t>(root_n);
-    return std::vector<double>(size, 0.0);
+  if (n <= 256 || size == 1) {
+    return (rank == 0) ? StrassenTBB(a, b, n) : std::vector<double>(static_cast<size_t>(n) * n, 0.0);
   }
 
-  const int half = root_n / 2;
+  int h = n / 2;
 
-  std::vector<double> a11;
-  std::vector<double> a12;
-  std::vector<double> a21;
-  std::vector<double> a22;
-  std::vector<double> b11;
-  std::vector<double> b12;
-  std::vector<double> b21;
-  std::vector<double> b22;
+  std::vector<double> a11, a12, a21, a22;
+  std::vector<double> b11, b12, b21, b22;
 
   if (rank == 0) {
-    Split(root_a, root_n, a11, a12, a21, a22);
-    Split(root_b, root_n, b11, b12, b21, b22);
+    Split(a, n, a11, a12, a21, a22);
+    Split(b, n, b11, b12, b21, b22);
   }
 
-  std::array<std::vector<double>, 7> lhs;
-  std::array<std::vector<double>, 7> rhs;
+  std::array<std::vector<double>, 7> lhs, rhs;
 
   if (rank == 0) {
-    lhs.at(0) = Add(a11, a22, half);
-    rhs.at(0) = Add(b11, b22, half);
-    lhs.at(1) = Add(a21, a22, half);
-    rhs.at(1) = b11;
-    lhs.at(2) = a11;
-    rhs.at(2) = Sub(b12, b22, half);
-    lhs.at(3) = a22;
-    rhs.at(3) = Sub(b21, b11, half);
-    lhs.at(4) = Add(a11, a12, half);
-    rhs.at(4) = b22;
-    lhs.at(5) = Sub(a21, a11, half);
-    rhs.at(5) = Add(b11, b12, half);
-    lhs.at(6) = Sub(a12, a22, half);
-    rhs.at(6) = Add(b21, b22, half);
+    lhs[0] = Add(a11, a22, h);
+    rhs[0] = Add(b11, b22, h);
+    lhs[1] = Add(a21, a22, h);
+    rhs[1] = b11;
+    lhs[2] = a11;
+    rhs[2] = Sub(b12, b22, h);
+    lhs[3] = a22;
+    rhs[3] = Sub(b21, b11, h);
+    lhs[4] = Add(a11, a12, h);
+    rhs[4] = b22;
+    lhs[5] = Sub(a21, a11, h);
+    rhs[5] = Add(b11, b12, h);
+    lhs[6] = Sub(a12, a22, h);
+    rhs[6] = Add(b21, b22, h);
   }
 
+  size_t sz = static_cast<size_t>(h) * h;
   std::array<std::vector<double>, 7> m;
-  const auto matrix_size = static_cast<size_t>(half) * static_cast<size_t>(half);
 
-  std::vector<MPI_Request> send_requests;
+  std::vector<MPI_Request> reqs;
 
   if (rank == 0) {
     for (int k = 0; k < 7; ++k) {
-      const int target_rank = k % world_size;
-      if (target_rank != 0) {
-        MPI_Request req1 = MPI_REQUEST_NULL;
-        MPI_Request req2 = MPI_REQUEST_NULL;
-        MPI_Isend(lhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, (k * 2), MPI_COMM_WORLD,
-                  &req1);
-        MPI_Isend(rhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, (k * 2) + 1, MPI_COMM_WORLD,
-                  &req2);
-        send_requests.push_back(req1);
-        send_requests.push_back(req2);
+      int t = k % size;
+      if (t == 0) {
+        continue;
       }
+
+      reqs.emplace_back();
+      MPI_Isend(lhs[k].data(), sz, MPI_DOUBLE, t, k * 2, MPI_COMM_WORLD, &reqs.back());
+
+      reqs.emplace_back();
+      MPI_Isend(rhs[k].data(), sz, MPI_DOUBLE, t, k * 2 + 1, MPI_COMM_WORLD, &reqs.back());
     }
   }
 
-  std::vector<int> my_tasks;
+  std::vector<int> tasks;
   for (int k = 0; k < 7; ++k) {
-    if (k % world_size == rank) {
-      my_tasks.push_back(k);
+    if (k % size == rank) {
+      tasks.push_back(k);
     }
   }
 
-  std::vector<std::vector<double>> my_results(my_tasks.size());
+  std::vector<std::vector<double>> res(tasks.size());
 
-  for (size_t idx = 0; idx < my_tasks.size(); ++idx) {
-    int k = my_tasks[idx];
-    std::vector<double> local_lhs;
-    std::vector<double> local_rhs;
+  for (size_t i = 0; i < tasks.size(); ++i) {
+    int k = tasks[i];
+
+    std::vector<double> l(sz), r(sz);
 
     if (rank == 0) {
-      local_lhs = lhs.at(k);
-      local_rhs = rhs.at(k);
+      l = lhs[k];
+      r = rhs[k];
     } else {
-      local_lhs.resize(matrix_size);
-      local_rhs.resize(matrix_size);
-      MPI_Recv(local_lhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, (k * 2), MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
-      MPI_Recv(local_rhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, (k * 2) + 1, MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
+      MPI_Recv(l.data(), sz, MPI_DOUBLE, 0, k * 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(r.data(), sz, MPI_DOUBLE, 0, k * 2 + 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
 
-    my_results[idx] = NaiveMult(local_lhs, local_rhs, half);
+    res[i] = NaiveMult(l, r, h);
   }
 
-  for (size_t idx = 0; idx < my_tasks.size(); ++idx) {
-    int k = my_tasks[idx];
-
+  for (size_t i = 0; i < tasks.size(); ++i) {
+    int k = tasks[i];
     if (rank == 0) {
-      m.at(k) = std::move(my_results[idx]);
+      m[k] = res[i];
     } else {
-      MPI_Send(my_results[idx].data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, k + 100, MPI_COMM_WORLD);
+      MPI_Send(res[i].data(), sz, MPI_DOUBLE, 0, k + 100, MPI_COMM_WORLD);
     }
+  }
+
+  if (rank == 0 && !reqs.empty()) {
+    MPI_Waitall(static_cast<int>(reqs.size()), reqs.data(), MPI_STATUSES_IGNORE);
   }
 
   if (rank == 0) {
-    if (!send_requests.empty()) {
-      MPI_Waitall(static_cast<int>(send_requests.size()), send_requests.data(), MPI_STATUSES_IGNORE);
-    }
-
     for (int k = 0; k < 7; ++k) {
-      const int target_rank = k % world_size;
-      if (target_rank != 0) {
-        m.at(k).resize(matrix_size);
-        MPI_Recv(m.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k + 100, MPI_COMM_WORLD,
-                 MPI_STATUS_IGNORE);
+      int t = k % size;
+      if (t == 0) {
+        continue;
       }
+
+      m[k].resize(sz);
+      MPI_Recv(m[k].data(), sz, MPI_DOUBLE, t, k + 100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
 
-    auto c11 = Add(Sub(Add(m.at(0), m.at(3), half), m.at(4), half), m.at(6), half);
-    auto c12 = Add(m.at(2), m.at(4), half);
-    auto c21 = Add(m.at(1), m.at(3), half);
-    auto c22 = Add(Sub(Add(m.at(0), m.at(2), half), m.at(1), half), m.at(5), half);
+    auto c11 = Add(Sub(Add(m[0], m[3], h), m[4], h), m[6], h);
+    auto c12 = Add(m[2], m[4], h);
+    auto c21 = Add(m[1], m[3], h);
+    auto c22 = Add(Sub(Add(m[0], m[2], h), m[1], h), m[5], h);
 
-    return Merge(c11, c12, c21, c22, half);
+    return Merge(c11, c12, c21, c22, h);
   }
 
-  const auto size = static_cast<size_t>(root_n) * static_cast<size_t>(root_n);
-  return std::vector<double>(size, 0.0);
+  return std::vector<double>(static_cast<size_t>(n) * n, 0.0);
 }
 
 }  // namespace lazareva_a_matrix_mult_strassen
