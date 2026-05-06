@@ -12,6 +12,82 @@
 
 namespace lazareva_a_matrix_mult_strassen {
 
+LazarevaATestTaskALL::LazarevaATestTaskALL(const InType &in) {
+  SetTypeOfTask(GetStaticTypeOfTask());
+  GetInput() = in;
+  GetOutput() = {};
+}
+
+bool LazarevaATestTaskALL::ValidationImpl() {
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  if (rank == 0) {
+    int n = GetInput().n;
+    if (n <= 0) {
+      return false;
+    }
+
+    size_t expected = static_cast<size_t>(n) * n;
+    return GetInput().a.size() == expected && GetInput().b.size() == expected;
+  }
+  return true;
+}
+
+bool LazarevaATestTaskALL::PreProcessingImpl() {
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  if (rank == 0) {
+    n_ = GetInput().n;
+    padded_n_ = NextPowerOfTwo(n_);
+    a_ = PadMatrix(GetInput().a, n_, padded_n_);
+    b_ = PadMatrix(GetInput().b, n_, padded_n_);
+    result_.assign(static_cast<size_t>(padded_n_) * padded_n_, 0.0);
+  }
+
+  MPI_Bcast(&n_, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&padded_n_, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  if (rank != 0) {
+    size_t size = static_cast<size_t>(padded_n_) * padded_n_;
+    a_.assign(size, 0.0);
+    b_.assign(size, 0.0);
+    result_.assign(size, 0.0);
+  }
+
+  return true;
+}
+
+bool LazarevaATestTaskALL::RunImpl() {
+  result_ = StrassenALL(a_, b_, padded_n_);
+  return true;
+}
+
+bool LazarevaATestTaskALL::PostProcessingImpl() {
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  if (rank == 0) {
+    auto out = UnpadMatrix(result_, padded_n_, n_);
+    GetOutput() = out;
+
+    int size = static_cast<int>(out.size());
+    MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(out.data(), size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  } else {
+    int size = 0;
+    MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    std::vector<double> out(size);
+    MPI_Bcast(out.data(), size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    GetOutput() = out;
+  }
+
+  return true;
+}
+
 int LazarevaATestTaskALL::NextPowerOfTwo(int n) {
   int p = 1;
   while (p < n) {
