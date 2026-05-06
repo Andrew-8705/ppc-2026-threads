@@ -15,54 +15,29 @@ namespace lazareva_a_matrix_mult_strassen {
 
 namespace {
 
-struct MPIRequestManager {
-  std::vector<MPI_Request> requests;
-
-  void AddRequest(MPI_Request req) {
-    requests.push_back(req);
-  }
-
-  void WaitAll() {
-    if (!requests.empty()) {
-      MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
-      requests.clear();
-    }
-  }
-
-  ~MPIRequestManager() {
-    WaitAll();
-  }
-};
-
-void SendMatrixPair(const std::vector<double> &lhs, const std::vector<double> &rhs, size_t matrix_size, int target_rank,
-                    int tag_base, MPIRequestManager &manager) {
-  MPI_Request req1 = MPI_REQUEST_NULL;
-  MPI_Request req2 = MPI_REQUEST_NULL;
-  MPI_Isend(lhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, tag_base, MPI_COMM_WORLD, &req1);
-  MPI_Isend(rhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, tag_base + 1, MPI_COMM_WORLD, &req2);
-  manager.AddRequest(req1);
-  manager.AddRequest(req2);
-}
-
 void SendTasksToWorkers(const std::array<std::vector<double>, 7> &lhs, const std::array<std::vector<double>, 7> &rhs,
-                        size_t matrix_size, int world_size, MPIRequestManager &manager) {
+                        size_t matrix_size, int world_size, std::vector<MPI_Request> &requests) {
+  requests.clear();
   for (int k = 0; k < 7; ++k) {
     const int target_rank = k % world_size;
     if (target_rank == 0) {
       continue;
     }
-    SendMatrixPair(lhs.at(k), rhs.at(k), matrix_size, target_rank, k * 2, manager);
+    MPI_Request req1 = MPI_REQUEST_NULL;
+    MPI_Request req2 = MPI_REQUEST_NULL;
+    MPI_Isend(lhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k * 2, MPI_COMM_WORLD, &req1);
+    MPI_Isend(rhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, (k * 2) + 1, MPI_COMM_WORLD,
+              &req2);
+    requests.push_back(req1);
+    requests.push_back(req2);
   }
 }
 
-void ReceiveMatrixPair(std::vector<double> &lhs, std::vector<double> &rhs, size_t matrix_size, int source_rank,
-                       int tag_base) {
+void ReceiveMatrixPair(std::vector<double> &lhs, std::vector<double> &rhs, size_t matrix_size, int tag_base) {
   lhs.resize(matrix_size);
   rhs.resize(matrix_size);
-  MPI_Recv(lhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, source_rank, tag_base, MPI_COMM_WORLD,
-           MPI_STATUS_IGNORE);
-  MPI_Recv(rhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, source_rank, tag_base + 1, MPI_COMM_WORLD,
-           MPI_STATUS_IGNORE);
+  MPI_Recv(lhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, tag_base, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(rhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, tag_base + 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 }
 
 void ReceiveResultsFromWorkers(std::array<std::vector<double>, 7> &m, size_t matrix_size, int world_size) {
@@ -109,8 +84,8 @@ void PrepareStrassenMatrices(const std::vector<double> &root_a, const std::vecto
   rhs.at(6) = LazarevaATestTaskALL::Add(b21, b22, half);
 }
 
-std::vector<double> ProcessTask(int k, int rank, const std::array<std::vector<double>, 7> &lhs,
-                                const std::array<std::vector<double>, 7> &rhs, size_t matrix_size, int half) {
+std::vector<double> ProcessLocalTask(int k, int rank, const std::array<std::vector<double>, 7> &lhs,
+                                     const std::array<std::vector<double>, 7> &rhs, size_t matrix_size, int half) {
   std::vector<double> local_lhs;
   std::vector<double> local_rhs;
 
@@ -118,7 +93,7 @@ std::vector<double> ProcessTask(int k, int rank, const std::array<std::vector<do
     local_lhs = lhs.at(k);
     local_rhs = rhs.at(k);
   } else {
-    ReceiveMatrixPair(local_lhs, local_rhs, matrix_size, 0, k * 2);
+    ReceiveMatrixPair(local_lhs, local_rhs, matrix_size, k * 2);
   }
 
   return LazarevaATestTaskALL::NaiveMult(local_lhs, local_rhs, half);
@@ -429,9 +404,9 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
     PrepareStrassenMatrices(root_a, root_b, root_n, lhs, rhs);
   }
 
-  MPIRequestManager send_manager;
+  std::vector<MPI_Request> send_requests;
   if (rank == 0) {
-    SendTasksToWorkers(lhs, rhs, matrix_size, world_size, send_manager);
+    SendTasksToWorkers(lhs, rhs, matrix_size, world_size, send_requests);
   }
 
   for (int k = 0; k < 7; ++k) {
@@ -439,7 +414,7 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
       continue;
     }
 
-    auto result = ProcessTask(k, rank, lhs, rhs, matrix_size, half);
+    auto result = ProcessLocalTask(k, rank, lhs, rhs, matrix_size, half);
 
     if (rank == 0) {
       m.at(k) = std::move(result);
@@ -449,7 +424,9 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
   }
 
   if (rank == 0) {
-    send_manager.WaitAll();
+    if (!send_requests.empty()) {
+      MPI_Waitall(static_cast<int>(send_requests.size()), send_requests.data(), MPI_STATUSES_IGNORE);
+    }
     ReceiveResultsFromWorkers(m, matrix_size, world_size);
     return ComputeFinalResult(m, half);
   }
