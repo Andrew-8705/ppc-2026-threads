@@ -21,8 +21,8 @@ class KondrashovaVTaskALL : public BaseTask {
   bool RunImpl() override;
   bool PostProcessingImpl() override;
 
-  int width_{};
   int height_{};
+  int width_{};
   int rank_{};
   int world_size_{};
   std::vector<uint8_t> image_;
