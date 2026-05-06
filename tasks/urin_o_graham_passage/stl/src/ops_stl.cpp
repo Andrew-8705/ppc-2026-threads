@@ -38,7 +38,7 @@ bool UrinOGrahamPassageSTL::PreProcessingImpl() {
   GetOutput().clear();
   return true;
 }
-
+//.
 Point UrinOGrahamPassageSTL::FindLocalMinimum(const InType &points, size_t start, size_t end) {
   Point local_min = points[start];
   for (size_t i = start + 1; i < end; ++i) {
