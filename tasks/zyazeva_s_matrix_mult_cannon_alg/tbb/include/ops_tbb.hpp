@@ -1,9 +1,9 @@
 #pragma once
 
+#include <tbb/tbb.h>
+
 #include <cstddef>
 #include <vector>
-
-#include <tbb/tbb.h>
 
 #include "task/include/task.hpp"
 #include "zyazeva_s_matrix_mult_cannon_alg/common/include/common.hpp"
@@ -16,7 +16,7 @@ class ZyazevaSMatrixMultCannonAlgTBB : public BaseTask {
     return ppc::task::TypeOfTask::kTBB;
   }
 
-  explicit ZyazevaSMatrixMultCannonAlgTBB(const InType& in);
+  explicit ZyazevaSMatrixMultCannonAlgTBB(const InType &in);
 
  private:
   bool ValidationImpl() override;
@@ -24,11 +24,7 @@ class ZyazevaSMatrixMultCannonAlgTBB : public BaseTask {
   bool RunImpl() override;
   bool PostProcessingImpl() override;
 
-  static void MultiplyBlocks(
-      const double* a,
-      const double* b,
-      double* c,
-      int block_size);
+  static void MultiplyBlocks(const double *a, const double *b, double *c, int block_size);
 };
 
 }  // namespace zyazeva_s_matrix_mult_cannon_alg
