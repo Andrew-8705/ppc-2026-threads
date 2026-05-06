@@ -15,6 +15,13 @@
 
 namespace kolotukhin_a_gaussian_blur {
 namespace {
+std::uint8_t GetPixel(const std::vector<std::uint8_t> &pixel_data, int img_width, int img_height, int pos_x,
+                      int pos_y) {
+  std::size_t x = static_cast<std::size_t>(std::max(0, std::min(pos_x, img_width - 1)));
+  std::size_t y = static_cast<std::size_t>(std::max(0, std::min(pos_y, img_height - 1)));
+  return pixel_data[(y * static_cast<std::size_t>(img_width)) + x];
+}
+
 void ApplyGaussianBlur(const std::vector<std::uint8_t> &src_data, std::vector<std::uint8_t> &dst_data, int width,
                        int height, int start_row, int end_row) {
   const static std::array<std::array<int, 3>, 3> kKernel = {{{{1, 2, 1}}, {{2, 4, 2}}, {{1, 2, 1}}}};
@@ -34,13 +41,6 @@ void ApplyGaussianBlur(const std::vector<std::uint8_t> &src_data, std::vector<st
           static_cast<std::uint8_t>(acc / kSum);
     }
   }
-}
-
-std::uint8_t GetPixel(const std::vector<std::uint8_t> &pixel_data, int img_width, int img_height, int pos_x,
-                      int pos_y) {
-  std::size_t x = static_cast<std::size_t>(std::max(0, std::min(pos_x, img_width - 1)));
-  std::size_t y = static_cast<std::size_t>(std::max(0, std::min(pos_y, img_height - 1)));
-  return pixel_data[(y * static_cast<std::size_t>(img_width)) + x];
 }
 }  // namespace
 
