@@ -122,12 +122,12 @@ bool RozenbergAQuicksortSimpleMergeSTL::RunImpl() {
   InType data = GetInput();
   int n = static_cast<int>(data.size());
 
-  unsigned int num_threads = std::thread::hardware_concurrency();
+  int num_threads = static_cast<int>(std::thread::hardware_concurrency());
   if (num_threads == 0) {
     num_threads = 2;
   }
 
-  if (n < static_cast<int>(num_threads) * 2) {
+  if (n < num_threads * 2) {
     Quicksort(data, 0, n - 1);
     GetOutput() = data;
     return true;
@@ -138,13 +138,13 @@ bool RozenbergAQuicksortSimpleMergeSTL::RunImpl() {
   threads.reserve(num_threads);
   std::vector<int> borders(num_threads + 1);
   int chunk_size = n / num_threads;
-  for (unsigned int i = 0; i < num_threads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     borders[i] = i * chunk_size;
   }
   borders[num_threads] = n;
 
   //  Sort local chunks
-  for (unsigned int i = 0; i < num_threads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     threads.emplace_back([&data, &borders, i]() {
       rozenberg_a_quicksort_simple_merge::RozenbergAQuicksortSimpleMergeSTL::Quicksort(data, borders[i],
                                                                                        borders[i + 1] - 1);
@@ -158,7 +158,7 @@ bool RozenbergAQuicksortSimpleMergeSTL::RunImpl() {
   }
 
   //  Merge sorted chunks
-  for (unsigned int i = 1; i < num_threads; i++) {
+  for (int i = 1; i < num_threads; i++) {
     Merge(data, 0, borders[i] - 1, borders[i + 1] - 1);
   }
 
