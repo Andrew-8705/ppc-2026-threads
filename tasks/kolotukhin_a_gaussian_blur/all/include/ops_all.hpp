@@ -21,19 +21,18 @@ class KolotukhinAGaussinBlurALL : public BaseTask {
   bool RunImpl() override;
   bool PostProcessingImpl() override;
 
-  [[nodiscard]] static std::uint8_t GetPixel(const std::vector<std::uint8_t> &pixel_data, int img_width, int img_height,
-                                             int pos_x, int pos_y);
-
-  int rank_;
-  int proc_count_;
+  int rank_ = -1;
+  int proc_count_ = 0;
   std::vector<std::uint8_t> local_data_;
-  int local_height_;
-  int global_height_;
-  int global_width_;
+  int local_height_ = 0;
+  int global_height_ = 0;
+  int global_width_ = 0;
   void DistributeWork();
+  void SendWorkData(int rows_per_process, int remainder);
+  void ReceiveWorkData();
   void GatherResults();
-  void ApplyGaussianBlur(const std::vector<std::uint8_t> &src_data, std::vector<std::uint8_t> &dst_data, int width,
-                         int height, int start_row, int end_row);
+  void GatherResultsWorker(int rows_per_process, int remainder);
+  void GatherResultsRoot(int rows_per_process, int remainder);
 };
 
 }  // namespace kolotukhin_a_gaussian_blur
