@@ -284,8 +284,14 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
 
   const int half = root_n / 2;
 
-  std::vector<double> a11, a12, a21, a22;
-  std::vector<double> b11, b12, b21, b22;
+  std::vector<double> a11;
+  std::vector<double> a12;
+  std::vector<double> a21;
+  std::vector<double> a22;
+  std::vector<double> b11;
+  std::vector<double> b12;
+  std::vector<double> b21;
+  std::vector<double> b22;
 
   if (rank == 0) {
     Split(root_a, root_n, a11, a12, a21, a22);
@@ -321,11 +327,11 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
     for (int k = 0; k < 7; ++k) {
       const int target_rank = k % world_size;
       if (target_rank != 0) {
-        MPI_Request req1;
-        MPI_Request req2;
-        MPI_Isend(lhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k * 2, MPI_COMM_WORLD,
+        MPI_Request req1 = MPI_REQUEST_NULL;
+        MPI_Request req2 = MPI_REQUEST_NULL;
+        MPI_Isend(lhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, (k * 2), MPI_COMM_WORLD,
                   &req1);
-        MPI_Isend(rhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, k * 2 + 1, MPI_COMM_WORLD,
+        MPI_Isend(rhs.at(k).data(), static_cast<int>(matrix_size), MPI_DOUBLE, target_rank, (k * 2) + 1, MPI_COMM_WORLD,
                   &req2);
         send_requests.push_back(req1);
         send_requests.push_back(req2);
@@ -353,9 +359,9 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
     } else {
       local_lhs.resize(matrix_size);
       local_rhs.resize(matrix_size);
-      MPI_Recv(local_lhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, k * 2, MPI_COMM_WORLD,
+      MPI_Recv(local_lhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, (k * 2), MPI_COMM_WORLD,
                MPI_STATUS_IGNORE);
-      MPI_Recv(local_rhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, k * 2 + 1, MPI_COMM_WORLD,
+      MPI_Recv(local_rhs.data(), static_cast<int>(matrix_size), MPI_DOUBLE, 0, (k * 2) + 1, MPI_COMM_WORLD,
                MPI_STATUS_IGNORE);
     }
 

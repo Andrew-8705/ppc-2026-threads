@@ -37,7 +37,7 @@ class LazarevaATestTaskALL : public BaseTask {
                                    const std::vector<double> &c21, const std::vector<double> &c22, int n);
   static std::vector<double> NaiveMult(const std::vector<double> &a, const std::vector<double> &b, int n);
   static std::vector<double> StrassenTBB(const std::vector<double> &a, const std::vector<double> &b, int n);
-  std::vector<double> StrassenALL(const std::vector<double> &a, const std::vector<double> &b, int n);
+  static std::vector<double> StrassenALL(const std::vector<double> &a, const std::vector<double> &b, int n);
 };
 
 }  // namespace lazareva_a_matrix_mult_strassen
