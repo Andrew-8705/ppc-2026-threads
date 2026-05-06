@@ -7,8 +7,8 @@
 #include <string>
 #include <tuple>
 
-#include "sakharov_a_shell_sorting_with_merging_butcher/common/include/common.hpp"
 #include "sakharov_a_shell_sorting_with_merging_butcher/all/include/ops_all.hpp"
+#include "sakharov_a_shell_sorting_with_merging_butcher/common/include/common.hpp"
 #include "sakharov_a_shell_sorting_with_merging_butcher/omp/include/ops_omp.hpp"
 #include "sakharov_a_shell_sorting_with_merging_butcher/seq/include/ops_seq.hpp"
 #include "sakharov_a_shell_sorting_with_merging_butcher/stl/include/ops_stl.hpp"

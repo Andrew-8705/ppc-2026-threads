@@ -75,25 +75,6 @@ std::vector<int> BuildDisplacements(const std::vector<int> &counts) {
   return displacements;
 }
 
-void ShellSort(std::vector<int>::iterator begin, std::vector<int>::iterator end) {
-  const auto size = static_cast<std::size_t>(end - begin);
-  if (size <= 1) {
-    return;
-  }
-
-  for (std::size_t gap = size / 2; gap > 0; gap /= 2) {
-    for (std::size_t i = gap; i < size; ++i) {
-      const int temp = *(begin + static_cast<std::ptrdiff_t>(i));
-      std::size_t j = i;
-      while (j >= gap && *(begin + static_cast<std::ptrdiff_t>(j - gap)) > temp) {
-        *(begin + static_cast<std::ptrdiff_t>(j)) = *(begin + static_cast<std::ptrdiff_t>(j - gap));
-        j -= gap;
-      }
-      *(begin + static_cast<std::ptrdiff_t>(j)) = temp;
-    }
-  }
-}
-
 void SortChunksOpenMP(std::vector<int> &data, const std::vector<std::size_t> &bounds, int thread_count) {
   const int chunk_count = static_cast<int>(bounds.size()) - 1;
 
@@ -102,7 +83,7 @@ void SortChunksOpenMP(std::vector<int> &data, const std::vector<std::size_t> &bo
     const auto index = static_cast<std::size_t>(chunk);
     auto begin = data.begin() + static_cast<std::ptrdiff_t>(bounds[index]);
     auto end = data.begin() + static_cast<std::ptrdiff_t>(bounds[index + 1]);
-    ShellSort(begin, end);
+    std::sort(begin, end);
   }
 }
 
@@ -129,8 +110,8 @@ void MergeRange(const std::vector<int> &source, std::vector<int> &destination, c
   }
 }
 
-void MergePassTBB(const std::vector<int> &source, std::vector<int> &destination,
-                  const std::vector<std::size_t> &bounds, std::size_t width) {
+void MergePassTBB(const std::vector<int> &source, std::vector<int> &destination, const std::vector<std::size_t> &bounds,
+                  std::size_t width) {
   const std::size_t chunk_count = bounds.size() - 1;
   const std::size_t merge_count = (chunk_count + (2 * width) - 1) / (2 * width);
 
