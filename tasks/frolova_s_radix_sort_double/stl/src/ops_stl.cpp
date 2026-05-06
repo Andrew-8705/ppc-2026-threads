@@ -87,7 +87,7 @@ void FixNegativeOrder(std::vector<double> &data) {
   data.clear();
   data.insert(data.end(), negative.begin(), negative.end());
   data.insert(data.end(), positive.begin(), positive.end());
-} // для тестов
+}  // для тестов
 
 }  // namespace
 
