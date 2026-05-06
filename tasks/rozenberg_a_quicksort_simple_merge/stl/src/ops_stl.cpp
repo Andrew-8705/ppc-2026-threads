@@ -145,7 +145,7 @@ bool RozenbergAQuicksortSimpleMergeSTL::RunImpl() {
 
   //  Sort local chunks
   for (unsigned int i = 0; i < num_threads; i++) {
-    threads.emplace_back([this, &data, &borders, i]() {
+    threads.emplace_back([&data, &borders, i]() {
       rozenberg_a_quicksort_simple_merge::RozenbergAQuicksortSimpleMergeSTL::Quicksort(data, borders[i],
                                                                                        borders[i + 1] - 1);
     });
