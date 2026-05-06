@@ -46,38 +46,6 @@ SparseMatrixCCS CreateTestMatrix(int size, double density) {
 
   return matrix;
 }
-
-std::vector<std::vector<double>> DenseMultiply(const std::vector<std::vector<double>> &a,
-                                               const std::vector<std::vector<double>> &b) {
-  const int m = static_cast<int>(a.size());
-  const int n = static_cast<int>(b[0].size());
-  const int k = static_cast<int>(b.size());
-
-  std::vector<std::vector<double>> result(m, std::vector<double>(n, 0.0));
-
-  for (int i = 0; i < m; ++i) {
-    for (int j = 0; j < n; ++j) {
-      for (int idx = 0; idx < k; ++idx) {
-        result[i][j] += a[i][idx] * b[idx][j];
-      }
-    }
-  }
-
-  return result;
-}
-
-std::vector<std::vector<double>> SparseToDense(const SparseMatrixCCS &matrix) {
-  std::vector<std::vector<double>> dense(matrix.rows, std::vector<double>(matrix.cols, 0.0));
-
-  for (int j = 0; j < matrix.cols; ++j) {
-    for (int idx = matrix.col_ptrs[j]; idx < matrix.col_ptrs[j + 1]; ++idx) {
-      const int i = matrix.row_indices[idx];
-      dense[i][j] = matrix.values[idx];
-    }
-  }
-
-  return dense;
-}
 }  // namespace
 
 class KotelnikovaARunPerfTestSEQ : public ppc::util::BaseRunPerfTests<InType, OutType> {
