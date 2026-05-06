@@ -208,8 +208,8 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
   std::vector<double> b11, b12, b21, b22;
 
   if (rank == 0) {
-    Split(a, a11, a12, a21, a22, n);
-    Split(b, b11, b12, b21, b22, n);
+    Split(a, n, a11, a12, a21, a22);
+    Split(b, n, b11, b12, b21, b22);
   }
 
   std::array<std::vector<double>, 7> lhs, rhs;

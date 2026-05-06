@@ -29,8 +29,8 @@ class LazarevaATestTaskALL : public BaseTask {
   static int NextPowerOfTwo(int n);
   static std::vector<double> PadMatrix(const std::vector<double> &m, int old_n, int new_n);
   static std::vector<double> UnpadMatrix(const std::vector<double> &m, int old_n, int new_n);
-  static std::vector<double> Add(const std::vector<double> &a, const std::vector<double> &b, int n);
-  static std::vector<double> Sub(const std::vector<double> &a, const std::vector<double> &b, int n);
+  static std::vector<double> Add(const std::vector<double> &a, const std::vector<double> &b);
+  static std::vector<double> Sub(const std::vector<double> &a, const std::vector<double> &b);
   static void Split(const std::vector<double> &parent, int n, std::vector<double> &a11, std::vector<double> &a12,
                     std::vector<double> &a21, std::vector<double> &a22);
   static std::vector<double> Merge(const std::vector<double> &c11, const std::vector<double> &c12,
