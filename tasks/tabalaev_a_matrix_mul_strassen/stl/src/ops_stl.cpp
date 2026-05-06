@@ -257,7 +257,7 @@ std::vector<double> TabalaevAMatrixMulStrassenSTL::StrassenMultiply(const std::v
       std::vector<double> b12;
       std::vector<double> b21;
       std::vector<double> b22;
-      
+
       SplitMatrix(current.mat_a, current.n, a11, a12, a21, a22);
       SplitMatrix(current.mat_b, current.n, b11, b12, b21, b22);
 
