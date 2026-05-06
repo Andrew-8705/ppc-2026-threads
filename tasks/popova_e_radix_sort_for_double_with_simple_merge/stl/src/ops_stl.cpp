@@ -131,6 +131,27 @@ bool SameData(const std::vector<double> &original, const std::vector<double> &re
   return hash_original == hash_result;
 }
 
+void PartSort(int thread_id, int n, int n_threads, const std::vector<double> &src, std::vector<double> &res) {
+  int left_idx = (thread_id * n) / n_threads;
+  int right_idx = ((thread_id + 1) * n) / n_threads;
+
+  if (left_idx < right_idx) {
+    int local_size = right_idx - left_idx;
+    std::vector<uint64_t> local_bits(local_size);
+
+    for (int i = 0; i < local_size; i++) {
+      local_bits[i] = DoubleToSortable(src[left_idx + i]);
+    }
+
+    RadixSortUInt(local_bits);
+
+    res.resize(local_size);
+    for (int i = 0; i < local_size; i++) {
+      res[i] = SortableToDouble(local_bits[i]);
+    }
+  }
+}
+
 }  // namespace
 
 PopovaERadixSorForDoubleWithSimpleMergeSTL::PopovaERadixSorForDoubleWithSimpleMergeSTL(const InType &in) {
@@ -154,33 +175,14 @@ bool PopovaERadixSorForDoubleWithSimpleMergeSTL::PreProcessingImpl() {
 
 bool PopovaERadixSorForDoubleWithSimpleMergeSTL::RunImpl() {
   int n = static_cast<int>(array_.size());
-
   int n_threads = std::max(1, ppc::util::GetNumThreads());
-
   std::vector<std::vector<double>> local_results(n_threads);
   std::vector<std::thread> threads;
 
-  for (int thread_id = 0; thread_id < n_threads; ++thread_id) {
-    threads.emplace_back([this, thread_id, n, n_threads, &local_results]() {
-      int left_idx = (thread_id * n) / n_threads;
-      int right_idx = ((thread_id + 1) * n) / n_threads;
+  threads.reserve(n_threads);
 
-      if (left_idx < right_idx) {
-        int local_size = right_idx - left_idx;
-        std::vector<uint64_t> local_bits(local_size);
-
-        for (int i = 0; i < local_size; i++) {
-          local_bits[i] = DoubleToSortable(array_[left_idx + i]);
-        }
-
-        RadixSortUInt(local_bits);
-
-        local_results[thread_id].resize(local_size);
-        for (int i = 0; i < local_size; i++) {
-          local_results[thread_id][i] = SortableToDouble(local_bits[i]);
-        }
-      }
-    });
+  for (int i = 0; i < n_threads; ++i) {
+    threads.emplace_back(PartSort, i, n, n_threads, std::ref(array_), std::ref(local_results[i]));
   }
 
   for (std::thread &t : threads) {
