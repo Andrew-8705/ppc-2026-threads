@@ -99,9 +99,9 @@ bool ZyazevaSMatrixMultCannonAlgTBB::RunImpl() {
     const size_t base = BlockOffset(bi, bj, gs, block_area);
 
     for (size_t i = 0; i < bs; ++i) {
-      const size_t gi = bi * bs + i;
-      const size_t src = gi * sz + bj * bs;
-      const size_t dst = base + i * bs;
+      const size_t gi = (bi * bs) + i;
+      const size_t src = (gi * sz) + (bj * bs);
+      const size_t dst = base + (i * bs);
 
       std::copy_n(m1.data() + src, bs, A.data() + dst);
       std::copy_n(m2.data() + src, bs, B.data() + dst);
@@ -146,8 +146,8 @@ bool ZyazevaSMatrixMultCannonAlgTBB::RunImpl() {
     const size_t base = id * block_area;
 
     for (size_t i = 0; i < bs; ++i) {
-      const size_t dst = (bi * bs + i) * sz + bj * bs;
-      const size_t src = base + i * bs;
+      const size_t dst = ((bi * bs + i) * sz) + (bj * bs);
+      const size_t src = base + (i * bs);
 
       std::copy_n(C.data() + src, bs, result.data() + dst);
     }
