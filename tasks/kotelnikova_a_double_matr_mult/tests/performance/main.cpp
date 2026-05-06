@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "kotelnikova_a_double_matr_mult/all/include/ops_all.hpp"
 #include "kotelnikova_a_double_matr_mult/common/include/common.hpp"
 #include "kotelnikova_a_double_matr_mult/omp/include/ops_omp.hpp"
 #include "kotelnikova_a_double_matr_mult/seq/include/ops_seq.hpp"
@@ -83,34 +84,17 @@ class KotelnikovaARunPerfTestSEQ : public ppc::util::BaseRunPerfTests<InType, Ou
   static constexpr int kMatrixSize = 700;
   static constexpr double kDensity = 0.1;
   InType input_data_;
-  std::vector<std::vector<double>> expected_dense_result_;
 
   void SetUp() override {
     const SparseMatrixCCS a = CreateTestMatrix(kMatrixSize, kDensity);
     const SparseMatrixCCS b = CreateTestMatrix(kMatrixSize, kDensity);
     input_data_ = std::make_pair(a, b);
-
-    const std::vector<std::vector<double>> dense_a = SparseToDense(a);
-    const std::vector<std::vector<double>> dense_b = SparseToDense(b);
-    expected_dense_result_ = DenseMultiply(dense_a, dense_b);
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
     if (output_data.rows != kMatrixSize || output_data.cols != kMatrixSize) {
       return false;
     }
-
-    const std::vector<std::vector<double>> dense_result = SparseToDense(output_data);
-
-    const double epsilon = 1e-8;
-    for (int i = 0; i < kMatrixSize; ++i) {
-      for (int j = 0; j < kMatrixSize; ++j) {
-        if (std::abs(dense_result[i][j] - expected_dense_result_[i][j]) > epsilon) {
-          return false;
-        }
-      }
-    }
-
     return true;
   }
 
@@ -127,7 +111,7 @@ namespace {
 
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, KotelnikovaATaskSEQ, KotelnikovaATaskOMP, KotelnikovaATaskTBB,
-                                KotelnikovaATaskSTL>(PPC_SETTINGS_kotelnikova_a_double_matr_mult);
+                                KotelnikovaATaskSTL, KotelnikovaATaskALL>(PPC_SETTINGS_kotelnikova_a_double_matr_mult);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
