@@ -2,10 +2,8 @@
 
 #include <tbb/tbb.h>
 
-#include <algorithm>
 #include <cmath>
-#include <utility>
-#include <vector>
+#include <cstddef>
 
 namespace zyazeva_s_matrix_mult_cannon_alg {
 
@@ -21,6 +19,18 @@ inline size_t BlockOffset(size_t row, size_t col, size_t grid_size, size_t block
   return BlockIndex(row, col, grid_size) * block_area;
 }
 
+size_t FindGridSize(int sz) {
+  const auto max_threads = tbb::this_task_arena::max_concurrency();
+  const int root = static_cast<int>(std::sqrt(max_threads));
+
+  for (int k = root; k >= 1; --k) {
+    if (sz % k == 0) {
+      return static_cast<size_t>(k);
+    }
+  }
+  return 1;
+}
+
 }  // namespace
 
 ZyazevaSMatrixMultCannonAlgTBB::ZyazevaSMatrixMultCannonAlgTBB(const InType &in) {
@@ -32,6 +42,7 @@ ZyazevaSMatrixMultCannonAlgTBB::ZyazevaSMatrixMultCannonAlgTBB(const InType &in)
 bool ZyazevaSMatrixMultCannonAlgTBB::ValidationImpl() {
   const auto &input = GetInput();
   const size_t sz = std::get<0>(input);
+
   const auto &m1 = std::get<1>(input);
   const auto &m2 = std::get<2>(input);
 
@@ -67,83 +78,52 @@ void ZyazevaSMatrixMultCannonAlgTBB::MultiplyBlocks(const double *a, const doubl
 
 bool ZyazevaSMatrixMultCannonAlgTBB::RunImpl() {
   const int sz = static_cast<int>(std::get<0>(GetInput()));
-
   const auto &m1 = std::get<1>(GetInput());
   const auto &m2 = std::get<2>(GetInput());
 
-  const int max_threads = static_cast<int>(tbb::this_task_arena::max_concurrency());
+  const size_t grid_size = FindGridSize(sz);
+  const size_t bs = static_cast<size_t>(sz) / grid_size;
 
-  int grid_size = 1;
-  const int sqrt_threads = static_cast<int>(std::sqrt(max_threads));
-
-  for (int k = sqrt_threads; k >= 1; --k) {
-    if (sz % k == 0) {
-      grid_size = k;
-      break;
-    }
-  }
-
-  const int block_size = sz / grid_size;
-
-  const size_t gs = static_cast<size_t>(grid_size);
-  const size_t bs = static_cast<size_t>(block_size);
-
-  const size_t matrix_size = static_cast<size_t>(sz) * static_cast<size_t>(sz);
-
+  const size_t gs = grid_size;
   const size_t block_area = bs * bs;
   const size_t total_blocks = gs * gs;
 
-  AlignedVector blocks_a(total_blocks * block_area);
-  AlignedVector blocks_b(total_blocks * block_area);
-  AlignedVector blocks_c(total_blocks * block_area, 0.0);
+  AlignedVector A(total_blocks * block_area);
+  AlignedVector B(total_blocks * block_area);
+  AlignedVector C(total_blocks * block_area, 0.0);
 
-  tbb::parallel_for(static_cast<size_t>(0), total_blocks, [&](size_t block_id) {
-    const size_t bi = block_id / gs;
-    const size_t bj = block_id % gs;
+  tbb::parallel_for(size_t(0), total_blocks, [&](size_t id) {
+    const size_t bi = id / gs;
+    const size_t bj = id % gs;
 
-    const size_t a_offset = BlockOffset(bi, bj, gs, block_area);
+    const size_t base = BlockOffset(bi, bj, gs, block_area);
 
     for (size_t i = 0; i < bs; ++i) {
-      const size_t global_i = bi * bs + i;
+      const size_t gi = bi * bs + i;
+      const size_t src = gi * sz + bj * bs;
+      const size_t dst = base + i * bs;
 
-      const size_t src_offset = global_i * static_cast<size_t>(sz) + bj * bs;
-
-      const size_t local_offset = a_offset + i * bs;
-
-      std::copy_n(m1.data() + src_offset, bs, blocks_a.data() + local_offset);
-
-      std::copy_n(m2.data() + src_offset, bs, blocks_b.data() + local_offset);
+      std::copy_n(m1.data() + src, bs, A.data() + dst);
+      std::copy_n(m2.data() + src, bs, B.data() + dst);
     }
   });
-
-  std::vector<size_t> map_a(total_blocks);
-  std::vector<size_t> map_b(total_blocks);
+  std::vector<size_t> map_a(total_blocks), map_b(total_blocks);
+  std::vector<size_t> next_a(total_blocks), next_b(total_blocks);
 
   for (size_t i = 0; i < gs; ++i) {
     for (size_t j = 0; j < gs; ++j) {
       map_a[BlockIndex(i, j, gs)] = BlockIndex(i, (j + i) % gs, gs);
-
       map_b[BlockIndex(i, j, gs)] = BlockIndex((i + j) % gs, j, gs);
     }
   }
-
-  std::vector<size_t> next_a(total_blocks);
-  std::vector<size_t> next_b(total_blocks);
-
   for (size_t step = 0; step < gs; ++step) {
-    tbb::parallel_for(static_cast<size_t>(0), total_blocks, [&](size_t idx) {
-      const size_t a_idx = map_a[idx];
-      const size_t b_idx = map_b[idx];
+    tbb::parallel_for(size_t(0), total_blocks, [&](size_t id) {
+      const size_t a_idx = map_a[id];
+      const size_t b_idx = map_b[id];
 
-      const double *a_ptr = blocks_a.data() + a_idx * block_area;
-
-      const double *b_ptr = blocks_b.data() + b_idx * block_area;
-
-      double *c_ptr = blocks_c.data() + idx * block_area;
-
-      MultiplyBlocks(a_ptr, b_ptr, c_ptr, block_size);
+      MultiplyBlocks(A.data() + a_idx * block_area, B.data() + b_idx * block_area, C.data() + id * block_area,
+                     static_cast<int>(bs));
     });
-
     if (step + 1 < gs) {
       for (size_t i = 0; i < gs; ++i) {
         for (size_t j = 0; j < gs; ++j) {
@@ -157,21 +137,19 @@ bool ZyazevaSMatrixMultCannonAlgTBB::RunImpl() {
       map_b.swap(next_b);
     }
   }
+  std::vector<double> result(sz * sz);
 
-  std::vector<double> result(matrix_size);
+  tbb::parallel_for(size_t(0), total_blocks, [&](size_t id) {
+    const size_t bi = id / gs;
+    const size_t bj = id % gs;
 
-  tbb::parallel_for(static_cast<size_t>(0), total_blocks, [&](size_t block_id) {
-    const size_t bi = block_id / gs;
-    const size_t bj = block_id % gs;
-
-    const size_t block_offset = block_id * block_area;
+    const size_t base = id * block_area;
 
     for (size_t i = 0; i < bs; ++i) {
-      const size_t dst_row = (bi * bs + i) * static_cast<size_t>(sz);
+      const size_t dst = (bi * bs + i) * sz + bj * bs;
+      const size_t src = base + i * bs;
 
-      const size_t src_row = block_offset + i * bs;
-
-      std::copy_n(blocks_c.data() + src_row, bs, result.data() + dst_row + bj * bs);
+      std::copy_n(C.data() + src, bs, result.data() + dst);
     }
   });
 
