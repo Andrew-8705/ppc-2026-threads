@@ -62,7 +62,6 @@ void ZyazevaSMatrixMultCannonAlgTBB::MultiplyBlocks(const double *a, const doubl
 
       const double *b_row = b + static_cast<size_t>(k) * bs;
 
-#pragma omp simd
       for (int j = 0; j < bs; ++j) {
         c_row[j] += a_val * b_row[j];
       }
