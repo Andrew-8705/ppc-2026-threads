@@ -2,10 +2,9 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cstdint>
 #include <cstring>
-#include <numeric>
+#include <functional>
 #include <random>
 #include <thread>
 #include <utility>
