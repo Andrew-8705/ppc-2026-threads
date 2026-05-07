@@ -35,7 +35,7 @@ bool TochilinEHoarSortSimMerTBB::ValidationImpl() {
 
 bool TochilinEHoarSortSimMerTBB::PreProcessingImpl() {
   GetOutput() = GetInput();
-  return true;  // reopen
+  return true;
 }
 
 std::pair<int, int> TochilinEHoarSortSimMerTBB::Partition(std::vector<int> &arr, int l, int r) {
