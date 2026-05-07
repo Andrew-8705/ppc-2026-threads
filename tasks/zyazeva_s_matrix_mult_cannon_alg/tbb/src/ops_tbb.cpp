@@ -2,11 +2,13 @@
 
 #include <tbb/tbb.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <iterator>
 #include <utility>
 #include <vector>
+
+#include "zyazeva_s_matrix_mult_cannon_alg/common/include/common.hpp"
 
 namespace zyazeva_s_matrix_mult_cannon_alg {
 
