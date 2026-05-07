@@ -4,6 +4,8 @@
 
 #include <cmath>
 #include <cstddef>
+#include <iterator>
+#include <utility>
 #include <vector>
 
 namespace zyazeva_s_matrix_mult_cannon_alg {
@@ -54,7 +56,7 @@ void InitializeBlock(size_t id, const std::vector<double> &m1, const std::vector
 
 void InitializeBlocks(const std::vector<double> &m1, const std::vector<double> &m2, AlignedVector &a, AlignedVector &b,
                       size_t gs, size_t bs, size_t sz, size_t block_area, size_t total_blocks) {
-  tbb::parallel_for(size_t(0), total_blocks,
+  tbb::parallel_for(static_cast<size_t>(0), total_blocks,
                     [&](size_t id) { InitializeBlock(id, m1, m2, a, b, gs, bs, sz, block_area); });
 }
 
@@ -80,7 +82,8 @@ void UpdateMapEntry(std::vector<size_t> &next_a, std::vector<size_t> &next_b, co
 }
 
 void UpdateMaps(std::vector<size_t> &map_a, std::vector<size_t> &map_b, size_t gs) {
-  std::vector<size_t> next_a(map_a.size()), next_b(map_b.size());
+  std::vector<size_t> next_a(map_a.size());
+  std::vector<size_t> next_b(map_b.size());
 
   for (size_t i = 0; i < gs; ++i) {
     for (size_t j = 0; j < gs; ++j) {
@@ -128,11 +131,11 @@ void PerformCannonStepForBlock(size_t id, const AlignedVector &a, const AlignedV
 void PerformCannonStep(const AlignedVector &a, const AlignedVector &b, AlignedVector &c,
                        const std::vector<size_t> &map_a, const std::vector<size_t> &map_b, size_t total_blocks,
                        size_t block_area, int bs) {
-  tbb::parallel_for(size_t(0), total_blocks,
+  tbb::parallel_for(static_cast<size_t>(0), total_blocks,
                     [&](size_t id) { PerformCannonStepForBlock(id, a, b, c, map_a, map_b, block_area, bs); });
 }
 
-void AssembleResultBlock(size_t id, const AlignedVector &C, std::vector<double> &result, size_t gs, size_t bs,
+void AssembleResultBlock(size_t id, const AlignedVector &c, std::vector<double> &result, size_t gs, size_t bs,
                          size_t sz, size_t block_area) {
   const size_t bi = id / gs;
   const size_t bj = id % gs;
@@ -141,13 +144,13 @@ void AssembleResultBlock(size_t id, const AlignedVector &C, std::vector<double> 
   for (size_t i = 0; i < bs; ++i) {
     const size_t dst = ((bi * bs + i) * sz) + (bj * bs);
     const size_t src = base + (i * bs);
-    std::copy_n(C.data() + src, bs, result.data() + dst);
+    std::copy_n(c.data() + src, bs, result.data() + dst);
   }
 }
 
 void AssembleResult(const AlignedVector &c, std::vector<double> &result, size_t gs, size_t bs, size_t sz,
                     size_t block_area, size_t total_blocks) {
-  tbb::parallel_for(size_t(0), total_blocks,
+  tbb::parallel_for(static_cast<size_t>(0), total_blocks,
                     [&](size_t id) { AssembleResultBlock(id, c, result, gs, bs, sz, block_area); });
 }
 
@@ -194,7 +197,8 @@ bool ZyazevaSMatrixMultCannonAlgTBB::RunImpl() {
 
   InitializeBlocks(m1, m2, a, b, gs, bs, static_cast<size_t>(sz), block_area, total_blocks);
 
-  std::vector<size_t> map_a(total_blocks), map_b(total_blocks);
+  std::vector<size_t> map_a(total_blocks);
+  std::vector<size_t> map_b(total_blocks);
   InitializeMaps(map_a, map_b, gs);
 
   for (size_t step = 0; step < gs; ++step) {
