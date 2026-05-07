@@ -106,6 +106,8 @@ void BuildLocalResult(const SparseMatrixCCS &a, int start_col, int end_col,
                       const std::vector<std::vector<double>> &temp_columns, const std::vector<int> &nnz_counts,
                       std::vector<double> &local_values, std::vector<int> &local_row_indices,
                       std::vector<int> &local_col_ptrs) {
+  (void)a;
+
   const double epsilon = 1e-10;
   const int local_cols = end_col - start_col;
 
