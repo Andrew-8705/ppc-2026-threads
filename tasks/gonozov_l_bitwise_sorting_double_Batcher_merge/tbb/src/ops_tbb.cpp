@@ -55,17 +55,18 @@ double SortableIntToDouble(uint64_t bits) {
 }
 
 void RadixSortDouble(std::vector<double> &data) {
-  if (data.empty()) { return; }
+  if (data.empty()) {
+    return;
+  }
 
   std::vector<uint64_t> keys(data.size());
-  //Преобразуем в сортируемые целые числа
-  oneapi::tbb::parallel_for(
-      oneapi::tbb::blocked_range<size_t>(0, data.size()),
-      [&](const oneapi::tbb::blocked_range<size_t>& r) {
-        for (size_t i = r.begin(); i < r.end(); ++i) {
-          keys[i] = DoubleToSortableInt(data[i]);
-        }
-      });
+  // Преобразуем в сортируемые целые числа
+  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<size_t>(0, data.size()),
+                            [&](const oneapi::tbb::blocked_range<size_t> &r) {
+    for (size_t i = r.begin(); i < r.end(); ++i) {
+      keys[i] = DoubleToSortableInt(data[i]);
+    }
+  });
 
   const int radix = 256;  // 8 бит за проход
   std::vector<uint64_t> temp_keys(data.size());
@@ -94,13 +95,12 @@ void RadixSortDouble(std::vector<double> &data) {
   }
 
   // Преобразуем обратно
-  oneapi::tbb::parallel_for(
-      oneapi::tbb::blocked_range<size_t>(0, data.size()),
-      [&](const oneapi::tbb::blocked_range<size_t>& r) {
-        for (size_t i = r.begin(); i < r.end(); ++i) {
-          data[i] = SortableIntToDouble(keys[i]);
-        }
-      });
+  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<size_t>(0, data.size()),
+                            [&](const oneapi::tbb::blocked_range<size_t> &r) {
+    for (size_t i = r.begin(); i < r.end(); ++i) {
+      data[i] = SortableIntToDouble(keys[i]);
+    }
+  });
 }
 
 void MergingHalves(std::vector<double> &arr, size_t i, size_t len) {  // слияние половинок
@@ -123,13 +123,12 @@ void BatcherOddEvenMergeIterative(std::vector<double> &arr, size_t n) {
   n = std::min(n, arr.size());
   // Сначала сливаем блоки размером 1, потом 2, потом 4 и т.д.
   for (size_t len = 2; len <= n; len *= 2) {
-    oneapi::tbb::parallel_for(
-        oneapi::tbb::blocked_range<size_t>(0, n, len),
-        [&](const oneapi::tbb::blocked_range<size_t>& r) {
-          for (size_t i = r.begin(); i < r.end(); i += len) {
-            MergingHalves(arr, i, len);
-          }
-        });
+    oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<size_t>(0, n, len),
+                              [&](const oneapi::tbb::blocked_range<size_t> &r) {
+      for (size_t i = r.begin(); i < r.end(); i += len) {
+        MergingHalves(arr, i, len);
+      }
+    });
   }
 }
 
@@ -157,9 +156,7 @@ void HybridSortDouble(std::vector<double> &data) {
   std::vector<double> right(data.begin() + static_cast<ptrdiff_t>(mid), data.end());
 
   // Сортируем каждую половину поразрядно
-  oneapi::tbb::parallel_invoke(
-      [&]() { RadixSortDouble(left); },
-      [&]() { RadixSortDouble(right); });
+  oneapi::tbb::parallel_invoke([&]() { RadixSortDouble(left); }, [&]() { RadixSortDouble(right); });
 
   // Собираем обратно в единый массив
   std::ranges::copy(left, data.begin());
