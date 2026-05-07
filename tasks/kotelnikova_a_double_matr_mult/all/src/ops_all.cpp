@@ -119,7 +119,7 @@ void BuildLocalResult(const SparseMatrixCCS &a, int start_col, int end_col,
   local_row_indices.resize(total_nnz);
 
 #pragma omp parallel for default(none) shared(a, start_col, end_col, temp_columns, local_values, local_row_indices, \
-                                                  local_col_ptrs, epsilon) schedule(dynamic, 4)
+                                                  local_col_ptrs, epsilon, local_cols) schedule(dynamic, 4)
   for (int j = 0; j < local_cols; ++j) {
     const std::vector<double> &temp = temp_columns[j];
     int pos = local_col_ptrs[j];
