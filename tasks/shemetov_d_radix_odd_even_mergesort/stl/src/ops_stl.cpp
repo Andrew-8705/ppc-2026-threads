@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "shemetov_d_radix_odd_even_mergesort/common/include/common.hpp"
+#include "util/include/util.hpp"
 
 namespace shemetov_d_radix_odd_even_mergesort {
 
@@ -67,9 +68,9 @@ void ShemetovDRadixOddEvenMergeSortSTL::OddEvenMerge(std::vector<int> &array, si
   size_t padding = segment / 2;
 
   std::vector<size_t> indices(padding);
-  std::ranges::iota(indices.begin(), indices.end(), 0);
+  std::iota(indices.begin(), indices.end(), 0);
 
-  std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [&](size_t index) {
+  std::for_each(std::execution::par, indices.begin(), indices.end(), [&](size_t index) {
     if (array[start_offset + index] > array[start_offset + padding + index]) {
       std::swap(array[start_offset + index], array[start_offset + padding + index]);
     }
@@ -79,9 +80,9 @@ void ShemetovDRadixOddEvenMergeSortSTL::OddEvenMerge(std::vector<int> &array, si
     size_t step = padding * 2;
 
     std::vector<size_t> pair_indices(((segment - padding) / step) * padding);
-    std::ranges::iota(pair_indices.begin(), pair_indices.end(), 0);
+    std::iota(pair_indices.begin(), pair_indices.end(), 0);
 
-    std::for_each(std::execution::par_unseq, pair_indices.begin(), pair_indices.end(), [&](size_t index) {
+    std::for_each(std::execution::par, pair_indices.begin(), pair_indices.end(), [&](size_t index) {
       size_t i = index % padding;
       size_t start_position = padding + ((index / padding) * step);
 
@@ -130,14 +131,39 @@ bool ShemetovDRadixOddEvenMergeSortSTL::RunImpl() {
     return true;
   }
 
-  size_t middle = power_ / 2;
+  size_t threads = ppc::util::GetNumThreads();
 
-  auto left_future = std::async(std::launch::async, [&]() { RadixSort(array_, 0, middle - 1); });
-  RadixSort(array_, middle, power_ - 1);
+  size_t limit = 1;
+  while (limit * 2 <= std::min(threads, power_)) {
+    limit *= 2;
+  }
 
-  left_future.wait();
+  size_t chunk_size = power_ / limit;
 
-  OddEvenMerge(array_, 0, power_);
+  std::vector<std::future<void>> sort;
+  for (size_t i = 0; i < limit; i += 1) {
+    size_t left = i * chunk_size;
+    size_t right = left + chunk_size - 1;
+
+    sort.push_back(
+        std::async(std::launch::async, [this, left, right]() { this->RadixSort(this->array_, left, right); }));
+  }
+  for (auto &sorted : sort) {
+    sorted.get();
+  }
+
+  for (size_t segment = chunk_size * 2; segment <= power_; segment *= 2) {
+    std::vector<std::future<void>> merge;
+
+    for (size_t i = 0; i < power_; i += segment) {
+      merge.push_back(std::async(std::launch::async, [this, i, segment]() {
+        ShemetovDRadixOddEvenMergeSortSTL::OddEvenMerge(this->array_, i, segment);
+      }));
+    }
+    for (auto &merged : merge) {
+      merged.get();
+    }
+  }
 
   return true;
 }
