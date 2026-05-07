@@ -1,17 +1,19 @@
 #include "gonozov_l_bitwise_sorting_double_Batcher_merge/tbb/include/ops_tbb.hpp"
 
-#include <tbb/tbb.h>
-#include <oneapi/tbb/parallel_for.h>
 #include <oneapi/tbb/blocked_range.h>
+#include <oneapi/tbb/parallel_for.h>
 #include <oneapi/tbb/parallel_invoke.h>
+#include <tbb/tbb.h>
 
-#include <atomic>
-#include <numeric>
-#include <util/include/util.hpp>
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <vector>
 
 #include "gonozov_l_bitwise_sorting_double_Batcher_merge/common/include/common.hpp"
-#include "oneapi/tbb/parallel_for.h"
 
 namespace gonozov_l_bitwise_sorting_double_batcher_merge {
 
@@ -53,7 +55,7 @@ double SortableIntToDouble(uint64_t bits) {
 }
 
 void RadixSortDouble(std::vector<double> &data) {
-  if (data.empty()) return;
+  if (data.empty()) { return; }
 
   std::vector<uint64_t> keys(data.size());
   //Преобразуем в сортируемые целые числа
