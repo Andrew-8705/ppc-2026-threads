@@ -12,21 +12,20 @@ namespace kazennova_a_fox_algorithm {
 
 namespace {
 
-// Вспомогательная функция для извлечения блока (уменьшает когнитивную сложность)
+// Вспомогательная функция для извлечения блока
 void GetBlock(const std::vector<double> &mat, int rows, int cols, int block_row, int block_col, double *block_buf) {
-  const int bs = kBlockSize;
+  const int bs = KazennovaATestTaskTBB::kBlockSize;
   const int start_row = block_row * bs;
   const int start_col = block_col * bs;
   const int end_row = std::min(start_row + bs, rows);
   const int end_col = std::min(start_col + bs, cols);
 
-  // Обнуление буфера
   for (int i = 0; i < bs; ++i) {
     for (int j = 0; j < bs; ++j) {
       block_buf[i * bs + j] = 0.0;
     }
   }
-  // Копирование блока
+
   for (int i = start_row; i < end_row; ++i) {
     for (int j = start_col; j < end_col; ++j) {
       block_buf[(i - start_row) * bs + (j - start_col)] = mat[i * cols + j];
