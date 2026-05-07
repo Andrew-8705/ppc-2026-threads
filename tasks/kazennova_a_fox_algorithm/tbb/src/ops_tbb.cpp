@@ -12,23 +12,21 @@ namespace kazennova_a_fox_algorithm {
 
 namespace {
 
-// Вспомогательная функция для извлечения блока
-void GetBlock(const std::vector<double> &mat, int rows, int cols, int block_row, int block_col, double *block_buf) {
-  const int bs = KazennovaATestTaskTBB::kBlockSize;
-  const int start_row = block_row * bs;
-  const int start_col = block_col * bs;
-  const int end_row = std::min(start_row + bs, rows);
-  const int end_col = std::min(start_col + bs, cols);
+void GetBlock(const std::vector<double> &mat, int rows, int cols, int block_row, int block_col, int block_size,
+              double *block_buf) {
+  const int start_row = block_row * block_size;
+  const int start_col = block_col * block_size;
+  const int end_row = std::min(start_row + block_size, rows);
+  const int end_col = std::min(start_col + block_size, cols);
 
-  for (int i = 0; i < bs; ++i) {
-    for (int j = 0; j < bs; ++j) {
-      block_buf[i * bs + j] = 0.0;
+  for (int i = 0; i < block_size; ++i) {
+    for (int j = 0; j < block_size; ++j) {
+      block_buf[i * block_size + j] = 0.0;
     }
   }
-
   for (int i = start_row; i < end_row; ++i) {
     for (int j = start_col; j < end_col; ++j) {
-      block_buf[(i - start_row) * bs + (j - start_col)] = mat[i * cols + j];
+      block_buf[(i - start_row) * block_size + (j - start_col)] = mat[i * cols + j];
     }
   }
 }
@@ -87,8 +85,9 @@ bool KazennovaATestTaskTBB::RunImpl() {
     for (int bi = r.rows().begin(); bi != r.rows().end(); ++bi) {
       for (int bj = r.cols().begin(); bj != r.cols().end(); ++bj) {
         for (int bk = 0; bk < blocks_k; ++bk) {
-          GetBlock(a, m, k, bi, bk, block_a.data());
-          GetBlock(b, k, n, bk, bj, block_b.data());
+          // Передаём bs как параметр
+          GetBlock(a, m, k, bi, bk, bs, block_a.data());
+          GetBlock(b, k, n, bk, bj, bs, block_b.data());
 
           const int max_i = std::min(bs, m - bi * bs);
           const int max_j = std::min(bs, n - bj * bs);
