@@ -70,26 +70,24 @@ void ShemetovDRadixOddEvenMergeSortSTL::OddEvenMerge(std::vector<int> &array, si
   std::vector<size_t> indices(padding);
   std::iota(indices.begin(), indices.end(), 0);
 
-  std::for_each(std::execution::par, indices.begin(), indices.end(), [&](size_t index) {
+  for (size_t index = 0; index < padding; index += 1) {
     if (array[start_offset + index] > array[start_offset + padding + index]) {
       std::swap(array[start_offset + index], array[start_offset + padding + index]);
     }
-  });
+  }
 
   for (padding = segment / 4; padding > 0; padding /= 2) {
     size_t step = padding * 2;
+    size_t num_indices = ((segment - padding) / step) * padding;
 
-    std::vector<size_t> pair_indices(((segment - padding) / step) * padding);
-    std::iota(pair_indices.begin(), pair_indices.end(), 0);
-
-    std::for_each(std::execution::par, pair_indices.begin(), pair_indices.end(), [&](size_t index) {
+    for (size_t index = 0; index < num_indices; index += 1) {
       size_t i = index % padding;
       size_t start_position = padding + ((index / padding) * step);
 
       if (array[start_offset + start_position + i] > array[start_offset + start_position + i + padding]) {
         std::swap(array[start_offset + start_position + i], array[start_offset + start_position + i + padding]);
       }
-    });
+    }
   }
 }
 
