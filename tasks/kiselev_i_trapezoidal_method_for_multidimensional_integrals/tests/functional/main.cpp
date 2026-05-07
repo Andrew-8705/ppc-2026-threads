@@ -13,6 +13,7 @@
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/common/include/common.hpp"
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/omp/include/ops_omp.hpp"
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/seq/include/ops_seq.hpp"
+#include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/stl/include/ops_stl.hpp"
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
@@ -235,6 +236,8 @@ const auto kTestTasksList =
                    ppc::util::AddFuncTask<KiselevITestTaskOMP, InType>(
                        kTestParam, PPC_SETTINGS_kiselev_i_trapezoidal_method_for_multidimensional_integrals),
                    ppc::util::AddFuncTask<KiselevITestTaskTBB, InType>(
+                       kTestParam, PPC_SETTINGS_kiselev_i_trapezoidal_method_for_multidimensional_integrals),
+                   ppc::util::AddFuncTask<KiselevITestTaskSTL, InType>(
                        kTestParam, PPC_SETTINGS_kiselev_i_trapezoidal_method_for_multidimensional_integrals));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
