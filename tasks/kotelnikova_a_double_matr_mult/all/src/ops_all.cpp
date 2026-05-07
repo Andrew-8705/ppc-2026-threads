@@ -171,7 +171,7 @@ void GatherAndBroadcastResult(int rank, int size, const std::vector<double> &loc
   int cols_per_proc = total_cols / size;
   int remainder = total_cols % size;
 
-  int start = rank * cols_per_proc + std::min(rank, remainder);
+  int start = (rank * cols_per_proc) + std::min(rank, remainder);
   int end = start + cols_per_proc + (rank < remainder ? 1 : 0);
 
   for (int j = start; j < end; ++j) {
@@ -226,7 +226,8 @@ void GatherAndBroadcastResult(int rank, int size, const std::vector<double> &loc
 }  // namespace
 
 SparseMatrixCCS KotelnikovaATaskALL::MultiplyMatricesMPIOMP(const SparseMatrixCCS &a, const SparseMatrixCCS &b) {
-  int rank = -1, size = -1;
+  int rank = -1;
+  int size = -1;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
@@ -234,7 +235,7 @@ SparseMatrixCCS KotelnikovaATaskALL::MultiplyMatricesMPIOMP(const SparseMatrixCC
   const int cols_per_proc = total_cols / size;
   const int remainder = total_cols % size;
 
-  int start_col = rank * cols_per_proc + std::min(rank, remainder);
+  int start_col = (rank * cols_per_proc) + std::min(rank, remainder);
   int end_col = start_col + cols_per_proc + (rank < remainder ? 1 : 0);
 
   const int local_cols = end_col - start_col;
@@ -254,14 +255,13 @@ SparseMatrixCCS KotelnikovaATaskALL::MultiplyMatricesMPIOMP(const SparseMatrixCC
     SparseMatrixCCS result(a.rows, total_cols);
     GatherAndBroadcastResult(rank, size, local_values, local_row_indices, local_col_ptrs, total_cols, a.rows, result);
     return result;
-  } else {
-    SparseMatrixCCS result(a.rows, total_cols);
-    std::vector<double> empty_values;
-    std::vector<int> empty_row_indices;
-    std::vector<int> empty_col_ptrs(1, 0);
-    GatherAndBroadcastResult(rank, size, empty_values, empty_row_indices, empty_col_ptrs, total_cols, a.rows, result);
-    return result;
   }
+  SparseMatrixCCS result(a.rows, total_cols);
+  std::vector<double> empty_values;
+  std::vector<int> empty_row_indices;
+  std::vector<int> empty_col_ptrs(1, 0);
+  GatherAndBroadcastResult(rank, size, empty_values, empty_row_indices, empty_col_ptrs, total_cols, a.rows, result);
+  return result;
 }
 
 bool KotelnikovaATaskALL::RunImpl() {

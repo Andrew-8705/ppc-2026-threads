@@ -59,14 +59,11 @@ class KotelnikovaARunPerfTestSEQ : public ppc::util::BaseRunPerfTests<InType, Ou
     input_data_ = std::make_pair(a, b);
   }
 
-  bool CheckTestOutputData(OutType &output_data) final {
-    if (output_data.rows != kMatrixSize || output_data.cols != kMatrixSize) {
-      return false;
-    }
-    return true;
+  bool CheckTestOutputData(OutType &output_data) override {
+    return (output_data.rows == kMatrixSize && output_data.cols == kMatrixSize);
   }
 
-  InType GetTestInputData() final {
+  InType GetTestInputData() override {
     return input_data_;
   }
 };
