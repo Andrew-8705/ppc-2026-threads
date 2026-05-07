@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include "kazennova_a_fox_algorithm/common/include/common.hpp"
 #include "task/include/task.hpp"
 

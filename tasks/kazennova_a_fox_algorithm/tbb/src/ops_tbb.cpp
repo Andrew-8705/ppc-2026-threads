@@ -4,6 +4,7 @@
 #include <tbb/parallel_for.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <vector>
 
 #include "kazennova_a_fox_algorithm/common/include/common.hpp"
@@ -21,12 +22,27 @@ void GetBlock(const std::vector<double> &mat, int rows, int cols, int block_row,
 
   for (int i = 0; i < block_size; ++i) {
     for (int j = 0; j < block_size; ++j) {
-      block_buf[i * block_size + j] = 0.0;
+      block_buf[(i * block_size) + j] = 0.0;
     }
   }
   for (int i = start_row; i < end_row; ++i) {
     for (int j = start_col; j < end_col; ++j) {
-      block_buf[(i - start_row) * block_size + (j - start_col)] = mat[i * cols + j];
+      block_buf[((i - start_row) * block_size) + (j - start_col)] = mat[(i * cols) + j];
+    }
+  }
+}
+
+void MultiplyBlock(const std::vector<double> &block_a, const std::vector<double> &block_b, int block_size, int max_i,
+                   int max_j, int max_k, int bi, int bj, int n, std::vector<double> &c) {
+  for (int i = 0; i < max_i; ++i) {
+    const int global_row = (bi * block_size) + i;
+    for (int j = 0; j < max_j; ++j) {
+      const int global_col = (bj * block_size) + j;
+      double sum = 0.0;
+      for (int kk = 0; kk < max_k; ++kk) {
+        sum += block_a[(i * block_size) + kk] * block_b[(kk * block_size) + j];
+      }
+      c[(global_row * n) + global_col] += sum;
     }
   }
 }
@@ -85,25 +101,14 @@ bool KazennovaATestTaskTBB::RunImpl() {
     for (int bi = r.rows().begin(); bi != r.rows().end(); ++bi) {
       for (int bj = r.cols().begin(); bj != r.cols().end(); ++bj) {
         for (int bk = 0; bk < blocks_k; ++bk) {
-          // Передаём bs как параметр
           GetBlock(a, m, k, bi, bk, bs, block_a.data());
           GetBlock(b, k, n, bk, bj, bs, block_b.data());
 
-          const int max_i = std::min(bs, m - bi * bs);
-          const int max_j = std::min(bs, n - bj * bs);
-          const int max_k = std::min(bs, k - bk * bs);
+          const int max_i = std::min(bs, m - (bi * bs));
+          const int max_j = std::min(bs, n - (bj * bs));
+          const int max_k = std::min(bs, k - (bk * bs));
 
-          for (int i = 0; i < max_i; ++i) {
-            const int global_row = bi * bs + i;
-            for (int j = 0; j < max_j; ++j) {
-              const int global_col = bj * bs + j;
-              double sum = 0.0;
-              for (int kk = 0; kk < max_k; ++kk) {
-                sum += block_a[i * bs + kk] * block_b[kk * bs + j];
-              }
-              c[global_row * n + global_col] += sum;
-            }
-          }
+          MultiplyBlock(block_a, block_b, bs, max_i, max_j, max_k, bi, bj, n, c);
         }
       }
     }
