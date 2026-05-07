@@ -1,5 +1,8 @@
 #pragma once
 
+#include <mpi.h>
+#include <oneapi/tbb/parallel_invoke.h>
+
 #include <vector>
 
 #include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
@@ -37,8 +40,6 @@ class LazarevaATestTaskALL : public BaseTask {
   static int NextPowerOfTwo(int n);
   static std::vector<double> PadMatrix(const std::vector<double> &m, int old_n, int new_n);
   static std::vector<double> UnpadMatrix(const std::vector<double> &m, int old_n, int new_n);
-  static std::vector<double> NaiveMultSequential(const std::vector<double> &a, const std::vector<double> &b, int n);
-  static std::vector<double> NaiveMultParallel(const std::vector<double> &a, const std::vector<double> &b, int n);
   static std::vector<double> StrassenTBB(const std::vector<double> &a, const std::vector<double> &b, int n);
   static std::vector<double> StrassenALL(const std::vector<double> &a, const std::vector<double> &b, int n);
 };
