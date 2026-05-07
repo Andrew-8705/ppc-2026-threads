@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <ostream>
-#include <random>
 
 #include "sakharov_a_shell_sorting_with_merging_butcher/all/include/ops_all.hpp"
 #include "sakharov_a_shell_sorting_with_merging_butcher/common/include/common.hpp"
@@ -32,12 +32,12 @@ class SakharovAShellButcherPerfTests : public ppc::util::BaseRunPerfTests<InType
 
   void SetUp() override {
     constexpr std::size_t kSize = 400000;
-    std::mt19937 generator(12345);
-    std::uniform_int_distribution<int> distribution(-100000, 100000);
+    std::uint32_t state = 12345;
 
     input_data_.resize(kSize);
     for (auto &value : input_data_) {
-      value = distribution(generator);
+      state = (1664525U * state) + 1013904223U;
+      value = static_cast<int>(state % 200001U) - 100000;
     }
 
     expected_output_ = input_data_;

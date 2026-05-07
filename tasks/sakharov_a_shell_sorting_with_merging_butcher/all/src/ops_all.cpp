@@ -200,50 +200,97 @@ std::vector<int> SortLocalPart(std::vector<int> data) {
   return MergeChunksTBB(std::move(data), bounds);
 }
 
-std::vector<int> RunMpiSort(const std::vector<int> &input, int rank, int process_count) {
-  const int input_size = (rank == 0) ? static_cast<int>(input.size()) : 0;
-
+struct MpiRootData {
+  int input_size{0};
   std::vector<int> counts;
   std::vector<int> displacements;
-  if (rank == 0) {
-    counts = BuildMpiChunkCounts(input_size, process_count);
-    displacements = BuildDisplacements(counts);
-  }
+};
 
+const int *RootBuffer(const std::vector<int> &buffer, int rank) {
+  if (rank != 0) {
+    return nullptr;
+  }
+  return buffer.data();
+}
+
+const int *RootInputBuffer(const std::vector<int> &input, int rank) {
+  if (rank != 0 || input.empty()) {
+    return nullptr;
+  }
+  return input.data();
+}
+
+int *BufferOrNull(std::vector<int> &buffer) {
+  if (buffer.empty()) {
+    return nullptr;
+  }
+  return buffer.data();
+}
+
+MpiRootData BuildRootData(const std::vector<int> &input, int rank, int process_count) {
+  MpiRootData root_data;
+  if (rank == 0) {
+    root_data.input_size = static_cast<int>(input.size());
+    root_data.counts = BuildMpiChunkCounts(root_data.input_size, process_count);
+    root_data.displacements = BuildDisplacements(root_data.counts);
+  }
+  return root_data;
+}
+
+std::vector<int> ScatterInput(const std::vector<int> &input, const MpiRootData &root_data, int rank) {
   int local_size = 0;
-  MPI_Scatter(rank == 0 ? counts.data() : nullptr, 1, MPI_INT, &local_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Scatter(RootBuffer(root_data.counts, rank), 1, MPI_INT, &local_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   std::vector<int> local_data(static_cast<std::size_t>(local_size));
-  const int *input_data = (rank == 0 && !input.empty()) ? input.data() : nullptr;
-  int *local_buffer = local_data.empty() ? nullptr : local_data.data();
-  MPI_Scatterv(input_data, rank == 0 ? counts.data() : nullptr, rank == 0 ? displacements.data() : nullptr, MPI_INT,
-               local_buffer, local_size, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Scatterv(RootInputBuffer(input, rank), RootBuffer(root_data.counts, rank),
+               RootBuffer(root_data.displacements, rank), MPI_INT, BufferOrNull(local_data), local_size, MPI_INT, 0,
+               MPI_COMM_WORLD);
 
-  local_data = SortLocalPart(std::move(local_data));
+  return local_data;
+}
 
+std::vector<int> GatherSortedData(std::vector<int> &local_data, const MpiRootData &root_data, int rank) {
   std::vector<int> gathered_data;
   if (rank == 0) {
-    gathered_data.resize(static_cast<std::size_t>(input_size));
+    gathered_data.resize(static_cast<std::size_t>(root_data.input_size));
   }
 
-  local_buffer = local_data.empty() ? nullptr : local_data.data();
-  int *gathered_buffer = (rank == 0 && !gathered_data.empty()) ? gathered_data.data() : nullptr;
-  MPI_Gatherv(local_buffer, local_size, MPI_INT, gathered_buffer, rank == 0 ? counts.data() : nullptr,
-              rank == 0 ? displacements.data() : nullptr, MPI_INT, 0, MPI_COMM_WORLD);
+  const auto local_size = static_cast<int>(local_data.size());
+  MPI_Gatherv(BufferOrNull(local_data), local_size, MPI_INT, BufferOrNull(gathered_data),
+              RootBuffer(root_data.counts, rank), RootBuffer(root_data.displacements, rank), MPI_INT, 0,
+              MPI_COMM_WORLD);
 
-  std::vector<int> result;
+  return gathered_data;
+}
+
+std::vector<int> MergeRootData(std::vector<int> gathered_data, const MpiRootData &root_data, int rank) {
+  if (rank != 0) {
+    return {};
+  }
+
+  const auto bounds = BuildBoundsFromCounts(root_data.counts);
+  return MergeChunksSTLThreads(std::move(gathered_data), bounds, std::max(1, ppc::util::GetNumThreads()));
+}
+
+std::vector<int> BroadcastResult(std::vector<int> result, int rank) {
   int result_size = 0;
   if (rank == 0) {
-    const auto bounds = BuildBoundsFromCounts(counts);
-    result = MergeChunksSTLThreads(std::move(gathered_data), bounds, std::max(1, ppc::util::GetNumThreads()));
     result_size = static_cast<int>(result.size());
   }
-
   MPI_Bcast(&result_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
   result.resize(static_cast<std::size_t>(result_size));
-  MPI_Bcast(result_size > 0 ? result.data() : nullptr, result_size, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(BufferOrNull(result), result_size, MPI_INT, 0, MPI_COMM_WORLD);
 
   return result;
+}
+
+std::vector<int> RunMpiSort(const std::vector<int> &input, int rank, int process_count) {
+  const auto root_data = BuildRootData(input, rank, process_count);
+  auto local_data = ScatterInput(input, root_data, rank);
+  local_data = SortLocalPart(std::move(local_data));
+  auto gathered_data = GatherSortedData(local_data, root_data, rank);
+  auto result = MergeRootData(std::move(gathered_data), root_data, rank);
+  return BroadcastResult(std::move(result), rank);
 }
 
 }  // namespace
