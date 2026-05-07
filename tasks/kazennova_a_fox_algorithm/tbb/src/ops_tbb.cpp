@@ -4,10 +4,37 @@
 #include <tbb/parallel_for.h>
 
 #include <algorithm>
-#include <cstddef>
 #include <vector>
 
+#include "kazennova_a_fox_algorithm/common/include/common.hpp"
+
 namespace kazennova_a_fox_algorithm {
+
+namespace {
+
+// Вспомогательная функция для извлечения блока (уменьшает когнитивную сложность)
+void GetBlock(const std::vector<double> &mat, int rows, int cols, int block_row, int block_col, double *block_buf) {
+  const int bs = kBlockSize;
+  const int start_row = block_row * bs;
+  const int start_col = block_col * bs;
+  const int end_row = std::min(start_row + bs, rows);
+  const int end_col = std::min(start_col + bs, cols);
+
+  // Обнуление буфера
+  for (int i = 0; i < bs; ++i) {
+    for (int j = 0; j < bs; ++j) {
+      block_buf[i * bs + j] = 0.0;
+    }
+  }
+  // Копирование блока
+  for (int i = start_row; i < end_row; ++i) {
+    for (int j = start_col; j < end_col; ++j) {
+      block_buf[(i - start_row) * bs + (j - start_col)] = mat[i * cols + j];
+    }
+  }
+}
+
+}  // namespace
 
 KazennovaATestTaskTBB::KazennovaATestTaskTBB(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
@@ -41,67 +68,42 @@ bool KazennovaATestTaskTBB::RunImpl() {
   const auto &in = GetInput();
   auto &out = GetOutput();
 
-  const int M = in.A.rows;
-  const int K = in.A.cols;
-  const int N = in.B.cols;
+  const int m = in.A.rows;
+  const int k = in.A.cols;
+  const int n = in.B.cols;
   const auto &a = in.A.data;
   const auto &b = in.B.data;
   auto &c = out.data;
 
-  const int BS = BLOCK_SIZE;
+  const int bs = kBlockSize;
 
-  const int blocks_i = (M + BS - 1) / BS;
-  const int blocks_j = (N + BS - 1) / BS;
-  const int blocks_k = (K + BS - 1) / BS;
-
-  // Исправлено: убран захват BS (константа видна без захвата)
-  auto get_block = [](const std::vector<double> &mat, int rows, int cols, int block_row, int block_col,
-                      double *block_buf) {
-    const int BS = BLOCK_SIZE;  // локальная константа
-    int start_row = block_row * BS;
-    int start_col = block_col * BS;
-    int end_row = std::min(start_row + BS, rows);
-    int end_col = std::min(start_col + BS, cols);
-
-    // Обнуление буфера
-    for (int i = 0; i < BS; ++i) {
-      for (int j = 0; j < BS; ++j) {
-        block_buf[i * BS + j] = 0.0;
-      }
-    }
-
-    // Копирование блока
-    for (int i = start_row; i < end_row; ++i) {
-      for (int j = start_col; j < end_col; ++j) {
-        block_buf[(i - start_row) * BS + (j - start_col)] = mat[i * cols + j];
-      }
-    }
-  };
+  const int blocks_i = (m + bs - 1) / bs;
+  const int blocks_j = (n + bs - 1) / bs;
+  const int blocks_k = (k + bs - 1) / bs;
 
   tbb::parallel_for(tbb::blocked_range2d<int>(0, blocks_i, 0, blocks_j), [&](const tbb::blocked_range2d<int> &r) {
-    std::vector<double> block_a(BS * BS);
-    std::vector<double> block_b(BS * BS);
+    std::vector<double> block_a(static_cast<size_t>(bs) * bs);
+    std::vector<double> block_b(static_cast<size_t>(bs) * bs);
 
     for (int bi = r.rows().begin(); bi != r.rows().end(); ++bi) {
       for (int bj = r.cols().begin(); bj != r.cols().end(); ++bj) {
         for (int bk = 0; bk < blocks_k; ++bk) {
-          get_block(a, M, K, bi, bk, block_a.data());
-          get_block(b, K, N, bk, bj, block_b.data());
+          GetBlock(a, m, k, bi, bk, block_a.data());
+          GetBlock(b, k, n, bk, bj, block_b.data());
 
-          // Вычисление с учётом границ блоков
-          int max_i = std::min(BS, M - bi * BS);
-          int max_j = std::min(BS, N - bj * BS);
-          int max_k = std::min(BS, K - bk * BS);
+          const int max_i = std::min(bs, m - bi * bs);
+          const int max_j = std::min(bs, n - bj * bs);
+          const int max_k = std::min(bs, k - bk * bs);
 
           for (int i = 0; i < max_i; ++i) {
-            int global_row = bi * BS + i;
+            const int global_row = bi * bs + i;
             for (int j = 0; j < max_j; ++j) {
-              int global_col = bj * BS + j;
+              const int global_col = bj * bs + j;
               double sum = 0.0;
-              for (int k = 0; k < max_k; ++k) {
-                sum += block_a[i * BS + k] * block_b[k * BS + j];
+              for (int kk = 0; kk < max_k; ++kk) {
+                sum += block_a[i * bs + kk] * block_b[kk * bs + j];
               }
-              c[global_row * N + global_col] += sum;
+              c[global_row * n + global_col] += sum;
             }
           }
         }
