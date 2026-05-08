@@ -3,11 +3,10 @@
 #include <mpi.h>
 #include <oneapi/tbb/parallel_invoke.h>
 
-#include <cstddef>
-#include <string>
 #include <vector>
 
-#include "util/include/task_abc.hpp"
+#include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
+#include "task/include/task.hpp"
 
 namespace lazareva_a_matrix_mult_strassen {
 
