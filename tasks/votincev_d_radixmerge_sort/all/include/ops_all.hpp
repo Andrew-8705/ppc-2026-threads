@@ -30,6 +30,7 @@ class VotincevDRadixMergeSortALL : public BaseTask {
 
   int32_t ScatterData(int32_t rank, int32_t n, int32_t local_n, const std::vector<int32_t> &send_counts,
                       const std::vector<int32_t> &displacements, std::vector<uint32_t> &local_data);
+
   void FinalMergeAndFormat(int32_t rank, int32_t size, int32_t n, int32_t min_val, std::vector<uint32_t> &gathered_data,
                            const std::vector<int32_t> &displacements);
 
