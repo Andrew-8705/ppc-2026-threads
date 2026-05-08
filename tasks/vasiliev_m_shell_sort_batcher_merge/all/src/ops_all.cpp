@@ -154,8 +154,8 @@ void VasilievMShellSortBatcherMergeALL::CycleMergeSTL(std::vector<ValType> &vec,
   const size_t rem = merge_count % worker_count;
   size_t current = 0;
 
-  for (size_t w = 0; w < worker_count; w++) {
-    const size_t count = base + (w < rem ? 1 : 0);
+  for (size_t wrk = 0; wrk < worker_count; wrk++) {
+    const size_t count = base + (wrk < rem ? 1 : 0);
     const size_t begin = current;
     const size_t end = current + count;
     current = end;
@@ -175,7 +175,10 @@ void VasilievMShellSortBatcherMergeALL::CycleMergeSTL(std::vector<ValType> &vec,
 }
 
 std::vector<ValType> VasilievMShellSortBatcherMergeALL::BatcherMerge(std::vector<ValType> &l, std::vector<ValType> &r) {
-  std::vector<ValType> even_l, odd_l, even_r, odd_r;
+  std::vector<ValType> even_l;
+  std::vector<ValType> odd_l;
+  std::vector<ValType> even_r;
+  std::vector<ValType> odd_r;
 
   SplitEvenOdd(l, even_l, odd_l);
   SplitEvenOdd(r, even_r, odd_r);
