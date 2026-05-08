@@ -4,6 +4,7 @@
 
 #include <utility>
 #include <vector>
+#include <cstddef>
 
 #include "chaschin_vladimir_linear_image_filtration_seq/common/include/common.hpp"
 
