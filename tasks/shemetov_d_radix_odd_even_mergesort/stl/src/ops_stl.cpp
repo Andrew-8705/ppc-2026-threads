@@ -142,11 +142,9 @@ bool ShemetovDRadixOddEvenMergeSortSTL::RunImpl() {
     size_t left = i * chunk_size;
     size_t right = left + chunk_size - 1;
 
-    sort.push_back(
-      std::async(std::launch::async, [this, left, right]() {
-        ShemetovDRadixOddEvenMergeSortSTL::RadixSort(this->array_, left, right);
-      })
-    );
+    sort.push_back(std::async(std::launch::async, [this, left, right]() {
+      ShemetovDRadixOddEvenMergeSortSTL::RadixSort(this->array_, left, right);
+    }));
   }
   for (auto &sorted : sort) {
     sorted.get();
