@@ -23,7 +23,6 @@ SparseMatrixCCS CreateTestMatrix(int size, double density) {
   std::mt19937 gen(rd());
   std::uniform_real_distribution<double> value_dist(-10.0, 10.0);
   std::uniform_real_distribution<double> density_dist(0.0, 1.0);
-
   std::vector<std::vector<std::pair<int, double>>> columns(size);
 
   for (int j = 0; j < size; ++j) {
