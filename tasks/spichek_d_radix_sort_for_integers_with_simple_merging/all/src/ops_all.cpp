@@ -4,6 +4,7 @@
 #include <tbb/tbb.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <iterator>
 #include <utility>
 #include <vector>
@@ -85,7 +86,8 @@ std::vector<std::vector<int>> SpichekDRadixSortALL::SplitData(const std::vector<
 
 std::vector<int> SpichekDRadixSortALL::MergeData(std::vector<std::vector<int>> &parts) {
   std::vector<int> result = std::move(parts[0]);
-  for (size_t i = 1; i < parts.size(); ++i) {
+  int num_parts = static_cast<int>(parts.size());
+  for (int i = 1; i < num_parts; ++i) {
     std::vector<int> temp;
     temp.reserve(result.size() + parts[i].size());
     std::ranges::merge(result, parts[i], std::back_inserter(temp));
