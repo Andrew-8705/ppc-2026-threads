@@ -161,7 +161,7 @@ bool HoareSortBatcherALL::RunImpl() {
     return true;
   }
 
-  int hw_threads = ppc::util::GetNumThreads();
+  int hw_threads = static_cast<int>(std::thread::hardware_concurrency());
   if (hw_threads <= 0) {
     hw_threads = 4;
   }
