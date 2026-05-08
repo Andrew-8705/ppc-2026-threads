@@ -1,5 +1,6 @@
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/stl/include/ops_stl.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <future>
 #include <vector>
@@ -28,20 +29,31 @@ double KiselevITestTaskSTL::FunctionTypeChoose(int type_x, double x, double y) {
   switch (type_x) {
     case 0:
       return (x * x) + (y * y);
+
     case 1:
       return std::sin(x) * std::cos(y);
+
     case 2:
       return std::sin(x) + std::cos(y);
+
     case 3:
       return std::exp(x + y);
+
     default:
       return x + y;
   }
 }
 
 double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
-  double hx = (GetInput().right_bounds[0] - GetInput().left_bounds[0]) / steps[0];
-  double hy = (GetInput().right_bounds[1] - GetInput().left_bounds[1]) / steps[1];
+  const auto &in = GetInput();
+
+  const double hx =
+      (in.right_bounds[0] - in.left_bounds[0]) /
+      static_cast<double>(steps[0]);
+
+  const double hy =
+      (in.right_bounds[1] - in.left_bounds[1]) /
+      static_cast<double>(steps[1]);
 
   int num_threads = ppc::util::GetNumThreads();
 
@@ -49,38 +61,55 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
     num_threads = 1;
   }
 
-  int total_iters = steps[0] + 1;
-  int chunk_size = total_iters / num_threads;
-  int remainder = total_iters % num_threads;
+  const int total_iters = steps[0] + 1;
+
+  // Не создаем больше потоков, чем работы
+  num_threads = std::min(num_threads, total_iters);
+
+  const int chunk_size = total_iters / num_threads;
+  const int remainder = total_iters % num_threads;
 
   std::vector<std::future<double>> futures;
+  futures.reserve(num_threads);
 
   int start = 0;
 
   for (int t = 0; t < num_threads; t++) {
     int end = start + chunk_size;
 
-    if (t == num_threads - 1) {
-      end += remainder;
+    // равномернее распределяем remainder
+    if (t < remainder) {
+      end++;
     }
 
-    futures.emplace_back(std::async(std::launch::async, [&, start, end]() {
-      double local_result = 0.0;
+    futures.emplace_back(std::async(
+        std::launch::async,
+        [this, &in, &steps, hx, hy, start, end]() {
+          double local_result = 0.0;
 
-      for (int i = start; i < end; i++) {
-        double x = GetInput().left_bounds[0] + (i * hx);
-        double wx = (i == 0 || i == steps[0]) ? 0.5 : 1.0;
+          for (int i = start; i < end; i++) {
+            const double x = in.left_bounds[0] + (i * hx);
+            const double wx =
+                (i == 0 || i == steps[0]) ? 0.5 : 1.0;
 
-        for (int j = 0; j <= steps[1]; j++) {
-          double y = GetInput().left_bounds[1] + (j * hy);
-          double wy = (j == 0 || j == steps[1]) ? 0.5 : 1.0;
+            for (int j = 0; j <= steps[1]; j++) {
+              const double y =
+                  in.left_bounds[1] + (j * hy);
 
-          local_result += wx * wy * FunctionTypeChoose(GetInput().type_function, x, y);
-        }
-      }
+              const double wy =
+                  (j == 0 || j == steps[1]) ? 0.5 : 1.0;
 
-      return local_result;
-    }));
+              local_result +=
+                  wx * wy *
+                  FunctionTypeChoose(
+                      in.type_function,
+                      x,
+                      y);
+            }
+          }
+
+          return local_result;
+        }));
 
     start = end;
   }
@@ -100,7 +129,9 @@ bool KiselevITestTaskSTL::RunImpl() {
 
   const auto &in = GetInput();
 
-  if (in.left_bounds.size() != 2 || in.right_bounds.size() != 2 || in.step_n_size.size() != 2) {
+  if (in.left_bounds.size() != 2 ||
+      in.right_bounds.size() != 2 ||
+      in.step_n_size.size() != 2) {
     GetOutput() = 0.0;
     return true;
   }
