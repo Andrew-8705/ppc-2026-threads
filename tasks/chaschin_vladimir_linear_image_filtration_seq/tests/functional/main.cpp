@@ -14,7 +14,7 @@
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
-namespace chaschin_v_linear_image_filtration {
+namespace chaschin_v_linear_image_filtration_seq {
 
 class ChaschinVRunFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
@@ -128,4 +128,4 @@ INSTANTIATE_TEST_SUITE_P(LinearGaussianTests, ChaschinVRunFuncTests, kGtestValue
 
 }  // namespace
 
-}  // namespace chaschin_v_linear_image_filtration
+}  // namespace chaschin_v_linear_image_filtration_seq

@@ -10,7 +10,7 @@
 #include "chaschin_vladimir_linear_image_filtration_seq/seq/include/ops_seq.hpp"
 #include "util/include/perf_test_util.hpp"
 
-namespace chaschin_v_linear_image_filtration {
+namespace chaschin_v_linear_image_filtration::seq {
 
 class ChaschinVRunPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
   static constexpr int kCount = 512;
@@ -105,4 +105,4 @@ INSTANTIATE_TEST_SUITE_P(RunModeTests, ChaschinVRunPerfTests, kGtestValues, kPer
 
 }  // namespace
 
-}  // namespace chaschin_v_linear_image_filtration
+}  // namespace chaschin_v_linear_image_filtration::seq
