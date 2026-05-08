@@ -66,9 +66,6 @@ void ShemetovDRadixOddEvenMergeSortSTL::OddEvenMerge(std::vector<int> &array, si
 
   size_t padding = segment / 2;
 
-  std::vector<size_t> indices(padding);
-  std::ranges::iota(indices.begin(), indices.end(), 0);
-
   for (size_t index = 0; index < padding; index += 1) {
     if (array[start_offset + index] > array[start_offset + padding + index]) {
       std::swap(array[start_offset + index], array[start_offset + padding + index]);
