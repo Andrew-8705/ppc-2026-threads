@@ -105,6 +105,10 @@ struct InvalidInputParams {
   std::string description;
 };
 
+void PrintTo(const InvalidInputParams &p, std::ostream *os) {
+  *os << p.description;
+}
+
 class IskhakovDVerticalGaussFilterInvalidInputTests : public testing::TestWithParam<InvalidInputParams> {};
 
 TEST_P(IskhakovDVerticalGaussFilterInvalidInputTests, Validation) {
