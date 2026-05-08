@@ -105,4 +105,4 @@ INSTANTIATE_TEST_SUITE_P(RunModeTests, ChaschinVRunPerfTests, kGtestValues, kPer
 
 }  // namespace
 
-}  // namespace chaschin_v_linear_image_filtration::seq
+}  // namespace chaschin_v_linear_image_filtration_seq
