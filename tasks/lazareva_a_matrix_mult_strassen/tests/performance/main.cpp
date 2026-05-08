@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstddef>
 #include <vector>
 
 #include "lazareva_a_matrix_mult_strassen/all/include/ops_all.hpp"
+#include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
 #include "util/include/perf_test_util.hpp"
 
 namespace lazareva_a_matrix_mult_strassen {
@@ -14,20 +16,21 @@ class LazarevaARunPerfTestThreads : public ppc::util::BaseRunPerfTests<InType, O
   OutType expected_output_;
 
   void SetUp() override {
-    size_t size = (size_t)kN_ * kN_;
-    std::vector<double> a(size), b(size);
+    const size_t size = static_cast<size_t>(kN_) * kN_;
+    std::vector<double> a(size);
+    std::vector<double> b(size);
     for (size_t i = 0; i < size; ++i) {
-      a[i] = (double)((i % 7) + 1);
-      b[i] = (double)(((i * 3 + 5) % 11) + 1);
+      a[i] = static_cast<double>((i % 7) + 1);
+      b[i] = static_cast<double>(((i * 3 + 5) % 11) + 1);
     }
     input_data_ = MatrixInput{.a = a, .b = b, .n = kN_};
 
     expected_output_.assign(size, 0.0);
     for (int i = 0; i < kN_; ++i) {
       for (int k = 0; k < kN_; ++k) {
-        double aik = a[(size_t)i * kN_ + k];
+        const double aik = a[(static_cast<size_t>(i) * kN_) + k];
         for (int j = 0; j < kN_; ++j) {
-          expected_output_[(size_t)i * kN_ + j] += aik * b[(size_t)k * kN_ + j];
+          expected_output_[(static_cast<size_t>(i) * kN_) + j] += aik * b[(static_cast<size_t>(k) * kN_) + j];
         }
       }
     }

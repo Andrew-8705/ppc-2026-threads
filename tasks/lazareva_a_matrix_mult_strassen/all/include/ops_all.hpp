@@ -1,6 +1,5 @@
 #pragma once
 
-#include <mpi.h>
 #include <oneapi/tbb/parallel_invoke.h>
 
 #include <vector>

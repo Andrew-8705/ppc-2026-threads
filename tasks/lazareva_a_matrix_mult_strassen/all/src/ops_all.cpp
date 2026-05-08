@@ -1,5 +1,7 @@
 #include "lazareva_a_matrix_mult_strassen/all/include/ops_all.hpp"
 
+#include <mpi.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -260,6 +262,7 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
     rhs[6] = Add(b21, b22, h);
 
     std::vector<MPI_Request> send_requests;
+    send_requests.reserve(14);
 
     for (int k = 0; k < 7; ++k) {
       const int dest = k % size;
@@ -275,7 +278,8 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
 
     std::vector<std::vector<double>> m(7);
     for (int k = 0; k < 7; ++k) {
-      if (k % size == 0) {
+      const int owner = k % size;
+      if (owner == 0) {
         m[k] = StrassenTBB(lhs[k], rhs[k], h);
       }
     }

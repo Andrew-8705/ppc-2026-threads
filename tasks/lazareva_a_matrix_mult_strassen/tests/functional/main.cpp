@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -40,9 +42,9 @@ class LazarevaARunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, 
     expected_output_.assign(static_cast<size_t>(size), 0.0);
     for (int i = 0; i < n; ++i) {
       for (int k = 0; k < n; ++k) {
-        const double aik = a[static_cast<size_t>(i) * n + k];
+        const double aik = a[(static_cast<size_t>(i) * n) + k];
         for (int j = 0; j < n; ++j) {
-          expected_output_[static_cast<size_t>(i) * n + j] += aik * b[static_cast<size_t>(k) * n + j];
+          expected_output_[(static_cast<size_t>(i) * n) + j] += aik * b[(static_cast<size_t>(k) * n) + j];
         }
       }
     }
