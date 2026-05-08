@@ -212,7 +212,7 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  if (n <= 256 || size == 1) {
+  if (n <= 128 || size == 1) {
     if (rank == 0) {
       return StrassenTBB(a, b, n);
     }

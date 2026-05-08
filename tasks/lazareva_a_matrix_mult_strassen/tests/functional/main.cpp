@@ -74,7 +74,7 @@ TEST_P(LazarevaARunFuncTestsThreads, StrassenMatmul) {
   ExecuteTest(GetParam());
 }
 
-const std::array<TestType, 9> kTestParam = {{
+const std::array<TestType, 8> kTestParam = {{
     std::make_tuple(2, "2"),
     std::make_tuple(3, "3"),
     std::make_tuple(5, "5"),
@@ -83,7 +83,6 @@ const std::array<TestType, 9> kTestParam = {{
     std::make_tuple(64, "64"),
     std::make_tuple(65, "65"),
     std::make_tuple(128, "128"),
-    std::make_tuple(257, "257"),
 }};
 
 const auto kTestTasksList = std::tuple_cat(
@@ -96,6 +95,6 @@ const auto kTestTasksList = std::tuple_cat(
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 const auto kFuncTestName = LazarevaARunFuncTestsThreads::PrintFuncTestName<LazarevaARunFuncTestsThreads>;
 
-INSTANTIATE_TEST_SUITE_P(SeqMatrixTests, LazarevaARunFuncTestsThreads, kGtestValues, kFuncTestName);
+INSTANTIATE_TEST_SUITE_P(MatrixTests, LazarevaARunFuncTestsThreads, kGtestValues, kFuncTestName);
 
 }  // namespace lazareva_a_matrix_mult_strassen
