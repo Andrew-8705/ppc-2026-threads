@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "nikitina_v_hoar_sort_batcher/all/include/ops_all.hpp"
 #include "nikitina_v_hoar_sort_batcher/common/include/common.hpp"
 #include "nikitina_v_hoar_sort_batcher/omp/include/ops_omp.hpp"
 #include "nikitina_v_hoar_sort_batcher/seq/include/ops_seq.hpp"
@@ -44,7 +45,7 @@ namespace {
 
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, HoareSortBatcherSEQ, HoareSortBatcherOMP, HoareSortBatcherTBB,
-                                HoareSortBatcherSTL>(PPC_SETTINGS_nikitina_v_hoar_sort_batcher);
+                                HoareSortBatcherSTL, HoareSortBatcherALL>(PPC_SETTINGS_nikitina_v_hoar_sort_batcher);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
