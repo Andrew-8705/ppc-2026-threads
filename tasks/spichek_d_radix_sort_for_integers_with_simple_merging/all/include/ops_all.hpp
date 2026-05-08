@@ -21,6 +21,8 @@ class SpichekDRadixSortALL : public BaseTask {
   bool PostProcessingImpl() override;
 
   static void RadixSort(std::vector<int> &data);
+  static std::vector<std::vector<int>> SplitData(const std::vector<int> &data, int num_parts);
+  static std::vector<int> MergeData(std::vector<std::vector<int>> &parts);
 };
 
 }  // namespace spichek_d_radix_sort_for_integers_with_simple_merging
