@@ -78,7 +78,7 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
       end++;
     }
 
-    futures.emplace_back(std::async(std::launch::async, [this, &in, &steps, hx, hy, start, end]() {
+    futures.emplace_back(std::async(std::launch::async, [&in, &steps, hx, hy, start, end]() {
       double local_result = 0.0;
 
       for (int i = start; i < end; i++) {
