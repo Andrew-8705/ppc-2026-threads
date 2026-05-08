@@ -3,6 +3,8 @@
 #include <mpi.h>
 #include <oneapi/tbb/parallel_invoke.h>
 
+#include <cstddef>
+#include <string>
 #include <vector>
 
 #include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
@@ -10,28 +12,19 @@
 
 namespace lazareva_a_matrix_mult_strassen {
 
-struct MatrixInput {
-  std::vector<double> a;
-  std::vector<double> b;
-  int n;
-};
-
-using InType = MatrixInput;
-using OutType = std::vector<double>;
-
-class LazarevaATestTaskALL : public ppc::util::Task<InType, OutType> {
+class LazarevaATestTaskALL : public ppc::task::Task {
  public:
-  static constexpr ppc::util::TypeOfTask kType = ppc::util::TypeOfTask::kALL;
-  static ppc::util::TypeOfTask GetStaticTypeOfTask() {
+  static constexpr ppc::task::TypeOfTask kType = ppc::task::TypeOfTask::kALL;
+  static ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return kType;
   }
 
-  explicit LazarevaATestTaskALL(const InType &in);
+  explicit LazarevaATestTaskALL(std::shared_ptr<ppc::task::TaskData> taskData);
 
-  bool ValidationImpl() override;
-  bool PreProcessingImpl() override;
-  bool RunImpl() override;
-  bool PostProcessingImpl() override;
+  bool validation() override;
+  bool pre_processing() override;
+  bool run() override;
+  bool post_processing() override;
 
  private:
   int n_{};
