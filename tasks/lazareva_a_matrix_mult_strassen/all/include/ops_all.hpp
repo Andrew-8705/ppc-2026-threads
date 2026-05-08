@@ -12,19 +12,28 @@
 
 namespace lazareva_a_matrix_mult_strassen {
 
-class LazarevaATestTaskALL : public ppc::task::Task {
+struct MatrixInput {
+  std::vector<double> a;
+  std::vector<double> b;
+  int n;
+};
+
+using InType = MatrixInput;
+using OutType = std::vector<double>;
+
+class LazarevaATestTaskALL : public ppc::util::Task<InType, OutType> {
  public:
-  static constexpr ppc::task::TypeOfTask kType = ppc::task::TypeOfTask::kALL;
-  static ppc::task::TypeOfTask GetStaticTypeOfTask() {
+  static constexpr ppc::util::TypeOfTask kType = ppc::util::TypeOfTask::kALL;
+  static ppc::util::TypeOfTask GetStaticTypeOfTask() {
     return kType;
   }
 
-  explicit LazarevaATestTaskALL(std::shared_ptr<ppc::task::TaskData> taskData);
+  explicit LazarevaATestTaskALL(const InType &in);
 
-  bool validation() override;
-  bool pre_processing() override;
-  bool run() override;
-  bool post_processing() override;
+  bool ValidationImpl() override;
+  bool PreProcessingImpl() override;
+  bool RunImpl() override;
+  bool PostProcessingImpl() override;
 
  private:
   int n_{};
