@@ -14,13 +14,14 @@ class KiselevITestTaskSTL : public BaseTask {
   }
   explicit KiselevITestTaskSTL(const InType &in);
 
+  static double FunctionTypeChoose(int type_x, double x, double y);
+
  private:
   bool ValidationImpl() override;
   bool PreProcessingImpl() override;
   bool RunImpl() override;
   bool PostProcessingImpl() override;
   double ComputeIntegral(const std::vector<int> &steps);
-  static double FunctionTypeChoose(int type_x, double x, double y);
 };
 
 }  // namespace kiselev_i_trapezoidal_method_for_multidimensional_integrals

@@ -10,6 +10,44 @@
 
 namespace kiselev_i_trapezoidal_method_for_multidimensional_integrals {
 
+namespace {
+
+double KahanAdd(double sum, double value, double &compensation) {
+  const double corrected = value - compensation;
+  const double temp = sum + corrected;
+
+  compensation = (temp - sum) - corrected;
+
+  return temp;
+}
+
+double ComputeChunk(const InType &input_data, const std::vector<int> &steps, double hx, double hy, int start_index,
+                    int end_index) {
+  double local_result = 0.0;
+  double compensation = 0.0;
+
+  for (int x_index = start_index; x_index < end_index; x_index++) {
+    const double x = input_data.left_bounds[0] + (static_cast<double>(x_index) * hx);
+
+    const double weight_x = (x_index == 0 || x_index == steps[0]) ? 0.5 : 1.0;
+
+    for (int y_index = 0; y_index <= steps[1]; y_index++) {
+      const double y = input_data.left_bounds[1] + (static_cast<double>(y_index) * hy);
+
+      const double weight_y = (y_index == 0 || y_index == steps[1]) ? 0.5 : 1.0;
+
+      const double value =
+          weight_x * weight_y * KiselevITestTaskSTL::FunctionTypeChoose(input_data.type_function, x, y);
+
+      local_result = KahanAdd(local_result, value, compensation);
+    }
+  }
+
+  return local_result;
+}
+
+}  // namespace
+
 KiselevITestTaskSTL::KiselevITestTaskSTL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
@@ -45,11 +83,13 @@ double KiselevITestTaskSTL::FunctionTypeChoose(int type_x, double x, double y) {
 }
 
 double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
-  const auto &in = GetInput();
+  const auto &input_data = GetInput();
 
-  const double hx = static_cast<double>(in.right_bounds[0] - in.left_bounds[0]) / static_cast<double>(steps[0]);
+  const double hx =
+      static_cast<double>(input_data.right_bounds[0] - input_data.left_bounds[0]) / static_cast<double>(steps[0]);
 
-  const double hy = static_cast<double>(in.right_bounds[1] - in.left_bounds[1]) / static_cast<double>(steps[1]);
+  const double hy =
+      static_cast<double>(input_data.right_bounds[1] - input_data.left_bounds[1]) / static_cast<double>(steps[1]);
 
   int num_threads = ppc::util::GetNumThreads();
 
@@ -57,70 +97,38 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
     num_threads = 1;
   }
 
-  const int total_iters = steps[0] + 1;
+  const int total_iterations = steps[0] + 1;
 
-  num_threads = std::min(num_threads, total_iters);
+  num_threads = std::min(num_threads, total_iterations);
 
-  const int chunk_size = total_iters / num_threads;
-  const int remainder = total_iters % num_threads;
+  const int chunk_size = total_iterations / num_threads;
+
+  const int remainder = total_iterations % num_threads;
 
   std::vector<std::future<double>> futures;
+
   futures.reserve(num_threads);
 
-  int start = 0;
+  int start_index = 0;
 
-  for (int t = 0; t < num_threads; t++) {
-    int end = start + chunk_size;
+  for (int thread_index = 0; thread_index < num_threads; thread_index++) {
+    int end_index = start_index + chunk_size;
 
-    if (t < remainder) {
-      end++;
+    if (thread_index < remainder) {
+      end_index++;
     }
 
-    futures.emplace_back(std::async(std::launch::async, [&in, &steps, hx, hy, start, end, this]() {
-      double local_result = 0.0;
-      double compensation = 0.0;
+    futures.emplace_back(std::async(std::launch::async, ComputeChunk, std::cref(input_data), std::cref(steps), hx, hy,
+                                    start_index, end_index));
 
-      for (int i = start; i < end; i++) {
-        const double x = in.left_bounds[0] + (static_cast<double>(i) * hx);
-
-        const double wx = (i == 0 || i == steps[0]) ? 0.5 : 1.0;
-
-        for (int j = 0; j <= steps[1]; j++) {
-          const double y = in.left_bounds[1] + (static_cast<double>(j) * hy);
-
-          const double wy = (j == 0 || j == steps[1]) ? 0.5 : 1.0;
-
-          const double value = wx * wy * this->FunctionTypeChoose(in.type_function, x, y);
-
-          // Kahan summation
-          const double corrected = value - compensation;
-          const double temp = local_result + corrected;
-
-          compensation = (temp - local_result) - corrected;
-
-          local_result = temp;
-        }
-      }
-
-      return local_result;
-    }));
-
-    start = end;
+    start_index = end_index;
   }
 
   double result = 0.0;
   double compensation = 0.0;
 
-  for (auto &future : futures) {
-    const double value = future.get();
-
-    // Kahan summation for global reduction
-    const double corrected = value - compensation;
-    const double temp = result + corrected;
-
-    compensation = (temp - result) - corrected;
-
-    result = temp;
+  for (auto &future_result : futures) {
+    result = KahanAdd(result, future_result.get(), compensation);
   }
 
   return result * hx * hy;
@@ -128,42 +136,47 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
 
 bool KiselevITestTaskSTL::RunImpl() {
   std::vector<int> steps = GetInput().step_n_size;
+
   double epsilon = GetInput().epsilon;
 
-  const auto &in = GetInput();
+  const auto &input_data = GetInput();
 
-  if (in.left_bounds.size() != 2 || in.right_bounds.size() != 2 || in.step_n_size.size() != 2) {
+  if (input_data.left_bounds.size() != 2 || input_data.right_bounds.size() != 2 || input_data.step_n_size.size() != 2) {
     GetOutput() = 0.0;
     return true;
   }
 
   if (epsilon <= 0.0) {
     GetOutput() = ComputeIntegral(steps);
+
     return true;
   }
 
-  double prev = ComputeIntegral(steps);
-  double current = prev;
+  double previous_result = ComputeIntegral(steps);
 
-  int iter = 0;
-  const int max_iter = 1;
+  double current_result = previous_result;
 
-  while (iter < max_iter) {
-    for (auto &s : steps) {
-      s *= 2;
+  int iteration_index = 0;
+
+  const int max_iterations = 1;
+
+  while (iteration_index < max_iterations) {
+    for (auto &step_value : steps) {
+      step_value *= 2;
     }
 
-    current = ComputeIntegral(steps);
+    current_result = ComputeIntegral(steps);
 
-    if (std::abs(current - prev) < epsilon) {
+    if (std::abs(current_result - previous_result) < epsilon) {
       break;
     }
 
-    prev = current;
-    iter++;
+    previous_result = current_result;
+
+    iteration_index++;
   }
 
-  GetOutput() = current;
+  GetOutput() = current_result;
 
   return true;
 }
