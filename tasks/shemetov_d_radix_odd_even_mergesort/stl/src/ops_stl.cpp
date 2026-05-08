@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <climits>
 #include <cstddef>
-#include <execution>
 #include <future>
 #include <numeric>
 #include <vector>
@@ -68,7 +67,7 @@ void ShemetovDRadixOddEvenMergeSortSTL::OddEvenMerge(std::vector<int> &array, si
   size_t padding = segment / 2;
 
   std::vector<size_t> indices(padding);
-  std::iota(indices.begin(), indices.end(), 0);
+  std::ranges::iota(indices.begin(), indices.end(), 0);
 
   for (size_t index = 0; index < padding; index += 1) {
     if (array[start_offset + index] > array[start_offset + padding + index]) {
@@ -144,7 +143,10 @@ bool ShemetovDRadixOddEvenMergeSortSTL::RunImpl() {
     size_t right = left + chunk_size - 1;
 
     sort.push_back(
-        std::async(std::launch::async, [this, left, right]() { this->RadixSort(this->array_, left, right); }));
+      std::async(std::launch::async, [this, left, right]() {
+        ShemetovDRadixOddEvenMergeSortSTL::RadixSort(this->array_, left, right);
+      })
+    );
   }
   for (auto &sorted : sort) {
     sorted.get();
