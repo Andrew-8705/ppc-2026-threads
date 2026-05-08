@@ -4,7 +4,6 @@
 #include <climits>
 #include <cstddef>
 #include <future>
-#include <numeric>
 #include <vector>
 
 #include "shemetov_d_radix_odd_even_mergesort/common/include/common.hpp"
