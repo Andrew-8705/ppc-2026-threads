@@ -84,9 +84,9 @@ size_t FindNextPointHelper(const InType &input, size_t current, double current_x
     double cross = KutuzovITestConvexHullTBB::CrossProduct(current_x, current_y, a.x, a.y, b.x, b.y);
     if (KutuzovITestConvexHullTBB::IsBetterPoint(cross, epsilon, current_x, current_y, b.x, b.y, a.x, a.y)) {
       return b;
-    } else {
-      return a;
     }
+
+    return a;
   });
   return global.idx;
 }
