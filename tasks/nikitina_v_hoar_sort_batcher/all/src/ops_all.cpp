@@ -1,8 +1,9 @@
 #include "nikitina_v_hoar_sort_batcher/all/include/ops_all.hpp"
 
 #include <algorithm>
-#include <future>
 #include <limits>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include "nikitina_v_hoar_sort_batcher/common/include/common.hpp"
