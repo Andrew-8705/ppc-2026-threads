@@ -47,13 +47,9 @@ double KiselevITestTaskSTL::FunctionTypeChoose(int type_x, double x, double y) {
 double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
   const auto &in = GetInput();
 
-  const double hx =
-      (in.right_bounds[0] - in.left_bounds[0]) /
-      static_cast<double>(steps[0]);
+  const double hx = (in.right_bounds[0] - in.left_bounds[0]) / static_cast<double>(steps[0]);
 
-  const double hy =
-      (in.right_bounds[1] - in.left_bounds[1]) /
-      static_cast<double>(steps[1]);
+  const double hy = (in.right_bounds[1] - in.left_bounds[1]) / static_cast<double>(steps[1]);
 
   int num_threads = ppc::util::GetNumThreads();
 
@@ -82,34 +78,24 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
       end++;
     }
 
-    futures.emplace_back(std::async(
-        std::launch::async,
-        [this, &in, &steps, hx, hy, start, end]() {
-          double local_result = 0.0;
+    futures.emplace_back(std::async(std::launch::async, [this, &in, &steps, hx, hy, start, end]() {
+      double local_result = 0.0;
 
-          for (int i = start; i < end; i++) {
-            const double x = in.left_bounds[0] + (i * hx);
-            const double wx =
-                (i == 0 || i == steps[0]) ? 0.5 : 1.0;
+      for (int i = start; i < end; i++) {
+        const double x = in.left_bounds[0] + (i * hx);
+        const double wx = (i == 0 || i == steps[0]) ? 0.5 : 1.0;
 
-            for (int j = 0; j <= steps[1]; j++) {
-              const double y =
-                  in.left_bounds[1] + (j * hy);
+        for (int j = 0; j <= steps[1]; j++) {
+          const double y = in.left_bounds[1] + (j * hy);
 
-              const double wy =
-                  (j == 0 || j == steps[1]) ? 0.5 : 1.0;
+          const double wy = (j == 0 || j == steps[1]) ? 0.5 : 1.0;
 
-              local_result +=
-                  wx * wy *
-                  FunctionTypeChoose(
-                      in.type_function,
-                      x,
-                      y);
-            }
-          }
+          local_result += wx * wy * FunctionTypeChoose(in.type_function, x, y);
+        }
+      }
 
-          return local_result;
-        }));
+      return local_result;
+    }));
 
     start = end;
   }
@@ -129,9 +115,7 @@ bool KiselevITestTaskSTL::RunImpl() {
 
   const auto &in = GetInput();
 
-  if (in.left_bounds.size() != 2 ||
-      in.right_bounds.size() != 2 ||
-      in.step_n_size.size() != 2) {
+  if (in.left_bounds.size() != 2 || in.right_bounds.size() != 2 || in.step_n_size.size() != 2) {
     GetOutput() = 0.0;
     return true;
   }
