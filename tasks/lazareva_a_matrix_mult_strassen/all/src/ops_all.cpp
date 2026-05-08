@@ -1,7 +1,5 @@
 #include "lazareva_a_matrix_mult_strassen/all/include/ops_all.hpp"
 
-#include <mpi.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -75,10 +73,9 @@ std::vector<double> LazarevaATestTaskALL::PadMatrix(const std::vector<double> &m
   const size_t new_sz = static_cast<size_t>(new_n) * new_n;
   std::vector<double> res(new_sz, 0.0);
   for (int i = 0; i < old_n; ++i) {
-    auto src_begin = m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * old_n);
-    auto src_end = m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * old_n);
-    auto dst_begin = res.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * new_n);
-    std::copy(src_begin, src_end, dst_begin);
+    std::copy(m.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * old_n),
+              m.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i + 1) * old_n),
+              res.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * new_n));
   }
   return res;
 }
@@ -87,10 +84,9 @@ std::vector<double> LazarevaATestTaskALL::UnpadMatrix(const std::vector<double> 
   const size_t new_sz = static_cast<size_t>(new_n) * new_n;
   std::vector<double> res(new_sz);
   for (int i = 0; i < new_n; ++i) {
-    auto src_begin = m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * old_n);
-    auto src_end = m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * old_n + new_n);
-    auto dst_begin = res.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * new_n);
-    std::copy(src_begin, src_end, dst_begin);
+    std::copy(m.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * old_n),
+              m.begin() + static_cast<ptrdiff_t>((static_cast<size_t>(i) * old_n) + new_n),
+              res.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * new_n));
   }
   return res;
 }
@@ -125,16 +121,10 @@ void LazarevaATestTaskALL::Split(const std::vector<double> &p, int n, std::vecto
   for (int i = 0; i < h; ++i) {
     const double *src_top = p.data() + (static_cast<size_t>(i) * n);
     const double *src_bot = p.data() + (static_cast<size_t>(i + h) * n);
-
-    auto a11_dst = a11.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-    auto a12_dst = a12.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-    auto a21_dst = a21.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-    auto a22_dst = a22.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-
-    std::copy(src_top, src_top + h, a11_dst);
-    std::copy(src_top + h, src_top + n, a12_dst);
-    std::copy(src_bot, src_bot + h, a21_dst);
-    std::copy(src_bot + h, src_bot + n, a22_dst);
+    std::copy(src_top, src_top + h, a11.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h));
+    std::copy(src_top + h, src_top + n, a12.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h));
+    std::copy(src_bot, src_bot + h, a21.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h));
+    std::copy(src_bot + h, src_bot + n, a22.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h));
   }
 }
 
@@ -146,20 +136,14 @@ std::vector<double> LazarevaATestTaskALL::Merge(const std::vector<double> &c11, 
   for (int i = 0; i < h; ++i) {
     double *dst_top = res.data() + (static_cast<size_t>(i) * n);
     double *dst_bot = res.data() + (static_cast<size_t>(i + h) * n);
-
-    auto c11_src_begin = c11.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-    auto c11_src_end = c11.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h);
-    auto c12_src_begin = c12.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-    auto c12_src_end = c12.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h);
-    auto c21_src_begin = c21.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-    auto c21_src_end = c21.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h);
-    auto c22_src_begin = c22.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h);
-    auto c22_src_end = c22.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h);
-
-    std::copy(c11_src_begin, c11_src_end, dst_top);
-    std::copy(c12_src_begin, c12_src_end, dst_top + h);
-    std::copy(c21_src_begin, c21_src_end, dst_bot);
-    std::copy(c22_src_begin, c22_src_end, dst_bot + h);
+    std::copy(c11.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h),
+              c11.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_top);
+    std::copy(c12.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h),
+              c12.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_top + h);
+    std::copy(c21.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h),
+              c21.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_bot);
+    std::copy(c22.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i) * h),
+              c22.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_bot + h);
   }
   return res;
 }
