@@ -1,5 +1,7 @@
 #include "lazareva_a_matrix_mult_strassen/all/include/ops_all.hpp"
 
+#include <mpi.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -13,7 +15,7 @@ LazarevaATestTaskALL::LazarevaATestTaskALL(const InType &in) {
 }
 
 bool LazarevaATestTaskALL::ValidationImpl() {
-  int rank;
+  int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   int ok = 0;
   if (rank == 0) {
@@ -28,7 +30,7 @@ bool LazarevaATestTaskALL::ValidationImpl() {
 }
 
 bool LazarevaATestTaskALL::PreProcessingImpl() {
-  int rank;
+  int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0) {
     n_ = GetInput().n;
@@ -47,7 +49,7 @@ bool LazarevaATestTaskALL::RunImpl() {
 }
 
 bool LazarevaATestTaskALL::PostProcessingImpl() {
-  int rank;
+  int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   const size_t final_sz = static_cast<size_t>(n_) * n_;
 
@@ -73,8 +75,9 @@ std::vector<double> LazarevaATestTaskALL::PadMatrix(const std::vector<double> &m
   const size_t new_sz = static_cast<size_t>(new_n) * new_n;
   std::vector<double> res(new_sz, 0.0);
   for (int i = 0; i < old_n; ++i) {
-    std::copy(m.begin() + static_cast<size_t>(i) * old_n, m.begin() + static_cast<size_t>(i + 1) * old_n,
-              res.begin() + static_cast<size_t>(i) * new_n);
+    std::copy(m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * old_n),
+              m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * old_n),
+              res.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * new_n));
   }
   return res;
 }
@@ -83,8 +86,9 @@ std::vector<double> LazarevaATestTaskALL::UnpadMatrix(const std::vector<double> 
   const size_t new_sz = static_cast<size_t>(new_n) * new_n;
   std::vector<double> res(new_sz);
   for (int i = 0; i < new_n; ++i) {
-    std::copy(m.begin() + static_cast<size_t>(i) * old_n, m.begin() + static_cast<size_t>(i) * old_n + new_n,
-              res.begin() + static_cast<size_t>(i) * new_n);
+    std::copy(m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * old_n),
+              m.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * old_n + new_n),
+              res.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * new_n));
   }
   return res;
 }
@@ -117,12 +121,12 @@ void LazarevaATestTaskALL::Split(const std::vector<double> &p, int n, std::vecto
   a22.resize(h_sz);
 
   for (int i = 0; i < h; ++i) {
-    const double *src_top = p.data() + static_cast<size_t>(i) * n;
-    const double *src_bot = p.data() + static_cast<size_t>(i + h) * n;
-    std::copy(src_top, src_top + h, a11.begin() + static_cast<size_t>(i) * h);
-    std::copy(src_top + h, src_top + n, a12.begin() + static_cast<size_t>(i) * h);
-    std::copy(src_bot, src_bot + h, a21.begin() + static_cast<size_t>(i) * h);
-    std::copy(src_bot + h, src_bot + n, a22.begin() + static_cast<size_t>(i) * h);
+    const double *src_top = p.data() + (static_cast<size_t>(i) * n);
+    const double *src_bot = p.data() + (static_cast<size_t>(i + h) * n);
+    std::copy(src_top, src_top + h, a11.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h));
+    std::copy(src_top + h, src_top + n, a12.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h));
+    std::copy(src_bot, src_bot + h, a21.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h));
+    std::copy(src_bot + h, src_bot + n, a22.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h));
   }
 }
 
@@ -132,28 +136,32 @@ std::vector<double> LazarevaATestTaskALL::Merge(const std::vector<double> &c11, 
   std::vector<double> res(static_cast<size_t>(n) * n);
 
   for (int i = 0; i < h; ++i) {
-    double *dst_top = res.data() + static_cast<size_t>(i) * n;
-    double *dst_bot = res.data() + static_cast<size_t>(i + h) * n;
-    std::copy(c11.begin() + static_cast<size_t>(i) * h, c11.begin() + static_cast<size_t>(i + 1) * h, dst_top);
-    std::copy(c12.begin() + static_cast<size_t>(i) * h, c12.begin() + static_cast<size_t>(i + 1) * h, dst_top + h);
-    std::copy(c21.begin() + static_cast<size_t>(i) * h, c21.begin() + static_cast<size_t>(i + 1) * h, dst_bot);
-    std::copy(c22.begin() + static_cast<size_t>(i) * h, c22.begin() + static_cast<size_t>(i + 1) * h, dst_bot + h);
+    double *dst_top = res.data() + (static_cast<size_t>(i) * n);
+    double *dst_bot = res.data() + (static_cast<size_t>(i + h) * n);
+    std::copy(c11.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h),
+              c11.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_top);
+    std::copy(c12.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h),
+              c12.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_top + h);
+    std::copy(c21.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h),
+              c21.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_bot);
+    std::copy(c22.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i) * h),
+              c22.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(i + 1) * h), dst_bot + h);
   }
   return res;
 }
 
 std::vector<double> LazarevaATestTaskALL::NaiveMult(const std::vector<double> &a, const std::vector<double> &b, int n) {
-  const size_t n_sz = static_cast<size_t>(n);
+  const auto n_sz = static_cast<size_t>(n);
   std::vector<double> c(n_sz * n_sz, 0.0);
 
   for (int i = 0; i < n; ++i) {
     for (int k = 0; k < n; ++k) {
-      const double aik = a[static_cast<size_t>(i) * n_sz + static_cast<size_t>(k)];
+      const double aik = a[(static_cast<size_t>(i) * n_sz) + static_cast<size_t>(k)];
       if (std::abs(aik) < 1e-18) {
         continue;
       }
-      const double *b_row = b.data() + static_cast<size_t>(k) * n_sz;
-      double *c_row = c.data() + static_cast<size_t>(i) * n_sz;
+      const double *b_row = b.data() + (static_cast<size_t>(k) * n_sz);
+      double *c_row = c.data() + (static_cast<size_t>(i) * n_sz);
       for (int j = 0; j < n; ++j) {
         c_row[j] += aik * b_row[j];
       }
@@ -207,8 +215,8 @@ std::vector<double> LazarevaATestTaskALL::StrassenTBB(const std::vector<double> 
 
 std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> &a, const std::vector<double> &b,
                                                       int n) {
-  int rank;
-  int size;
+  int rank = 0;
+  int size = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
@@ -223,8 +231,14 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
   const size_t h_sz = static_cast<size_t>(h) * h;
 
   if (rank == 0) {
-    std::vector<double> a11, a12, a21, a22;
-    std::vector<double> b11, b12, b21, b22;
+    std::vector<double> a11;
+    std::vector<double> a12;
+    std::vector<double> a21;
+    std::vector<double> a22;
+    std::vector<double> b11;
+    std::vector<double> b12;
+    std::vector<double> b21;
+    std::vector<double> b22;
 
     Split(a, n, a11, a12, a21, a22);
     Split(b, n, b11, b12, b21, b22);
@@ -252,9 +266,10 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
     for (int k = 0; k < 7; ++k) {
       const int dest = k % size;
       if (dest != 0) {
-        MPI_Request req1, req2;
+        MPI_Request req1 = MPI_REQUEST_NULL;
+        MPI_Request req2 = MPI_REQUEST_NULL;
         MPI_Isend(lhs[k].data(), static_cast<int>(h_sz), MPI_DOUBLE, dest, k * 2, MPI_COMM_WORLD, &req1);
-        MPI_Isend(rhs[k].data(), static_cast<int>(h_sz), MPI_DOUBLE, dest, k * 2 + 1, MPI_COMM_WORLD, &req2);
+        MPI_Isend(rhs[k].data(), static_cast<int>(h_sz), MPI_DOUBLE, dest, (k * 2) + 1, MPI_COMM_WORLD, &req2);
         send_requests.push_back(req1);
         send_requests.push_back(req2);
       }
@@ -276,7 +291,7 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
     }
 
     if (!send_requests.empty()) {
-      MPI_Waitall(send_requests.size(), send_requests.data(), MPI_STATUSES_IGNORE);
+      MPI_Waitall(static_cast<int>(send_requests.size()), send_requests.data(), MPI_STATUSES_IGNORE);
     }
 
     const auto c11 = Add(Sub(Add(m[0], m[3], h), m[4], h), m[6], h);
@@ -292,7 +307,7 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
       std::vector<double> l(h_sz);
       std::vector<double> r(h_sz);
       MPI_Recv(l.data(), static_cast<int>(h_sz), MPI_DOUBLE, 0, k * 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(r.data(), static_cast<int>(h_sz), MPI_DOUBLE, 0, k * 2 + 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(r.data(), static_cast<int>(h_sz), MPI_DOUBLE, 0, (k * 2) + 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       const auto res = StrassenTBB(l, r, h);
       MPI_Send(res.data(), static_cast<int>(h_sz), MPI_DOUBLE, 0, k + 100, MPI_COMM_WORLD);
     }
