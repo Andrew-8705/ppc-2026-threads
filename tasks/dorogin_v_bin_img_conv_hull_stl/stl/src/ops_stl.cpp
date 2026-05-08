@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <numeric>
 #include <queue>
 #include <ranges>
 #include <utility>
