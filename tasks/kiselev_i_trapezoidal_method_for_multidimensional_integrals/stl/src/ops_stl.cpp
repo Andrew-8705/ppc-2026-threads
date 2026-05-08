@@ -47,9 +47,9 @@ double KiselevITestTaskSTL::FunctionTypeChoose(int type_x, double x, double y) {
 double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
   const auto &in = GetInput();
 
-  const double hx = (in.right_bounds[0] - in.left_bounds[0]) / static_cast<double>(steps[0]);
+  const double hx = static_cast<double>(in.right_bounds[0] - in.left_bounds[0]) / static_cast<double>(steps[0]);
 
-  const double hy = (in.right_bounds[1] - in.left_bounds[1]) / static_cast<double>(steps[1]);
+  const double hy = static_cast<double>(in.right_bounds[1] - in.left_bounds[1]) / static_cast<double>(steps[1]);
 
   int num_threads = ppc::util::GetNumThreads();
 
@@ -59,7 +59,6 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
 
   const int total_iters = steps[0] + 1;
 
-  // Не создаем больше потоков, чем работы
   num_threads = std::min(num_threads, total_iters);
 
   const int chunk_size = total_iters / num_threads;
@@ -73,24 +72,33 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
   for (int t = 0; t < num_threads; t++) {
     int end = start + chunk_size;
 
-    // равномернее распределяем remainder
     if (t < remainder) {
       end++;
     }
 
-    futures.emplace_back(std::async(std::launch::async, [&in, &steps, hx, hy, start, end]() {
+    futures.emplace_back(std::async(std::launch::async, [&in, &steps, hx, hy, start, end, this]() {
       double local_result = 0.0;
+      double compensation = 0.0;
 
       for (int i = start; i < end; i++) {
-        const double x = in.left_bounds[0] + (i * hx);
+        const double x = in.left_bounds[0] + (static_cast<double>(i) * hx);
+
         const double wx = (i == 0 || i == steps[0]) ? 0.5 : 1.0;
 
         for (int j = 0; j <= steps[1]; j++) {
-          const double y = in.left_bounds[1] + (j * hy);
+          const double y = in.left_bounds[1] + (static_cast<double>(j) * hy);
 
           const double wy = (j == 0 || j == steps[1]) ? 0.5 : 1.0;
 
-          local_result += wx * wy * FunctionTypeChoose(in.type_function, x, y);
+          const double value = wx * wy * this->FunctionTypeChoose(in.type_function, x, y);
+
+          // Kahan summation
+          const double corrected = value - compensation;
+          const double temp = local_result + corrected;
+
+          compensation = (temp - local_result) - corrected;
+
+          local_result = temp;
         }
       }
 
@@ -101,9 +109,18 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
   }
 
   double result = 0.0;
+  double compensation = 0.0;
 
   for (auto &future : futures) {
-    result += future.get();
+    const double value = future.get();
+
+    // Kahan summation for global reduction
+    const double corrected = value - compensation;
+    const double temp = result + corrected;
+
+    compensation = (temp - result) - corrected;
+
+    result = temp;
   }
 
   return result * hx * hy;
