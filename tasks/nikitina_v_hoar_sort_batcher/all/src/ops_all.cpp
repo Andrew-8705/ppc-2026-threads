@@ -1,5 +1,7 @@
 #include "nikitina_v_hoar_sort_batcher/all/include/ops_all.hpp"
 
+#include <mpi.h>
+
 #include <algorithm>
 #include <limits>
 #include <thread>
@@ -12,128 +14,74 @@ namespace nikitina_v_hoar_sort_batcher {
 
 namespace {
 
-void QuickSortHoare(std::vector<int> &arr, int low, int high) {
+void LocalHoareSort(std::vector<int> &arr, int low, int high) {
   if (low >= high) {
     return;
   }
   std::vector<std::pair<int, int>> stack;
   stack.emplace_back(low, high);
-
   while (!stack.empty()) {
     auto [left_bound, right_bound] = stack.back();
     stack.pop_back();
-
     if (left_bound >= right_bound) {
       continue;
     }
-
     int pivot = arr[left_bound + ((right_bound - left_bound) / 2)];
     int left_idx = left_bound - 1;
     int right_idx = right_bound + 1;
-
     while (true) {
       left_idx++;
       while (arr[left_idx] < pivot) {
         left_idx++;
       }
-
       right_idx--;
       while (arr[right_idx] > pivot) {
         right_idx--;
       }
-
       if (left_idx >= right_idx) {
         break;
       }
       std::swap(arr[left_idx], arr[right_idx]);
     }
-
     stack.emplace_back(left_bound, right_idx);
     stack.emplace_back(right_idx + 1, right_bound);
   }
 }
 
-void CompareSplit(std::vector<int> &arr, int start_first, int len_first, int start_second, int len_second) {
-  if (len_first == 0 || len_second == 0) {
+void ThreadedSort(std::vector<int> &arr, int num_threads) {
+  int size = static_cast<int>(arr.size());
+  if (size <= 1) {
     return;
   }
-
-  std::vector<int> left_block(arr.begin() + start_first, arr.begin() + start_first + len_first);
-  std::vector<int> right_block(arr.begin() + start_second, arr.begin() + start_second + len_second);
-
-  int ptr1 = 0;
-  int ptr2 = 0;
-  int write1 = start_first;
-  int write2 = start_second;
-
-  for (int iter = 0; iter < len_first + len_second; ++iter) {
-    int val = 0;
-    if (ptr1 < len_first && (ptr2 == len_second || left_block[ptr1] <= right_block[ptr2])) {
-      val = left_block[ptr1++];
-    } else {
-      val = right_block[ptr2++];
-    }
-
-    if (iter < len_first) {
-      arr[write1++] = val;
-    } else {
-      arr[write2++] = val;
-    }
+  int active_threads = std::min(num_threads, size / 2);
+  if (active_threads <= 1) {
+    LocalHoareSort(arr, 0, size - 1);
+    return;
   }
-}
-
-void BuildPairs(std::vector<std::pair<int, int>> &pairs, int num_threads, int step_p, int step_k) {
-  for (int idx_j = step_k % step_p; idx_j + step_k < num_threads; idx_j += (step_k * 2)) {
-    for (int idx_i = 0; idx_i < std::min(step_k, num_threads - idx_j - step_k); idx_i++) {
-      if ((idx_j + idx_i) / (step_p * 2) == (idx_j + idx_i + step_k) / (step_p * 2)) {
-        pairs.emplace_back(idx_j + idx_i, idx_j + idx_i + step_k);
-      }
-    }
-  }
-}
-
-void ExecuteMergeStep(std::vector<int> &output, const std::vector<int> &offsets,
-                      const std::vector<std::pair<int, int>> &pairs, int actual_threads) {
-  int num_pairs = static_cast<int>(pairs.size());
-  int chunk_size = (num_pairs + actual_threads - 1) / actual_threads;
   std::vector<std::thread> threads;
-  threads.reserve(actual_threads);
-
-  for (int thread_idx = 0; thread_idx < actual_threads; ++thread_idx) {
-    int start = thread_idx * chunk_size;
-    int end = std::min(start + chunk_size, num_pairs);
-
-    if (start < end) {
-      threads.emplace_back([start, end, &output, &offsets, &pairs]() {
-        for (int idx = start; idx < end; ++idx) {
-          int block_a = pairs[idx].first;
-          int block_b = pairs[idx].second;
-          CompareSplit(output, offsets[block_a], offsets[block_a + 1] - offsets[block_a], offsets[block_b],
-                       offsets[block_b + 1] - offsets[block_b]);
-        }
-      });
-    }
+  int chunk_size = size / active_threads;
+  for (int iter = 0; iter < active_threads; ++iter) {
+    int start = iter * chunk_size;
+    int end = (iter == active_threads - 1) ? size - 1 : (start + chunk_size - 1);
+    threads.emplace_back([&arr, start, end]() { LocalHoareSort(arr, start, end); });
   }
-
-  for (auto &th : threads) {
-    th.join();
+  for (auto &thr : threads) {
+    thr.join();
   }
+  std::sort(arr.begin(), arr.end());
 }
 
-void BatcherMergePhase(std::vector<int> &output, const std::vector<int> &offsets, int num_threads, int hw_threads) {
-  for (int step_p = 1; step_p < num_threads; step_p *= 2) {
-    for (int step_k = step_p; step_k > 0; step_k /= 2) {
-      std::vector<std::pair<int, int>> pairs;
-      BuildPairs(pairs, num_threads, step_p, step_k);
-
-      int num_pairs = static_cast<int>(pairs.size());
-      if (num_pairs == 0) {
-        continue;
-      }
-
-      int actual_threads = std::min(hw_threads, num_pairs);
-      ExecuteMergeStep(output, offsets, pairs, actual_threads);
-    }
+void MpiCompareSwap(std::vector<int> &local_arr, int neighbor, bool keep_low) {
+  int size = static_cast<int>(local_arr.size());
+  std::vector<int> neighbor_arr(size);
+  MPI_Sendrecv(local_arr.data(), size, MPI_INT, neighbor, 0, neighbor_arr.data(), size, MPI_INT, neighbor, 0,
+               MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  std::vector<int> full_merge(size * 2);
+  std::merge(local_arr.begin(), local_arr.end(), neighbor_arr.begin(), neighbor_arr.end(), full_merge.begin());
+  if (keep_low) {
+    std::copy(full_merge.begin(), full_merge.begin() + size, local_arr.begin());
+  } else {
+    std::copy(full_merge.begin() + size, full_merge.end(), local_arr.begin());
   }
 }
 
@@ -149,65 +97,68 @@ bool HoareSortBatcherALL::ValidationImpl() {
 }
 
 bool HoareSortBatcherALL::PreProcessingImpl() {
-  GetOutput() = GetInput();
+  data_ = GetInput();
   return true;
 }
 
 bool HoareSortBatcherALL::RunImpl() {
-  auto &output = GetOutput();
-
-  int orig_n = static_cast<int>(output.size());
-  if (orig_n <= 1) {
+  int mpi_rank;
+  int mpi_size;
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+  int total_n = (mpi_rank == 0) ? static_cast<int>(data_.size()) : 0;
+  MPI_Bcast(&total_n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (total_n == 0) {
     return true;
   }
-
+  int chunk = (total_n + mpi_size - 1) / mpi_size;
+  std::vector<int> local_data(chunk, std::numeric_limits<int>::max());
+  std::vector<int> send_buffer;
+  if (mpi_rank == 0) {
+    send_buffer = data_;
+    send_buffer.resize(chunk * mpi_size, std::numeric_limits<int>::max());
+  }
+  MPI_Scatter(send_buffer.data(), chunk, MPI_INT, local_data.data(), chunk, MPI_INT, 0, MPI_COMM_WORLD);
   int hw_threads = static_cast<int>(std::thread::hardware_concurrency());
-  if (hw_threads <= 0) {
-    hw_threads = 4;
+  ThreadedSort(local_data, hw_threads);
+  for (int p_step = 1; p_step < mpi_size; p_step <<= 1) {
+    for (int k_step = p_step; k_step > 0; k_step >>= 1) {
+      for (int j_idx = k_step % p_step; j_idx + k_step < mpi_size; j_idx += (k_step << 1)) {
+        for (int i_idx = 0; i_idx < std::min(k_step, mpi_size - j_idx - k_step); ++i_idx) {
+          int r1 = j_idx + i_idx;
+          int r2 = j_idx + i_idx + k_step;
+          if (r1 / (p_step << 1) == r2 / (p_step << 1)) {
+            if (mpi_rank == r1) {
+              MpiCompareSwap(local_data, r2, true);
+            } else if (mpi_rank == r2) {
+              MpiCompareSwap(local_data, r1, false);
+            }
+          }
+        }
+      }
+    }
   }
-
-  int active_blocks = 1;
-  while (active_blocks * 2 <= hw_threads && active_blocks * 2 <= orig_n) {
-    active_blocks *= 2;
+  std::vector<int> gather_buffer;
+  if (mpi_rank == 0) {
+    gather_buffer.resize(chunk * mpi_size);
   }
-
-  if (active_blocks == 1) {
-    QuickSortHoare(output, 0, orig_n - 1);
-    return true;
+  MPI_Gather(local_data.data(), chunk, MPI_INT, gather_buffer.data(), chunk, MPI_INT, 0, MPI_COMM_WORLD);
+  if (mpi_rank == 0) {
+    gather_buffer.resize(total_n);
+    data_ = std::move(gather_buffer);
   }
-
-  int pad = (active_blocks - (orig_n % active_blocks)) % active_blocks;
-  for (int iter = 0; iter < pad; ++iter) {
-    output.push_back(std::numeric_limits<int>::max());
-  }
-
-  int total_padded_n = orig_n + pad;
-  std::vector<int> offsets(active_blocks + 1, 0);
-  int chunk = total_padded_n / active_blocks;
-  for (int iter = 0; iter <= active_blocks; ++iter) {
-    offsets[iter] = iter * chunk;
-  }
-
-  std::vector<std::thread> sort_threads;
-  sort_threads.reserve(active_blocks);
-
-  for (int iter = 0; iter < active_blocks; ++iter) {
-    sort_threads.emplace_back(
-        [&output, &offsets, iter]() { QuickSortHoare(output, offsets[iter], offsets[iter + 1] - 1); });
-  }
-
-  for (auto &th : sort_threads) {
-    th.join();
-  }
-
-  BatcherMergePhase(output, offsets, active_blocks, hw_threads);
-
-  output.resize(orig_n);
-
   return true;
 }
 
 bool HoareSortBatcherALL::PostProcessingImpl() {
+  int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+  if (mpi_rank != 0) {
+    data_.clear();
+  }
+
+  GetOutput() = data_;
   return true;
 }
 
