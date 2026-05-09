@@ -10,7 +10,7 @@ namespace buzulukski_d_gaus_gorizontal {
 
 class BuzulukskiDGausGorizontalPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  public:
-  static constexpr int kCount = 1000;
+  static constexpr int kCount = 5000;
 
   void SetUp() override {
     input_data_ = kCount;

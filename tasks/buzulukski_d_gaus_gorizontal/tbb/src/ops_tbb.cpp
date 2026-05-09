@@ -1,7 +1,8 @@
 #include "buzulukski_d_gaus_gorizontal/tbb/include/ops_tbb.hpp"
 
-#include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -59,8 +60,9 @@ bool BuzulukskiDGausGorizontalTBB::RunImpl() {
     for (int py = r.begin(); py < r.end(); ++py) {
       for (int px = 0; px < w; ++px) {
         for (int ch = 0; ch < kChannels; ++ch) {
-          size_t out_idx = (((static_cast<size_t>(py) * static_cast<size_t>(w)) + static_cast<size_t>(px)) * kChannels) +
-                           static_cast<size_t>(ch);
+          size_t out_idx =
+              (((static_cast<size_t>(py) * static_cast<size_t>(w)) + static_cast<size_t>(px)) * kChannels) +
+              static_cast<size_t>(ch);
           out_ptr[out_idx] = CalculatePixelTBB(in_ptr, py, px, w, h, ch);
         }
       }
@@ -70,7 +72,9 @@ bool BuzulukskiDGausGorizontalTBB::RunImpl() {
 }
 
 bool BuzulukskiDGausGorizontalTBB::PostProcessingImpl() {
-  if (output_image_.empty()) return false;
+  if (output_image_.empty()) {
+    return false;
+  }
   int64_t total_sum = 0;
   for (const auto &val : output_image_) {
     total_sum += static_cast<int64_t>(val);
