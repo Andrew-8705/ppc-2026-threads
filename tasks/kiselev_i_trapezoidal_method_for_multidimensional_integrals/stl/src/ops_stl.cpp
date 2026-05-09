@@ -1,19 +1,73 @@
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/stl/include/ops_stl.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <future>
 #include <vector>
 
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/common/include/common.hpp"
-#include "util/include/util.hpp"
 
 namespace kiselev_i_trapezoidal_method_for_multidimensional_integrals {
 
+namespace {
+
+double ComputeChunk(const InType &input_data, const std::vector<int> &steps, int start_index, int end_index) {
+  const double hx =
+      static_cast<double>(input_data.right_bounds[0] - input_data.left_bounds[0]) / static_cast<double>(steps[0]);
+
+  const double hy =
+      static_cast<double>(input_data.right_bounds[1] - input_data.left_bounds[1]) / static_cast<double>(steps[1]);
+
+  double local_result = 0.0;
+
+  for (int x_index = start_index; x_index < end_index; x_index++) {
+    const double x = input_data.left_bounds[0] + (static_cast<double>(x_index) * hx);
+
+    const double weight_x = (x_index == 0 || x_index == steps[0]) ? 0.5 : 1.0;
+
+    for (int y_index = 0; y_index <= steps[1]; y_index++) {
+      const double y = input_data.left_bounds[1] + (static_cast<double>(y_index) * hy);
+
+      const double weight_y = (y_index == 0 || y_index == steps[1]) ? 0.5 : 1.0;
+
+      double value = 0.0;
+
+      switch (input_data.type_function) {
+        case 0:
+          value = (x * x) + (y * y);
+          break;
+
+        case 1:
+          value = std::sin(x) * std::cos(y);
+          break;
+
+        case 2:
+          value = std::sin(x) + std::cos(y);
+          break;
+
+        case 3:
+          value = std::exp(x + y);
+          break;
+
+        default:
+          value = x + y;
+          break;
+      }
+
+      local_result += weight_x * weight_y * value;
+    }
+  }
+
+  return local_result;
+}
+
+}  // namespace
+
 KiselevITestTaskSTL::KiselevITestTaskSTL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
+
   GetInput() = in;
+
   GetOutput() = 0.0;
 }
 
@@ -23,6 +77,7 @@ bool KiselevITestTaskSTL::ValidationImpl() {
 
 bool KiselevITestTaskSTL::PreProcessingImpl() {
   GetOutput() = 0.0;
+
   return true;
 }
 
@@ -40,9 +95,6 @@ double KiselevITestTaskSTL::FunctionTypeChoose(int type_x, double x, double y) {
     case 3:
       return std::exp(x + y);
 
-    case 4:
-      return x + y;
-
     default:
       return x + y;
   }
@@ -50,6 +102,35 @@ double KiselevITestTaskSTL::FunctionTypeChoose(int type_x, double x, double y) {
 
 double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
   const auto &input_data = GetInput();
+
+  const int total_iterations = steps[0] + 1;
+
+  int num_threads = 4;
+
+  if (num_threads > total_iterations) {
+    num_threads = total_iterations;
+  }
+
+  const int chunk_size = total_iterations / num_threads;
+
+  const int remainder = total_iterations % num_threads;
+
+  std::vector<std::future<double>> futures;
+
+  int start_index = 0;
+
+  for (int thread_index = 0; thread_index < num_threads; thread_index++) {
+    int end_index = start_index + chunk_size;
+
+    if (thread_index < remainder) {
+      end_index++;
+    }
+
+    futures.emplace_back(
+        std::async(std::launch::async, ComputeChunk, std::cref(input_data), std::cref(steps), start_index, end_index));
+
+    start_index = end_index;
+  }
 
   const double hx =
       static_cast<double>(input_data.right_bounds[0] - input_data.left_bounds[0]) / static_cast<double>(steps[0]);
@@ -59,20 +140,8 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
 
   double result = 0.0;
 
-  for (int x_index = 0; x_index <= steps[0]; x_index++) {
-    const double x = input_data.left_bounds[0] + (static_cast<double>(x_index) * hx);
-
-    const double weight_x = (x_index == 0 || x_index == steps[0]) ? 0.5 : 1.0;
-
-    for (int y_index = 0; y_index <= steps[1]; y_index++) {
-      const double y = input_data.left_bounds[1] + (static_cast<double>(y_index) * hy);
-
-      const double weight_y = (y_index == 0 || y_index == steps[1]) ? 0.5 : 1.0;
-
-      const double value = FunctionTypeChoose(input_data.type_function, x, y);
-
-      result += weight_x * weight_y * value;
-    }
+  for (auto &future_result : futures) {
+    result += future_result.get();
   }
 
   return result * hx * hy;
@@ -83,14 +152,16 @@ bool KiselevITestTaskSTL::RunImpl() {
 
   if (input_data.left_bounds.size() != 2 || input_data.right_bounds.size() != 2 || input_data.step_n_size.size() != 2) {
     GetOutput() = 0.0;
+
     return true;
   }
 
   std::vector<int> steps = input_data.step_n_size;
 
-  for (const auto &step : steps) {
-    if (step <= 0) {
+  for (const auto &step_value : steps) {
+    if (step_value <= 0) {
       GetOutput() = 0.0;
+
       return true;
     }
   }
@@ -99,17 +170,19 @@ bool KiselevITestTaskSTL::RunImpl() {
 
   if (epsilon <= 0.0) {
     GetOutput() = ComputeIntegral(steps);
+
     return true;
   }
 
   double previous_result = ComputeIntegral(steps);
+
   double current_result = previous_result;
 
-  const int max_iterations = 10;
+  const int max_iterations = 1;
 
-  for (int iteration = 0; iteration < max_iterations; iteration++) {
-    for (auto &step : steps) {
-      step *= 2;
+  for (int iteration_index = 0; iteration_index < max_iterations; iteration_index++) {
+    for (auto &step_value : steps) {
+      step_value *= 2;
     }
 
     current_result = ComputeIntegral(steps);
