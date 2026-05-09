@@ -26,7 +26,7 @@ using Labels = std::vector<std::vector<int>>;
 
 std::uint32_t MakeSeed(int width, int height, const std::string &scenario_name) {
   std::uint32_t seed = 2166136261U;
-  seed ^= static_cast<std::uint32_t>(width); 
+  seed ^= static_cast<std::uint32_t>(width);
   seed *= 16777619U;
   seed ^= static_cast<std::uint32_t>(height);
   seed *= 16777619U;
