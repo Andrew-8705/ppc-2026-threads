@@ -1,5 +1,6 @@
 #include "kiselev_i_trapezoidal_method_for_multidimensional_integrals/stl/include/ops_stl.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <future>
@@ -107,9 +108,7 @@ double KiselevITestTaskSTL::ComputeIntegral(const std::vector<int> &steps) {
 
   int num_threads = 4;
 
-  if (num_threads > total_iterations) {
-    num_threads = total_iterations;
-  }
+  num_threads = std::min(num_threads, total_iterations);
 
   const int chunk_size = total_iterations / num_threads;
 
