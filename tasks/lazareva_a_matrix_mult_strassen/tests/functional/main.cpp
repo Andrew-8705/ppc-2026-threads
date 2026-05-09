@@ -63,20 +63,16 @@ class LazarevaARunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, 
     return true;
   }
 
-  InType GetTestInputData() final {
-    return input_data_;
-  }
+  InType GetTestInputData() final { return input_data_; }
 
  private:
   InType input_data_{};
   OutType expected_output_;
 };
 
-TEST_P(LazarevaARunFuncTestsThreads, StrassenMatmul) {
-  ExecuteTest(GetParam());
-}
-
 namespace {
+TEST_P(LazarevaARunFuncTestsThreads, StrassenMatmul) { ExecuteTest(GetParam()); }
+
 const std::array<TestType, 8> kTestParam = {{
     std::make_tuple(2, "2"),
     std::make_tuple(3, "3"),
@@ -97,8 +93,8 @@ const auto kTestTasksList = std::tuple_cat(
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 const auto kFuncTestName = LazarevaARunFuncTestsThreads::PrintFuncTestName<LazarevaARunFuncTestsThreads>;
-}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(MatrixTests, LazarevaARunFuncTestsThreads, kGtestValues, kFuncTestName);
+}  // namespace
 
 }  // namespace lazareva_a_matrix_mult_strassen

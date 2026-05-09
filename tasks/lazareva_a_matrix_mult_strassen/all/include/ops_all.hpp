@@ -3,6 +3,7 @@
 #include <oneapi/tbb/parallel_invoke.h>
 
 #include <vector>
+#include <cstddef>
 
 #include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
 #include "task/include/task.hpp"

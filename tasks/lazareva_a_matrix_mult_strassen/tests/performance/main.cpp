@@ -49,22 +49,18 @@ class LazarevaARunPerfTestThreads : public ppc::util::BaseRunPerfTests<InType, O
     return true;
   }
 
-  InType GetTestInputData() final {
-    return input_data_;
-  }
+  InType GetTestInputData() final { return input_data_; }
 };
 
-TEST_P(LazarevaARunPerfTestThreads, RunPerfModes) {
-  ExecuteTest(GetParam());
-}
-
 namespace {
+TEST_P(LazarevaARunPerfTestThreads, RunPerfModes) { ExecuteTest(GetParam()); }
+
 const auto kPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, LazarevaATestTaskALL>(PPC_SETTINGS_lazareva_a_matrix_mult_strassen);
 const auto kGtestValues = ppc::util::TupleToGTestValues(kPerfTasks);
-}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(RunModeTests, LazarevaARunPerfTestThreads, kGtestValues,
                          LazarevaARunPerfTestThreads::CustomPerfTestName);
+}  // namespace
 
 }  // namespace lazareva_a_matrix_mult_strassen
