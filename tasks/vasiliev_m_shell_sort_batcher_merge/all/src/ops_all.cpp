@@ -94,16 +94,16 @@ bool VasilievMShellSortBatcherMergeALL::PostProcessingImpl() {
 
 void VasilievMShellSortBatcherMergeALL::CalcCountsAndDispls(int n, int process_count, std::vector<int> &counts,
                                                             std::vector<int> &displs) {
-  const int chunk = n / process_count;
-  const int remainder = n % process_count;
+  int chunk = n / process_count;
+  int remainder = n % process_count;
 
   for (int i = 0; i < process_count; i++) {
-    counts[static_cast<size_t>(i)] = chunk + (i < remainder ? 1 : 0);
+    counts[i] = chunk + (i < remainder ? 1 : 0);
   }
 
   displs[0] = 0;
   for (int i = 1; i < process_count; i++) {
-    displs[static_cast<size_t>(i)] = displs[static_cast<size_t>(i - 1)] + counts[static_cast<size_t>(i - 1)];
+    displs[i] = displs[i - 1] + counts[i - 1];
   }
 }
 
