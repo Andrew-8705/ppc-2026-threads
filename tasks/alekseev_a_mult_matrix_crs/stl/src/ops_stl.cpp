@@ -3,8 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <execution>
-#include <numeric>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -71,17 +70,41 @@ bool AlekseevAMultMatrixCRSSTL::RunImpl() {
   std::vector<std::vector<double>> temp_values(c.rows);
   std::vector<std::vector<std::size_t>> temp_cols(c.rows);
 
-  std::vector<std::size_t> row_indices(c.rows);
-  std::ranges::iota(row_indices, 0);
+  unsigned int num_threads = std::thread::hardware_concurrency();
+  if (num_threads == 0) {
+    num_threads = 2;
+  }
 
-  std::for_each(std::execution::par, row_indices.begin(), row_indices.end(), [&](std::size_t i) {
-    std::vector<double> accum(c.cols, 0.0);
-    std::vector<int> touched_flag(c.cols, -1);
-    std::vector<std::size_t> touched_cols;
-    touched_cols.reserve(c.cols);
+  std::vector<std::thread> threads;
+  threads.reserve(num_threads);
 
-    ProcessRow(i, a, b, temp_values[i], temp_cols[i], accum, touched_flag, touched_cols);
-  });
+  std::size_t chunk_size = (c.rows + num_threads - 1) / num_threads;
+
+  for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
+    std::size_t start_row = thread_idx * chunk_size;
+    std::size_t end_row = std::min(start_row + chunk_size, c.rows);
+
+    if (start_row >= end_row) {
+      break;
+    }
+
+    threads.emplace_back([&, start_row, end_row]() {
+      std::vector<double> accum(c.cols, 0.0);
+      std::vector<int> touched_flag(c.cols, -1);
+      std::vector<std::size_t> touched_cols;
+      touched_cols.reserve(c.cols);
+
+      for (std::size_t i = start_row; i < end_row; ++i) {
+        ProcessRow(i, a, b, temp_values[i], temp_cols[i], accum, touched_flag, touched_cols);
+      }
+    });
+  }
+
+  for (auto &thread : threads) {
+    if (thread.joinable()) {
+      thread.join();
+    }
+  }
 
   for (std::size_t i = 0; i < c.rows; ++i) {
     c.row_ptr[i + 1] = c.row_ptr[i] + temp_values[i].size();
