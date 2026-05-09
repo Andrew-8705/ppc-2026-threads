@@ -29,6 +29,7 @@ uint8_t IskhakovDGetPixelMirrorTbb(const std::vector<uint8_t> &src, int col, int
   }
   return src[(row * width) + col];
 }
+
 }  // namespace
 
 IskhakovDVerticalGaussFilterTBB::IskhakovDVerticalGaussFilterTBB(const InType &in) {
