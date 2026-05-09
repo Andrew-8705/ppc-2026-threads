@@ -11,8 +11,8 @@
 #include "pylaeva_s_inc_contrast_img_by_lsh/common/include/common.hpp"
 #include "pylaeva_s_inc_contrast_img_by_lsh/omp/include/ops_omp.hpp"
 #include "pylaeva_s_inc_contrast_img_by_lsh/seq/include/ops_seq.hpp"
-#include "pylaeva_s_inc_contrast_img_by_lsh/tbb/include/ops_tbb.hpp"
 #include "pylaeva_s_inc_contrast_img_by_lsh/stl/include/ops_stl.hpp"
+#include "pylaeva_s_inc_contrast_img_by_lsh/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 

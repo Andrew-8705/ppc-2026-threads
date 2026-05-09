@@ -52,7 +52,8 @@ bool PylaevaSIncContrastImgByLshSTL::PostProcessingImpl() {
   return true;
 }
 
-void PylaevaSIncContrastImgByLshSTL::FindLocalMinMax(std::vector<unsigned char> &loc_mins, std::vector<unsigned char> &loc_maxs) {
+void PylaevaSIncContrastImgByLshSTL::FindLocalMinMax(std::vector<unsigned char> &loc_mins,
+                                                     std::vector<unsigned char> &loc_maxs) {
   const InType &input = GetInput();
 
   std::vector<std::thread> thread_pool;
@@ -87,16 +88,16 @@ void PylaevaSIncContrastImgByLshSTL::ApplyLinearStretching(int min, int max) {
 
   const double scale = 255.0 / static_cast<double>(max - min);
   const double offset = static_cast<double>(-min) * scale;
-  
+
   auto process = [&](const int start, const int end) {
     for (int i = start; i < end; i++) {
       // Предварительно вычисленное выражение: input[i] * scale + offset
       double new_value = static_cast<double>(input[i]) * scale + offset;
       // Округление к ближайшему целому
       int rounded_value = static_cast<int>(new_value + 0.5);
-      
+
       rounded_value = (rounded_value < 0) ? 0 : (rounded_value > 255) ? 255 : rounded_value;
-      
+
       output[i] = static_cast<unsigned char>(rounded_value);
     }
   };
