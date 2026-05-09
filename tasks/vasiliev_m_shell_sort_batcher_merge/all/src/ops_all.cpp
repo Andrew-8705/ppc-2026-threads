@@ -1,12 +1,11 @@
 #include "vasiliev_m_shell_sort_batcher_merge/all/include/ops_all.hpp"
 
-#include <omp.h>
+#include <mpi.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
 
 #include <algorithm>
 #include <cstddef>
-#include <thread>
 #include <vector>
 
 #include "util/include/util.hpp"
@@ -30,32 +29,62 @@ bool VasilievMShellSortBatcherMergeALL::PreProcessingImpl() {
 }
 
 bool VasilievMShellSortBatcherMergeALL::RunImpl() {
+  int rank = 0;
+  int process_count = 1;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &process_count);
+
   auto &vec = GetInput();
-  const size_t n = vec.size();
+  int n = static_cast<int>(vec.size());
 
-  if (vec.empty()) {
-    return false;
+  std::vector<int> counts(process_count);
+  std::vector<int> displs(process_count);
+
+  if (rank == 0) {
+    CalcCountsAndDispls(n, process_count, counts, displs);
   }
 
-  int threads = std::max(1, ppc::util::GetNumThreads());
-  std::vector<size_t> bounds = ChunkBoundaries(n, threads);
-  const size_t chunk_count = bounds.size() - 1;
+  MPI_Bcast(counts.data(), process_count, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(displs.data(), process_count, MPI_INT, 0, MPI_COMM_WORLD);
 
-  ShellSortOMP(vec, bounds, threads);
+  std::vector<ValType> local_data(static_cast<size_t>(counts[rank]));
+  MPI_Scatterv(vec.data(), counts.data(), displs.data(), MPI_INT, local_data.data(), counts[rank], MPI_INT, 0,
+               MPI_COMM_WORLD);
 
-  std::vector<ValType> buffer(n);
-  size_t size = 1;
-  for (; size * 2 < chunk_count; size *= 2) {
-    CycleMergeTBB(vec, buffer, bounds, size);
-    vec.swap(buffer);
+  const int threads = std::max(1, ppc::util::GetNumThreads());
+  std::vector<size_t> bounds = ChunkBoundaries(static_cast<size_t>(counts[rank]), threads);
+  size_t chunk_count = bounds.size() - 1;
+
+  ShellSort(local_data, bounds);
+
+  std::vector<ValType> buffer(static_cast<size_t>(counts[rank]));
+  for (size_t size = 1; size < chunk_count; size *= 2) {
+    CycleMerge(local_data, buffer, bounds, size);
+    local_data.swap(buffer);
   }
 
-  for (; size < chunk_count; size *= 2) {
-    CycleMergeSTL(vec, buffer, bounds, size, threads);
-    vec.swap(buffer);
+  if (rank == 0) {
+    GetOutput().resize(static_cast<size_t>(n));
   }
 
-  GetOutput() = vec;
+  MPI_Gatherv(local_data.data(), counts[rank], MPI_INT, rank == 0 ? GetOutput().data() : nullptr, counts.data(),
+              displs.data(), MPI_INT, 0, MPI_COMM_WORLD);
+
+  if (rank == 0) {
+    auto root_bounds = BoundsFromCounts(counts);
+    size_t root_chunk_count = root_bounds.size() - 1;
+    std::vector<ValType> root_buffer(static_cast<size_t>(n));
+    for (size_t size = 1; size < root_chunk_count; size *= 2) {
+      CycleMerge(GetOutput(), root_buffer, root_bounds, size);
+      GetOutput().swap(root_buffer);
+    }
+  }
+
+  if (rank != 0) {
+    GetOutput().resize(static_cast<size_t>(n));
+  }
+  MPI_Bcast(GetOutput().data(), n, MPI_INT, 0, MPI_COMM_WORLD);
+
   return true;
 }
 
@@ -63,8 +92,33 @@ bool VasilievMShellSortBatcherMergeALL::PostProcessingImpl() {
   return true;
 }
 
-std::vector<size_t> VasilievMShellSortBatcherMergeALL::ChunkBoundaries(size_t vec_size, size_t threads) {
-  size_t chunks = std::max<size_t>(1, std::min(threads, vec_size));
+void VasilievMShellSortBatcherMergeALL::CalcCountsAndDispls(int n, int process_count, std::vector<int> &counts,
+                                                            std::vector<int> &displs) {
+  const int chunk = n / process_count;
+  const int remainder = n % process_count;
+
+  for (int i = 0; i < process_count; i++) {
+    counts[static_cast<size_t>(i)] = chunk + (i < remainder ? 1 : 0);
+  }
+
+  displs[0] = 0;
+  for (int i = 1; i < process_count; i++) {
+    displs[static_cast<size_t>(i)] = displs[static_cast<size_t>(i - 1)] + counts[static_cast<size_t>(i - 1)];
+  }
+}
+
+std::vector<size_t> VasilievMShellSortBatcherMergeALL::BoundsFromCounts(const std::vector<int> &counts) {
+  std::vector<size_t> bounds;
+  bounds.reserve(counts.size() + 1);
+  bounds.push_back(0);
+  for (int c : counts) {
+    bounds.push_back(bounds.back() + static_cast<size_t>(c));
+  }
+  return bounds;
+}
+
+std::vector<size_t> VasilievMShellSortBatcherMergeALL::ChunkBoundaries(size_t vec_size, int threads) {
+  size_t chunks = static_cast<size_t>(std::max(1, std::min(threads, static_cast<int>(vec_size))));
   std::vector<size_t> bounds;
   bounds.reserve(chunks + 1);
 
@@ -78,107 +132,64 @@ std::vector<size_t> VasilievMShellSortBatcherMergeALL::ChunkBoundaries(size_t ve
   return bounds;
 }
 
-void VasilievMShellSortBatcherMergeALL::ShellSortOMP(std::vector<ValType> &vec, std::vector<size_t> &bounds,
-                                                     size_t threads) {
-  const int chunk_count = static_cast<int>(bounds.size()) - 1;
+void VasilievMShellSortBatcherMergeALL::ShellSort(std::vector<ValType> &vec, std::vector<size_t> &bounds) {
+  size_t chunk_count = bounds.size() - 1;
 
-#pragma omp parallel for default(none) shared(vec, bounds, chunk_count) num_threads(threads) schedule(static)
-  for (int chunk = 0; chunk < chunk_count; chunk++) {
-    const size_t first = bounds[static_cast<size_t>(chunk)];
-    const size_t last = bounds[static_cast<size_t>(chunk) + 1];
-    const size_t n = last - first;
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, chunk_count), [&](const tbb::blocked_range<size_t> &range) {
+    for (size_t chunk = range.begin(); chunk < range.end(); chunk++) {
+      size_t first = bounds[chunk];
+      size_t last = bounds[chunk + 1];
+      size_t n = last - first;
 
-    for (size_t gap = n / 2; gap > 0; gap /= 2) {
-      for (size_t i = first + gap; i < last; i++) {
-        ValType tmp = vec[i];
-        size_t j = i;
-        while (j >= first + gap && vec[j - gap] > tmp) {
-          vec[j] = vec[j - gap];
-          j -= gap;
+      for (size_t gap = n / 2; gap > 0; gap /= 2) {
+        for (size_t i = first + gap; i < last; i++) {
+          ValType tmp = vec[i];
+          size_t j = i;
+          while (j >= first + gap && vec[j - gap] > tmp) {
+            vec[j] = vec[j - gap];
+            j -= gap;
+          }
+          vec[j] = tmp;
         }
-        vec[j] = tmp;
       }
     }
-  }
+  });
 }
 
-void VasilievMShellSortBatcherMergeALL::MergeOne(std::vector<ValType> &vec, std::vector<ValType> &buffer,
-                                                 std::vector<size_t> &bounds, size_t size, size_t idx,
-                                                 size_t chunk_count) {
-  const size_t l = idx * 2 * size;
-  const size_t mid = std::min(l + size, chunk_count);
-  const size_t r = std::min(l + (2 * size), chunk_count);
-
-  const size_t start = bounds[l];
-  const size_t middle = bounds[mid];
-  const size_t end = bounds[r];
-
-  if (mid == r) {
-    std::copy(vec.begin() + static_cast<std::ptrdiff_t>(start), vec.begin() + static_cast<std::ptrdiff_t>(end),
-              buffer.begin() + static_cast<std::ptrdiff_t>(start));
-  } else {
-    std::vector<ValType> l_vect(vec.begin() + static_cast<std::ptrdiff_t>(start),
-                                vec.begin() + static_cast<std::ptrdiff_t>(middle));
-    std::vector<ValType> r_vect(vec.begin() + static_cast<std::ptrdiff_t>(middle),
-                                vec.begin() + static_cast<std::ptrdiff_t>(end));
-
-    std::vector<ValType> merged = BatcherMerge(l_vect, r_vect);
-    for (size_t i = 0; i < merged.size(); i++) {
-      buffer[start + i] = merged[i];
-    }
-  }
-}
-
-void VasilievMShellSortBatcherMergeALL::CycleMergeTBB(std::vector<ValType> &vec, std::vector<ValType> &buffer,
-                                                      std::vector<size_t> &bounds, size_t size) {
+void VasilievMShellSortBatcherMergeALL::CycleMerge(std::vector<ValType> &vec, std::vector<ValType> &buffer,
+                                                   std::vector<size_t> &bounds, size_t size) {
   const size_t chunk_count = bounds.size() - 1;
   const size_t merge_count = (chunk_count + (2 * size) - 1) / (2 * size);
 
   tbb::parallel_for(tbb::blocked_range<size_t>(0, merge_count), [&](const tbb::blocked_range<size_t> &range) {
     for (size_t idx = range.begin(); idx < range.end(); idx++) {
-      MergeOne(vec, buffer, bounds, size, idx, chunk_count);
+      const size_t l = idx * 2 * size;
+      const size_t mid = std::min(l + size, chunk_count);
+      const size_t r = std::min(l + (2 * size), chunk_count);
+
+      const size_t start = bounds[l];
+      const size_t middle = bounds[mid];
+      const size_t end = bounds[r];
+
+      if (mid == r) {
+        std::copy(vec.begin() + static_cast<std::ptrdiff_t>(start), vec.begin() + static_cast<std::ptrdiff_t>(end),
+                  buffer.begin() + static_cast<std::ptrdiff_t>(start));
+      } else {
+        std::vector<ValType> l_vect(vec.begin() + static_cast<std::ptrdiff_t>(start),
+                                    vec.begin() + static_cast<std::ptrdiff_t>(middle));
+        std::vector<ValType> r_vect(vec.begin() + static_cast<std::ptrdiff_t>(middle),
+                                    vec.begin() + static_cast<std::ptrdiff_t>(end));
+        std::vector<ValType> merged = BatcherMerge(l_vect, r_vect);
+        for (size_t i = 0; i < merged.size(); i++) {
+          buffer[start + i] = merged[i];
+        }
+      }
     }
   });
 }
 
-void VasilievMShellSortBatcherMergeALL::CycleMergeSTL(std::vector<ValType> &vec, std::vector<ValType> &buffer,
-                                                      std::vector<size_t> &bounds, size_t size, size_t threads) {
-  const size_t chunk_count = bounds.size() - 1;
-  const size_t merge_count = (chunk_count + (2 * size) - 1) / (2 * size);
-  const size_t worker_count = std::min(merge_count, static_cast<size_t>(std::max(size_t{1}, threads)));
-
-  std::vector<std::thread> thread_pool;
-  thread_pool.reserve(worker_count);
-
-  const size_t base = merge_count / worker_count;
-  const size_t rem = merge_count % worker_count;
-  size_t current = 0;
-
-  for (size_t wrk = 0; wrk < worker_count; wrk++) {
-    const size_t count = base + (wrk < rem ? 1 : 0);
-    const size_t begin = current;
-    const size_t end = current + count;
-    current = end;
-
-    thread_pool.emplace_back([&, begin, end]() {
-      for (size_t idx = begin; idx < end; idx++) {
-        MergeOne(vec, buffer, bounds, size, idx, chunk_count);
-      }
-    });
-  }
-
-  for (auto &th : thread_pool) {
-    if (th.joinable()) {
-      th.join();
-    }
-  }
-}
-
 std::vector<ValType> VasilievMShellSortBatcherMergeALL::BatcherMerge(std::vector<ValType> &l, std::vector<ValType> &r) {
-  std::vector<ValType> even_l;
-  std::vector<ValType> odd_l;
-  std::vector<ValType> even_r;
-  std::vector<ValType> odd_r;
+  std::vector<ValType> even_l, odd_l, even_r, odd_r;
 
   SplitEvenOdd(l, even_l, odd_l);
   SplitEvenOdd(r, even_r, odd_r);
