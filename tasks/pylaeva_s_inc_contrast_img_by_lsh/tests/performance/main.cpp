@@ -8,6 +8,8 @@
 #include "pylaeva_s_inc_contrast_img_by_lsh/omp/include/ops_omp.hpp"
 #include "pylaeva_s_inc_contrast_img_by_lsh/seq/include/ops_seq.hpp"
 #include "pylaeva_s_inc_contrast_img_by_lsh/tbb/include/ops_tbb.hpp"
+#include "pylaeva_s_inc_contrast_img_by_lsh/stl/include/ops_stl.hpp"
+
 #include "util/include/perf_test_util.hpp"
 
 namespace pylaeva_s_inc_contrast_img_by_lsh {
@@ -47,7 +49,7 @@ TEST_P(PylaevaSRunPerfTestThreads, RunPerfModes) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, PylaevaSIncContrastImgByLshSEQ, PylaevaSIncContrastImgByLshOMP,
+    ppc::util::MakeAllPerfTasks<InType, PylaevaSIncContrastImgByLshSEQ, PylaevaSIncContrastImgByLshSTL, PylaevaSIncContrastImgByLshOMP,
                                 PylaevaSIncContrastImgByLshTBB>(PPC_SETTINGS_pylaeva_s_inc_contrast_img_by_lsh);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
