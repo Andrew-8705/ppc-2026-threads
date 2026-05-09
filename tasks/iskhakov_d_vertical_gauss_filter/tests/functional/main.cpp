@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -112,7 +113,7 @@ void PrintTo(const InvalidInputParams &p, std::ostream *os) {
 class IskhakovDVerticalGaussFilterInvalidInputTests : public testing::TestWithParam<InvalidInputParams> {};
 
 TEST_P(IskhakovDVerticalGaussFilterInvalidInputTests, Validation) {
-  auto param = GetParam();
+  const auto &param = GetParam();
   auto task = param.factory(param.input);
   EXPECT_FALSE(task->Validation());
 }
@@ -121,28 +122,28 @@ std::string PrintInvalidInputTestName(const testing::TestParamInfo<InvalidInputP
   return info.param.description;
 }
 
-Matrix zero_sizes{0, 0, {}};
-Matrix zero_width{0, 5, std::vector<uint8_t>(5)};
-Matrix zero_height{5, 0, std::vector<uint8_t>(5)};
-Matrix size_mismatch{3, 3, {1, 2, 3}};
-Matrix negative_width{-1, 5, std::vector<uint8_t>(5)};
-Matrix negative_height{5, -1, std::vector<uint8_t>(5)};
+Matrix zero_sizes{.width = 0, .height = 0, .data = {}};
+Matrix zero_width{.width = 0, .height = 5, .data = std::vector<uint8_t>(5)};
+Matrix zero_height{.width = 5, .height = 0, .data = std::vector<uint8_t>(5)};
+Matrix size_mismatch{.width = 3, .height = 3, .data = {1, 2, 3}};
+Matrix negative_width{.width = -1, .height = 5, .data = std::vector<uint8_t>(5)};
+Matrix negative_height{.width = 5, .height = -1, .data = std::vector<uint8_t>(5)};
 
 std::vector<InvalidInputParams> GenerateInvalidInputParams() {
   std::vector<InvalidInputParams> params;
 
-  auto add = [&](const std::string &taskName, auto factory) {
-    params.push_back({factory, zero_sizes, taskName + "_ZeroSizes"});
-    params.push_back({factory, zero_width, taskName + "_ZeroWidthPositiveHeight"});
-    params.push_back({factory, zero_height, taskName + "_ZeroHeightPositiveWidth"});
-    params.push_back({factory, size_mismatch, taskName + "_DataSizeMismatch"});
-    params.push_back({factory, negative_width, taskName + "_NegativeWidth"});
-    params.push_back({factory, negative_height, taskName + "_NegativeHeight"});
+  auto add = [&](const std::string &task_name, auto factory) {
+    params.push_back({factory, zero_sizes, task_name + "_ZeroSizes"});
+    params.push_back({factory, zero_width, task_name + "_ZeroWidthPositiveHeight"});
+    params.push_back({factory, zero_height, task_name + "_ZeroHeightPositiveWidth"});
+    params.push_back({factory, size_mismatch, task_name + "_DataSizeMismatch"});
+    params.push_back({factory, negative_width, task_name + "_NegativeWidth"});
+    params.push_back({factory, negative_height, task_name + "_NegativeHeight"});
   };
 
-  add("SEQ", [](Matrix m) { return std::make_shared<IskhakovDVerticalGaussFilterSEQ>(m); });
-  add("OMP", [](Matrix m) { return std::make_shared<IskhakovDVerticalGaussFilterOMP>(m); });
-  add("TBB", [](Matrix m) { return std::make_shared<IskhakovDVerticalGaussFilterTBB>(m); });
+  add("SEQ", [](const Matrix &m) { return std::make_shared<IskhakovDVerticalGaussFilterSEQ>(m); });
+  add("OMP", [](const Matrix &m) { return std::make_shared<IskhakovDVerticalGaussFilterOMP>(m); });
+  add("TBB", [](const Matrix &m) { return std::make_shared<IskhakovDVerticalGaussFilterTBB>(m); });
 
   return params;
 }
