@@ -189,7 +189,10 @@ void VasilievMShellSortBatcherMergeALL::CycleMerge(std::vector<ValType> &vec, st
 }
 
 std::vector<ValType> VasilievMShellSortBatcherMergeALL::BatcherMerge(std::vector<ValType> &l, std::vector<ValType> &r) {
-  std::vector<ValType> even_l, odd_l, even_r, odd_r;
+  std::vector<ValType> even_l;
+  std::vector<ValType> odd_l;
+  std::vector<ValType> even_r;
+  std::vector<ValType> odd_r;
 
   SplitEvenOdd(l, even_l, odd_l);
   SplitEvenOdd(r, even_r, odd_r);
