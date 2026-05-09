@@ -1,6 +1,6 @@
 #include "iskhakov_d_vertical_gauss_filter/tbb/include/ops_tbb.hpp"
 
-#include <tbb/tbb.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #include <array>
 #include <cstddef>
@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "iskhakov_d_vertical_gauss_filter/common/include/common.hpp"
-#include "oneapi/tbb/parallel_for.h"
 
 namespace iskhakov_d_vertical_gauss_filter {
 
