@@ -127,7 +127,7 @@ void TochilinEHoarSortSimMerSTL::QuickSortParallel(std::vector<int> &arr, int lo
     for (int worker_idx = 0; worker_idx < active_workers; ++worker_idx) {
       workers.emplace_back([&, worker_idx] {
         auto &local_next = next_ranges_local[static_cast<std::size_t>(worker_idx)];
-        for (std::size_t idx = static_cast<std::size_t>(worker_idx); idx < current_ranges.size();
+        for (auto idx = static_cast<std::size_t>(worker_idx); idx < current_ranges.size();
              idx += static_cast<std::size_t>(active_workers)) {
           ProcessRange(arr, current_ranges[idx], serial_cutoff, local_next);
         }
