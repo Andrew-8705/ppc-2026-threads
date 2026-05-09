@@ -8,13 +8,17 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "buzulukski_d_gaus_gorizontal/common/include/common.hpp"
+
 namespace buzulukski_d_gaus_gorizontal {
 
 namespace {
 constexpr int kChannels = 3;
 constexpr int kKernelSize = 3;
 constexpr int kKernelSum = 16;
-constexpr std::array<std::array<int, 3>, 3> kKernel = {{{1, 2, 1}, {2, 4, 2}, {1, 2, 1}}};
+
+using KernelRow = std::array<int, kKernelSize>;
+constexpr std::array<KernelRow, kKernelSize> kKernel = {{{1, 2, 1}, {2, 4, 2}, {1, 2, 1}}};
 
 uint8_t CalculatePixelTBB(const uint8_t *in, int py, int px, int w, int h, int ch) {
   int sum = 0;
@@ -22,9 +26,13 @@ uint8_t CalculatePixelTBB(const uint8_t *in, int py, int px, int w, int h, int c
     for (int kx = -1; kx <= 1; ++kx) {
       int ny = std::clamp(py + ky, 0, h - 1);
       int nx = std::clamp(px + kx, 0, w - 1);
+
       size_t idx = (((static_cast<size_t>(ny) * static_cast<size_t>(w)) + static_cast<size_t>(nx)) * kChannels) +
                    static_cast<size_t>(ch);
-      sum += static_cast<int>(in[idx]) * kKernel[ky + 1][kx + 1];
+
+      size_t row_idx = static_cast<size_t>(ky) + 1;
+      size_t col_idx = static_cast<size_t>(kx) + 1;
+      sum += static_cast<int>(in[idx]) * kKernel.at(row_idx).at(col_idx);
     }
   }
   return static_cast<uint8_t>(sum / kKernelSum);
