@@ -63,7 +63,9 @@ class LazarevaARunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, 
     return true;
   }
 
-  InType GetTestInputData() final { return input_data_; }
+  InType GetTestInputData() final {
+    return input_data_;
+  }
 
  private:
   InType input_data_{};
@@ -71,7 +73,9 @@ class LazarevaARunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, 
 };
 
 namespace {
-TEST_P(LazarevaARunFuncTestsThreads, StrassenMatmul) { ExecuteTest(GetParam()); }
+TEST_P(LazarevaARunFuncTestsThreads, StrassenMatmul) {
+  ExecuteTest(GetParam());
+}
 
 const std::array<TestType, 8> kTestParam = {{
     std::make_tuple(2, "2"),

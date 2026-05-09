@@ -49,11 +49,15 @@ class LazarevaARunPerfTestThreads : public ppc::util::BaseRunPerfTests<InType, O
     return true;
   }
 
-  InType GetTestInputData() final { return input_data_; }
+  InType GetTestInputData() final {
+    return input_data_;
+  }
 };
 
 namespace {
-TEST_P(LazarevaARunPerfTestThreads, RunPerfModes) { ExecuteTest(GetParam()); }
+TEST_P(LazarevaARunPerfTestThreads, RunPerfModes) {
+  ExecuteTest(GetParam());
+}
 
 const auto kPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, LazarevaATestTaskALL>(PPC_SETTINGS_lazareva_a_matrix_mult_strassen);
