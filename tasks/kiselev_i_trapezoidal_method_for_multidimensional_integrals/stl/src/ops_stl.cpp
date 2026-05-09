@@ -32,28 +32,7 @@ double ComputeChunk(const InType &input_data, const std::vector<int> &steps, int
       const double weight_y = (y_index == 0 || y_index == steps[1]) ? 0.5 : 1.0;
 
       double value = 0.0;
-
-      switch (input_data.type_function) {
-        case 0:
-          value = (x * x) + (y * y);
-          break;
-
-        case 1:
-          value = std::sin(x) * std::cos(y);
-          break;
-
-        case 2:
-          value = std::sin(x) + std::cos(y);
-          break;
-
-        case 3:
-          value = std::exp(x + y);
-          break;
-
-        default:
-          value = x + y;
-          break;
-      }
+      value = KiselevITestTaskSTL::FunctionTypeChoose(input_data.type_function, x, y);
 
       local_result += weight_x * weight_y * value;
     }
