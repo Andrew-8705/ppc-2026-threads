@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <thread>
 #include <vector>
+#include <cmath>
 
 #include "pylaeva_s_inc_contrast_img_by_lsh/common/include/common.hpp"
 
@@ -92,11 +93,11 @@ void PylaevaSIncContrastImgByLshSTL::ApplyLinearStretching(int min, int max) {
   auto process = [&](const int start, const int end) {
     for (int i = start; i < end; i++) {
       // Предварительно вычисленное выражение: input[i] * scale + offset
-      double new_value = static_cast<double>(input[i]) * scale + offset;
+      double new_value = (static_cast<double>(input[i]) * scale) + offset;
       // Округление к ближайшему целому
-      int rounded_value = static_cast<int>(new_value + 0.5);
+      int rounded_value = static_cast<int>(std::lround(new_value));
 
-      rounded_value = (rounded_value < 0) ? 0 : (rounded_value > 255) ? 255 : rounded_value;
+      rounded_value = std::clamp(rounded_value, 0, 255);
 
       output[i] = static_cast<unsigned char>(rounded_value);
     }

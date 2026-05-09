@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "pylaeva_s_inc_contrast_img_by_lsh/common/include/common.hpp"
 #include "task/include/task.hpp"
 
