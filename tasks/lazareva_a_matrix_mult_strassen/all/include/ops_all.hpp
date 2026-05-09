@@ -41,6 +41,10 @@ class LazarevaATestTaskALL : public BaseTask {
   static std::vector<double> UnpadMatrix(const std::vector<double> &m, int old_n, int new_n);
   static std::vector<double> StrassenTBB(const std::vector<double> &a, const std::vector<double> &b, int n);
   static std::vector<double> StrassenALL(const std::vector<double> &a, const std::vector<double> &b, int n);
+
+  static std::vector<double> StrassenMaster(const std::vector<double> &a, const std::vector<double> &b, int h,
+                                            size_t h_sz, int size);
+  static void StrassenWorker(int rank, int h, size_t h_sz, int size);
 };
 
 }  // namespace lazareva_a_matrix_mult_strassen
