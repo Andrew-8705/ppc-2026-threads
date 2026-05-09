@@ -58,9 +58,13 @@ TEST_P(LazarevaARunPerfTestThreads, RunPerfModes) {
   ExecuteTest(GetParam());
 }
 
-INSTANTIATE_TEST_SUITE_P(RunModeTests, LazarevaARunPerfTestThreads,
-                         ppc::util::TupleToGTestValues(ppc::util::MakeAllPerfTasks<InType, LazarevaATestTaskALL>(
-                             PPC_SETTINGS_lazareva_a_matrix_mult_strassen)),
+namespace {
+const auto kPerfTasks =
+    ppc::util::MakeAllPerfTasks<InType, LazarevaATestTaskALL>(PPC_SETTINGS_lazareva_a_matrix_mult_strassen);
+const auto kGtestValues = ppc::util::TupleToGTestValues(kPerfTasks);
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(RunModeTests, LazarevaARunPerfTestThreads, kGtestValues,
                          LazarevaARunPerfTestThreads::CustomPerfTestName);
 
 }  // namespace lazareva_a_matrix_mult_strassen

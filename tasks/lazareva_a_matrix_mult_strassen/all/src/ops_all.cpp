@@ -248,18 +248,18 @@ std::vector<double> LazarevaATestTaskALL::StrassenMaster(const std::vector<doubl
   lhs[6] = Sub(a12, a22, h);
   rhs[6] = Add(b21, b22, h);
 
-  std::vector<MPI_Request> send_requests;
-  send_requests.reserve(14);
+  std::vector<MPI_Request> send_requests(14, MPI_REQUEST_NULL);
+  int req_idx = 0;
 
   for (int k = 0; k < 7; ++k) {
     const int dest = k % size;
     if (dest != 0) {
-      MPI_Request req1 = MPI_REQUEST_NULL;
-      MPI_Request req2 = MPI_REQUEST_NULL;
-      MPI_Isend(lhs[k].data(), static_cast<int>(h_sz), MPI_DOUBLE, dest, k * 2, MPI_COMM_WORLD, &req1);
-      MPI_Isend(rhs[k].data(), static_cast<int>(h_sz), MPI_DOUBLE, dest, (k * 2) + 1, MPI_COMM_WORLD, &req2);
-      send_requests.push_back(req1);
-      send_requests.push_back(req2);
+      MPI_Isend(lhs[k].data(), static_cast<int>(h_sz), MPI_DOUBLE, dest, k * 2, MPI_COMM_WORLD,
+                &send_requests[req_idx]);
+      ++req_idx;
+      MPI_Isend(rhs[k].data(), static_cast<int>(h_sz), MPI_DOUBLE, dest, (k * 2) + 1, MPI_COMM_WORLD,
+                &send_requests[req_idx]);
+      ++req_idx;
     }
   }
 
@@ -278,8 +278,8 @@ std::vector<double> LazarevaATestTaskALL::StrassenMaster(const std::vector<doubl
     }
   }
 
-  if (!send_requests.empty()) {
-    MPI_Waitall(static_cast<int>(send_requests.size()), send_requests.data(), MPI_STATUSES_IGNORE);
+  if (req_idx > 0) {
+    MPI_Waitall(req_idx, send_requests.data(), MPI_STATUSES_IGNORE);
   }
 
   const auto c11 = Add(Sub(Add(m[0], m[3], h), m[4], h), m[6], h);

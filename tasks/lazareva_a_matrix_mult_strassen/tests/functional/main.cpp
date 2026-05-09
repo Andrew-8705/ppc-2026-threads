@@ -76,6 +76,7 @@ TEST_P(LazarevaARunFuncTestsThreads, StrassenMatmul) {
   ExecuteTest(GetParam());
 }
 
+namespace {
 const std::array<TestType, 8> kTestParam = {{
     std::make_tuple(2, "2"),
     std::make_tuple(3, "3"),
@@ -96,6 +97,7 @@ const auto kTestTasksList = std::tuple_cat(
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 const auto kFuncTestName = LazarevaARunFuncTestsThreads::PrintFuncTestName<LazarevaARunFuncTestsThreads>;
+}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(MatrixTests, LazarevaARunFuncTestsThreads, kGtestValues, kFuncTestName);
 
