@@ -1,9 +1,9 @@
 #include "pylaeva_s_inc_contrast_img_by_lsh/stl/include/ops_stl.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <thread>
 #include <vector>
-#include <cmath>
 
 #include "pylaeva_s_inc_contrast_img_by_lsh/common/include/common.hpp"
 
