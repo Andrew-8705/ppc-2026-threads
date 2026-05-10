@@ -80,7 +80,7 @@ const std::array<TestCase, 6> kTestCases = {
       OutType(4, std::vector<int>(4, 0))}}};
 
 const auto kAllTasksList =
-    ppc::util::AddFuncTask<ZhurinIGausKernelSEQ, InType>(kTestCases, PPC_SETTINGS_zhurin_i_gaus_kernel_seq);
+    ppc::util::AddFuncTask<ZhurinIGausKernelSEQ, InType>(kTestCases, PPC_SETTINGS_zhurin_i_gaus_kernel);
 
 inline const auto kGtestValues = ppc::util::ExpandToValues(kAllTasksList);
 
