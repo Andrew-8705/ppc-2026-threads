@@ -21,7 +21,7 @@ class KondrashovaVTaskALL : public BaseTask {
   bool RunImpl() override;
   bool PostProcessingImpl() override;
 
-  int width_{};  
+  int width_{};
   int height_{};
   int rank_{};
   int world_size_{};
