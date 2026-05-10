@@ -1,9 +1,8 @@
 #include "kutuzov_i_convex_hull_jarvis/stl/include/ops_stl.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <iterator>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -47,7 +46,7 @@ BestCandidate FindLeftmostInRange(const InType &points, size_t start, size_t end
     }
   }
 
-  return {best_idx, best_x, best_y};
+  return {.index = best_idx, .x = best_x, .y = best_y};
 }
 
 BestCandidate FindBestCandidateInRange(const InType &points, size_t start, size_t end, size_t current_idx,
@@ -133,7 +132,7 @@ size_t KutuzovITestConvexHullSTL::FindLeftmostPoint(const InType &input) {
     size_t start = (tid * n) / num_threads;
     size_t end = ((tid + 1) * n) / num_threads;
     if (start >= end) {
-      locals[tid] = {0, std::numeric_limits<double>::max(), 0.0};
+      locals[tid] = {.index = 0, .x = std::numeric_limits<double>::max(), .y = 0.0};
       continue;
     }
 
