@@ -12,6 +12,6 @@ using OutType = std::vector<std::vector<int>>;
 using TestType = int;
 using BaseTask = ppc::task::Task<InType, OutType>;
 
-// inline const ppc::task::TaskSettings PPC_SETTINGS_zhurin_i_gauss_kernel{};
+//inline const ppc::task::TaskSettings PPC_SETTINGS_zhurin_i_gaus_kernel{};
 
-}  // namespace zhurin_i_gauss_kernel
+}  // namespace zhurin_i_gaus_kernel
