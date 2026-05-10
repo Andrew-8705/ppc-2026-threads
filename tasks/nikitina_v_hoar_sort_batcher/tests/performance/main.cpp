@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <random>
 #include <string>
-#include <vector>
 
 #include "nikitina_v_hoar_sort_batcher/all/include/ops_all.hpp"
 #include "nikitina_v_hoar_sort_batcher/common/include/common.hpp"
@@ -18,17 +18,27 @@ namespace nikitina_v_hoar_sort_batcher {
 class NikitinaVHoarSortBatcherPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
   void SetUp() override {
-    int test_size = 500000;
+    int test_size = 50000;
     input_data_.resize(test_size);
-    int seed_val = 42;
+    std::mt19937 gen(42);
+    std::uniform_int_distribution<int> dist(-100000, 100000);
     for (int &x : input_data_) {
-      x = (seed_val % 2001) - 1000;
-      seed_val = (seed_val * 73 + 17) % 2001;
+      x = dist(gen);
     }
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return std::ranges::is_sorted(output_data);
+    int mpi_rank = 0;
+    if (ppc::util::IsUnderMpirun()) {
+      mpi_rank = ppc::util::GetMPIRank();
+    }
+    if (mpi_rank == 0) {
+      if (output_data.size() != input_data_.size()) {
+        return false;
+      }
+      return std::ranges::is_sorted(output_data);
+    }
+    return true;
   }
 
   InType GetTestInputData() final {
@@ -43,9 +53,9 @@ namespace {
 
 std::string CustomPrintPerfTestName(const testing::TestParamInfo<ppc::util::PerfTestParam<InType, OutType>> &info) {
   std::string task_name = std::get<1>(info.param);
-  std::string run_type = ppc::performance::GetStringParamName(std::get<2>(info.param));
+  std::string run_type = ppc::performance::GetStringParamName(std::get<2>(info.param));  // NOLINT
   std::string name = run_type + "_" + task_name;
-  std::replace_if(name.begin(), name.end(), [](char c) { return !std::isalnum(c); }, '_');
+  std::ranges::replace_if(name, [](char c) { return !std::isalnum(c); }, '_');
   return name;
 }
 

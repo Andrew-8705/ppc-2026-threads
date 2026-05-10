@@ -3,6 +3,7 @@
 #include <mpi.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <thread>
 #include <utility>
@@ -69,9 +70,6 @@ void ThreadedSort(std::vector<int> &arr, int num_threads) {
     thr.join();
   }
 
-  // ИСПОЛЬЗУЕМ ВАШУ СОРТИРОВКУ вместо std::sort / std::ranges::sort.
-  // Так как потоки уже предварительно отсортировали свои куски массива,
-  // финальный проход вашей сортировки быстро приведет весь массив в порядок.
   LocalHoareSort(arr, 0, size - 1);
 }
 
