@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <execution>
 #include <utility>
 #include <vector>
 
@@ -80,7 +79,7 @@ bool IlinAGrahamSTL::RunImpl() {
     }
   }
 
-  std::sort(std::execution::par, sorted.begin(), sorted.end(), PointComparator(p0));
+  std::sort(sorted.begin(), sorted.end(), PointComparator(p0));
 
   std::vector<Point> stack;
   stack.reserve(sorted.size() + 1);
