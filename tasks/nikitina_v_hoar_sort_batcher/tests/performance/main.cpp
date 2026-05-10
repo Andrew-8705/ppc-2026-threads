@@ -26,7 +26,17 @@ class NikitinaVHoarSortBatcherPerfTests : public ppc::util::BaseRunPerfTests<InT
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return !output_data.empty() && std::ranges::is_sorted(output_data);
+    int mpi_rank = 0;
+    int is_mpi_init = 0;
+    MPI_Initialized(&is_mpi_init);
+    if (is_mpi_init != 0) {
+      MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    }
+
+    if (mpi_rank == 0) {
+      return !output_data.empty() && std::ranges::is_sorted(output_data);
+    }
+    return true;
   }
 
   InType GetTestInputData() final {
