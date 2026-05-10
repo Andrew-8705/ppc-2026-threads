@@ -48,7 +48,8 @@ namespace {
 
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, SannikovIIntegralsRectangleMethodSEQ, SannikovIIntegralsRectangleMethodOMP,
-                                SannikovIIntegralsRectangleMethodTBB, SannikovIIntegralsRectangleMethodSTL, SannikovIIntegralsRectangleMethodALL>(
+                                SannikovIIntegralsRectangleMethodTBB, SannikovIIntegralsRectangleMethodSTL,
+                                SannikovIIntegralsRectangleMethodALL>(
         PPC_SETTINGS_sannikov_i_integrals_rectangle_method);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);

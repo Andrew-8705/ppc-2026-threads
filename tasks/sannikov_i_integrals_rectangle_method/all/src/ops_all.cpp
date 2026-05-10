@@ -48,8 +48,8 @@ namespace {
 
 bool ComputeSlice(const std::function<double(const std::vector<double> &)> &funcx,
                   const std::vector<std::pair<double, double>> &brd, const std::vector<double> &h_vec,
-                  std::size_t outer_dim, int64_t inner_cells, int num_splits, int outer,
-                  std::vector<int> &idx, std::vector<double> &x, double &local_sum) {
+                  std::size_t outer_dim, int64_t inner_cells, int num_splits, int outer, std::vector<int> &idx,
+                  std::vector<double> &x, double &local_sum) {
   for (std::size_t i = 0; i < outer_dim; ++i) {
     idx[i] = 0;
   }
@@ -130,7 +130,7 @@ bool SannikovIIntegralsRectangleMethodALL::RunImpl() {
   std::vector<std::vector<double>> all_x(max_threads, std::vector<double>(dim));
 
 #pragma omp parallel for schedule(static) num_threads(max_threads) reduction(+ : local_sum) \
-    shared(error_flag) default(none)                                                         \
+    shared(error_flag) default(none)                                                        \
     shared(funcx, brd, h_vec, outer_dim, inner_cells, num_splits, start, end, all_idx, all_x)
   for (int outer = start; outer < end; ++outer) {
     if (error_flag) {
@@ -140,7 +140,8 @@ bool SannikovIIntegralsRectangleMethodALL::RunImpl() {
     const int tid = omp_get_thread_num();
     double slice_sum = 0.0;
 
-    if (!ComputeSlice(funcx, brd, h_vec, outer_dim, inner_cells, num_splits, outer, all_idx[tid], all_x[tid], slice_sum)) {
+    if (!ComputeSlice(funcx, brd, h_vec, outer_dim, inner_cells, num_splits, outer, all_idx[tid], all_x[tid],
+                      slice_sum)) {
       error_flag = true;
     }
 
