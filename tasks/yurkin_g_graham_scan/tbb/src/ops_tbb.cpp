@@ -3,7 +3,6 @@
 #include <tbb/parallel_sort.h>
 #include <tbb/tbb.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <ranges>
 #include <vector>
@@ -28,7 +27,6 @@ bool YurkinGGrahamScanTBB::PreProcessingImpl() {
     return true;
   }
 
-  // Параллельная сортировка по x, затем по y с использованием TBB
   tbb::parallel_sort(pts.begin(), pts.end(), [](const Point &a, const Point &b) {
     if (a.x != b.x) {
       return a.x < b.x;
@@ -36,7 +34,6 @@ bool YurkinGGrahamScanTBB::PreProcessingImpl() {
     return a.y < b.y;
   });
 
-  // Удаление дубликатов (последовательный проход)
   std::vector<Point> tmp;
   tmp.reserve(pts.size());
   for (const auto &p : pts) {
@@ -68,7 +65,6 @@ bool YurkinGGrahamScanTBB::RunImpl() {
     return true;
   }
 
-  // Локальная копия точек; сортировка для надёжности (PreProcessing уже сортировал)
   InType pts = pts_in;
   tbb::parallel_sort(pts.begin(), pts.end(), [](const Point &a, const Point &b) {
     if (a.x != b.x) {
@@ -77,7 +73,6 @@ bool YurkinGGrahamScanTBB::RunImpl() {
     return a.y < b.y;
   });
 
-  // Построение нижней оболочки
   OutType lower;
   lower.reserve(pts.size());
   for (const auto &p : pts) {
@@ -87,7 +82,6 @@ bool YurkinGGrahamScanTBB::RunImpl() {
     lower.push_back(p);
   }
 
-  // Построение верхней оболочки (обратный проход)
   OutType upper;
   upper.reserve(pts.size());
   for (const auto &p : std::ranges::reverse_view(pts)) {
@@ -97,7 +91,6 @@ bool YurkinGGrahamScanTBB::RunImpl() {
     upper.push_back(p);
   }
 
-  // Объединение (без дублирования крайних точек)
   OutType hull;
   hull.reserve(lower.size() + upper.size());
   for (const auto &pt : lower) {
