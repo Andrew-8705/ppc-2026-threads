@@ -134,7 +134,7 @@ bool KazennovaATestTaskSTL::RunImpl() {
     }
   };
 
-  for (int t = 0; t < num_threads; ++t) {
+  for (int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
     threads.emplace_back(worker);
   }
   for (auto &thr : threads) {
