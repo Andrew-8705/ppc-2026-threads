@@ -160,7 +160,6 @@ bool BarkalovaMMultMatrixCcsSTL::RunImpl() {
 
     std::vector<std::vector<int>> col_rows(total_cols);
     std::vector<std::vector<Complex>> col_vals(total_cols);
-
     std::vector<std::future<void>> futures;
     futures.reserve(num_threads);
 
