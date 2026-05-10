@@ -77,7 +77,7 @@ TEST_P(LazarevaARunFuncTestsThreads, StrassenMatmul) {
   ExecuteTest(GetParam());
 }
 
-const std::array<TestType, 8> kTestParam = {{
+const std::array<TestType, 8> kTestParamBase = {{
     std::make_tuple(2, "2"),
     std::make_tuple(3, "3"),
     std::make_tuple(5, "5"),
@@ -88,12 +88,25 @@ const std::array<TestType, 8> kTestParam = {{
     std::make_tuple(128, "128"),
 }};
 
+const std::array<TestType, 9> kTestParamExtended = {{
+    std::make_tuple(2, "2"),
+    std::make_tuple(3, "3"),
+    std::make_tuple(5, "5"),
+    std::make_tuple(7, "7"),
+    std::make_tuple(16, "16"),
+    std::make_tuple(64, "64"),
+    std::make_tuple(65, "65"),
+    std::make_tuple(128, "128"),
+    std::make_tuple(256, "256"),
+}};
+
 const auto kTestTasksList = std::tuple_cat(
-    ppc::util::AddFuncTask<LazarevaATestTaskALL, InType>(kTestParam, PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
-    ppc::util::AddFuncTask<LazarevaATestTaskOMP, InType>(kTestParam, PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
-    ppc::util::AddFuncTask<LazarevaATestTaskSEQ, InType>(kTestParam, PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
-    ppc::util::AddFuncTask<LazarevaATestTaskSTL, InType>(kTestParam, PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
-    ppc::util::AddFuncTask<LazarevaATestTaskTBB, InType>(kTestParam, PPC_SETTINGS_lazareva_a_matrix_mult_strassen));
+    ppc::util::AddFuncTask<LazarevaATestTaskALL, InType>(kTestParamExtended,
+                                                         PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
+    ppc::util::AddFuncTask<LazarevaATestTaskOMP, InType>(kTestParamBase, PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
+    ppc::util::AddFuncTask<LazarevaATestTaskSEQ, InType>(kTestParamBase, PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
+    ppc::util::AddFuncTask<LazarevaATestTaskSTL, InType>(kTestParamBase, PPC_SETTINGS_lazareva_a_matrix_mult_strassen),
+    ppc::util::AddFuncTask<LazarevaATestTaskTBB, InType>(kTestParamBase, PPC_SETTINGS_lazareva_a_matrix_mult_strassen));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 const auto kFuncTestName = LazarevaARunFuncTestsThreads::PrintFuncTestName<LazarevaARunFuncTestsThreads>;

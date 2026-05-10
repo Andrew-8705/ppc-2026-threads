@@ -174,7 +174,7 @@ std::vector<double> LazarevaATestTaskALL::NaiveMult(const std::vector<double> &a
 
 std::vector<double> LazarevaATestTaskALL::StrassenTBB(const std::vector<double> &a, const std::vector<double> &b,
                                                       int n) {
-  if (n <= 128) {
+  if (n <= 64) {
     return NaiveMult(a, b, n);
   }
 
@@ -310,7 +310,7 @@ std::vector<double> LazarevaATestTaskALL::StrassenALL(const std::vector<double> 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  if (n <= 128 || size == 1) {
+  if (n <= 64 || size == 1) {
     if (rank == 0) {
       return StrassenTBB(a, b, n);
     }
