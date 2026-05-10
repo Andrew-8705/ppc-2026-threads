@@ -1,4 +1,3 @@
-
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -49,8 +48,7 @@ TEST_P(ZhurinIGausKernelPerfTests, RunPerfModes) {
 
 namespace {
 
-const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, ZhurinIGausKernelSEQ>(PPC_SETTINGS_zhurin_i_gaus_kernel);
+const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, ZhurinIGausKernelSEQ>(PPC_SETTINGS_zhurin_i_gaus_kernel);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 

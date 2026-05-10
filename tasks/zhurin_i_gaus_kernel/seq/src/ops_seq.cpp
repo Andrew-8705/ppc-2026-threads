@@ -1,4 +1,3 @@
-
 #include "zhurin_i_gaus_kernel/seq/include/ops_seq.hpp"
 
 #include <algorithm>

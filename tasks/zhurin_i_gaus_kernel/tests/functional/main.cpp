@@ -1,4 +1,3 @@
-
 #include <gtest/gtest.h>
 
 #include <array>
@@ -154,4 +153,3 @@ TEST(ZhurinIGausKernelNegativeTest, ImageColsMismatch) {
 }  // namespace
 
 }  // namespace zhurin_i_gaus_kernel
-
