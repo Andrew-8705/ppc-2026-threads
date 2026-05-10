@@ -79,7 +79,7 @@ bool IlinAGrahamSTL::RunImpl() {
     }
   }
 
-  std::sort(sorted.begin(), sorted.end(), PointComparator(p0));
+  std::ranges::sort(sorted, PointComparator(p0));
 
   std::vector<Point> stack;
   stack.reserve(sorted.size() + 1);
