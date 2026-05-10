@@ -32,6 +32,24 @@ inline double CrossProduct(double o_x, double o_y, double a_x, double a_y, doubl
   return ((a_x - o_x) * (b_y - o_y)) - ((a_y - o_y) * (b_x - o_x));
 }
 
+BestCandidate FindLeftmostInRange(const InType &points, size_t start, size_t end) {
+  size_t best_idx = start;
+  double best_x = std::get<0>(points[start]);
+  double best_y = std::get<1>(points[start]);
+
+  for (size_t i = start + 1; i < end; ++i) {
+    double px = std::get<0>(points[i]);
+    double py = std::get<1>(points[i]);
+    if ((px < best_x) || (px == best_x && py < best_y)) {
+      best_x = px;
+      best_y = py;
+      best_idx = i;
+    }
+  }
+
+  return {best_idx, best_x, best_y};
+}
+
 BestCandidate FindBestCandidateInRange(const InType &points, size_t start, size_t end, size_t current_idx,
                                        double current_x, double current_y, double epsilon) {
   BestCandidate best{.index = current_idx, .x = current_x, .y = current_y};
@@ -103,14 +121,45 @@ double KutuzovITestConvexHullSTL::CrossProduct(double o_x, double o_y, double a_
 }
 
 size_t KutuzovITestConvexHullSTL::FindLeftmostPoint(const InType &input) {
-  auto it = std::ranges::min_element(input, [](const auto &a, const auto &b) {
-    double ax = std::get<0>(a);
-    double ay = std::get<1>(a);
-    double bx = std::get<0>(b);
-    double by = std::get<1>(b);
-    return (ax < bx) || (ax == bx && ay < by);
-  });
-  return static_cast<size_t>(std::ranges::distance(input.begin(), it));
+  const size_t n = input.size();
+  const unsigned num_threads = GetNumThreads();
+
+  std::vector<BestCandidate> locals(num_threads);
+
+  std::vector<std::thread> threads;
+  threads.reserve(num_threads);
+
+  for (unsigned tid = 0; tid < num_threads; ++tid) {
+    size_t start = (tid * n) / num_threads;
+    size_t end = ((tid + 1) * n) / num_threads;
+    if (start >= end) {
+      locals[tid] = {0, std::numeric_limits<double>::max(), 0.0};
+      continue;
+    }
+
+    threads.emplace_back([&, tid, start, end]() { locals[tid] = FindLeftmostInRange(input, start, end); });
+  }
+
+  for (auto &t : threads) {
+    t.join();
+  }
+
+  size_t global_idx = 0;
+  double global_x = std::numeric_limits<double>::max();
+  double global_y = 0.0;
+
+  for (unsigned i = 0; i < num_threads; ++i) {
+    if (locals[i].x > global_x) {
+      continue;
+    }
+    if (locals[i].x < global_x || (locals[i].x == global_x && locals[i].y < global_y)) {
+      global_idx = locals[i].index;
+      global_x = locals[i].x;
+      global_y = locals[i].y;
+    }
+  }
+
+  return global_idx;
 }
 
 bool KutuzovITestConvexHullSTL::IsBetterPoint(double cross, double epsilon, double current_x, double current_y,
@@ -127,7 +176,6 @@ bool KutuzovITestConvexHullSTL::IsBetterPoint(double cross, double epsilon, doub
 bool KutuzovITestConvexHullSTL::ValidationImpl() {
   return true;
 }
-
 bool KutuzovITestConvexHullSTL::PreProcessingImpl() {
   return true;
 }
