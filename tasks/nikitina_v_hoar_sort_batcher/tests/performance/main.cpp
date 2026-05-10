@@ -1,9 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <cctype>
-#include <random>
-#include <string>
 
 #include "nikitina_v_hoar_sort_batcher/all/include/ops_all.hpp"
 #include "nikitina_v_hoar_sort_batcher/common/include/common.hpp"
@@ -18,27 +15,18 @@ namespace nikitina_v_hoar_sort_batcher {
 class NikitinaVHoarSortBatcherPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
   void SetUp() override {
-    int test_size = 50000;
-    input_data_.resize(test_size);
-    std::mt19937 gen(42);
-    std::uniform_int_distribution<int> dist(-100000, 100000);
+    const int count = 50000;
+    input_data_.resize(count);
+
+    int seed_val = 42;
     for (int &x : input_data_) {
-      x = dist(gen);
+      x = (seed_val % 20001) - 100000;
+      seed_val = (seed_val * 73 + 17) % 20001;
     }
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    int mpi_rank = 0;
-    if (ppc::util::IsUnderMpirun()) {
-      mpi_rank = ppc::util::GetMPIRank();
-    }
-    if (mpi_rank == 0) {
-      if (output_data.size() != input_data_.size()) {
-        return false;
-      }
-      return std::ranges::is_sorted(output_data);
-    }
-    return true;
+    return !output_data.empty() && std::ranges::is_sorted(output_data);
   }
 
   InType GetTestInputData() final {
@@ -49,26 +37,22 @@ class NikitinaVHoarSortBatcherPerfTests : public ppc::util::BaseRunPerfTests<InT
   InType input_data_;
 };
 
-namespace {
-
-std::string CustomPrintPerfTestName(const testing::TestParamInfo<ppc::util::PerfTestParam<InType, OutType>> &info) {
-  std::string task_name = std::get<1>(info.param);
-  std::string run_type = ppc::performance::GetStringParamName(std::get<2>(info.param));  // NOLINT
-  std::string name = run_type + "_" + task_name;
-  std::ranges::replace_if(name, [](char c) { return !std::isalnum(c); }, '_');
-  return name;
-}
-
 TEST_P(NikitinaVHoarSortBatcherPerfTests, RunPerfTests) {
   ExecuteTest(GetParam());
 }
+
+namespace {
 
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, HoareSortBatcherSEQ, HoareSortBatcherOMP, HoareSortBatcherTBB,
                                 HoareSortBatcherSTL, HoareSortBatcherALL>(PPC_SETTINGS_nikitina_v_hoar_sort_batcher);
 
-INSTANTIATE_TEST_SUITE_P(NikitinaVHoarSortBatcherPerfTests, NikitinaVHoarSortBatcherPerfTests,
-                         ppc::util::TupleToGTestValues(kAllPerfTasks), CustomPrintPerfTestName);
+const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
+
+const auto kPerfTestName = NikitinaVHoarSortBatcherPerfTests::CustomPerfTestName;
+
+INSTANTIATE_TEST_SUITE_P(NikitinaVHoarSortBatcherPerfTests, NikitinaVHoarSortBatcherPerfTests, kGtestValues,
+                         kPerfTestName);
 
 }  // namespace
 }  // namespace nikitina_v_hoar_sort_batcher

@@ -15,7 +15,7 @@ namespace nikitina_v_hoar_sort_batcher {
 
 namespace {
 
-void LocalHoareSort(std::vector<int> &arr, int low, int high) {
+void QuickSortHoare(std::vector<int> &arr, int low, int high) {
   if (low >= high) {
     return;
   }
@@ -56,7 +56,7 @@ void ThreadedSort(std::vector<int> &arr, int num_threads) {
   }
   int active_threads = std::min(num_threads, size / 2);
   if (active_threads <= 1) {
-    LocalHoareSort(arr, 0, size - 1);
+    QuickSortHoare(arr, 0, size - 1);
     return;
   }
   std::vector<std::thread> threads;
@@ -64,13 +64,13 @@ void ThreadedSort(std::vector<int> &arr, int num_threads) {
   for (int iter = 0; iter < active_threads; ++iter) {
     int start = iter * chunk_size;
     int end = (iter == active_threads - 1) ? size - 1 : (start + chunk_size - 1);
-    threads.emplace_back([&arr, start, end]() { LocalHoareSort(arr, start, end); });
+    threads.emplace_back([&arr, start, end]() { QuickSortHoare(arr, start, end); });
   }
   for (auto &thr : threads) {
     thr.join();
   }
 
-  LocalHoareSort(arr, 0, size - 1);
+  QuickSortHoare(arr, 0, size - 1);
 }
 
 void MpiCompareSwap(std::vector<int> &local_arr, int neighbor, bool keep_low) {
@@ -79,9 +79,6 @@ void MpiCompareSwap(std::vector<int> &local_arr, int neighbor, bool keep_low) {
   MPI_Sendrecv(local_arr.data(), size, MPI_INT, neighbor, 0, neighbor_arr.data(), size, MPI_INT, neighbor, 0,
                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   std::vector<int> full_merge(static_cast<size_t>(size) * 2);
-
-  // Слияние блоков MPI. std::merge здесь обычно разрешен, так как это не сортировка,
-  // а базовая операция для сети Бэтчера.
   std::ranges::merge(local_arr, neighbor_arr, full_merge.begin());
 
   if (keep_low) {
