@@ -77,7 +77,6 @@ bool AlekseevAMultMatrixCRSSTL::RunImpl() {
 
   std::vector<std::thread> threads;
   threads.reserve(num_threads);
-
   std::size_t chunk_size = (c.rows + num_threads - 1) / num_threads;
 
   for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) {
